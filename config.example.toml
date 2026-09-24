@@ -1,0 +1,52 @@
+# Copy to ./config.toml or ~/.niche_research/config.toml (or point $NICHE_CONFIG at it).
+# Any key you omit keeps its default. The API key is NOT read from here: use $YOUTUBE_API_KEY.
+
+[paths]
+db_path = "~/.niche_research/cache.db"
+reports_dir = "reports"
+
+[cache]
+video_ttl_hours = 24
+channel_ttl_hours = 168      # 7 days
+search_ttl_hours = 24
+retention_days = 30          # YouTube API policy: max 30. Older rows are purged on startup.
+
+[quota]
+daily_limit = 10000
+
+[search]
+region_code = "US"           # regionCode
+relevance_language = "en"    # relevanceLanguage
+max_results = 50             # per videoDuration bucket (short / medium / long)
+published_within_days = 30
+
+[shorts]
+max_seconds = 180            # a Short is <= this AND has a vertical embed (height > width)
+player_max_height = 720
+
+[thresholds]
+small_channel_max_subs = 50000
+large_channel_min_subs = 100000
+new_channel_max_age_days = 365
+outlier_sub_floor = 100
+min_sample_videos = 30
+min_small_channel_hits = 5
+
+# Shorts views count every play/replay, so bands are separate per format.
+[bands.shorts]
+hit_views = 10000
+velocity_views_per_day_low = 500       # -> velocity score 0
+velocity_views_per_day_high = 100000   # -> velocity score 100 (log scale in between)
+
+[bands.long]
+hit_views = 10000
+velocity_views_per_day_low = 100
+velocity_views_per_day_high = 20000
+
+[weights]
+opportunity = 0.25
+new_channel_proof = 0.20
+velocity = 0.15
+consistency = 0.15
+competition = 0.10
+monetization = 0.15

@@ -1,0 +1,49 @@
+{
+  "videos": [
+    {
+      "id": "vShortVert01",
+      "snippet": {"publishedAt": "2026-09-20T12:00:00Z", "channelId": "UCsmall00001", "title": "I survived 100 days in a lighthouse #shorts", "channelTitle": "Tiny Lore", "tags": ["lighthouse", "survival"], "categoryId": "24", "liveBroadcastContent": "none"},
+      "contentDetails": {"duration": "PT58S"},
+      "statistics": {"viewCount": "154000", "likeCount": "9100", "commentCount": "320"},
+      "player": {"embedWidth": "405", "embedHeight": "720"}
+    },
+    {
+      "id": "vShortHoriz1",
+      "snippet": {"publishedAt": "2026-09-18T08:30:00Z", "channelId": "UCsmall00002", "title": "Quick horizontal clip", "channelTitle": "Clip Guy", "categoryId": "22", "liveBroadcastContent": "none"},
+      "contentDetails": {"duration": "PT2M30S"},
+      "statistics": {"viewCount": "12000", "commentCount": "40"},
+      "player": {"embedWidth": "1280", "embedHeight": "720"}
+    },
+    {
+      "id": "vLongLore001",
+      "snippet": {"publishedAt": "2026-09-10T15:00:00Z", "channelId": "UCsmall00001", "title": "The Complete History of the Lost Lighthouse Keepers", "channelTitle": "Tiny Lore", "tags": ["history", "documentary"], "categoryId": "27", "liveBroadcastContent": "none"},
+      "contentDetails": {"duration": "PT42M10S"},
+      "statistics": {"viewCount": "88000", "likeCount": "4100"},
+      "player": {"embedWidth": "1280", "embedHeight": "720"}
+    },
+    {
+      "id": "vLiveNow0001",
+      "snippet": {"publishedAt": "2026-09-23T20:00:00Z", "channelId": "UCbig0000001", "title": "LIVE lore stream", "channelTitle": "Big Lore", "categoryId": "20", "liveBroadcastContent": "live"},
+      "contentDetails": {"duration": "P0D"},
+      "statistics": {"viewCount": "5000"},
+      "player": {"embedWidth": "1280", "embedHeight": "720"}
+    }
+  ],
+  "channels": [
+    {
+      "id": "UCsmall00001",
+      "snippet": {"title": "Tiny Lore", "publishedAt": "2026-03-01T00:00:00Z", "country": "US"},
+      "statistics": {"viewCount": "900000", "subscriberCount": "4200", "hiddenSubscriberCount": false, "videoCount": "30"}
+    },
+    {
+      "id": "UCsmall00002",
+      "snippet": {"title": "Clip Guy", "publishedAt": "2019-05-05T00:00:00Z"},
+      "statistics": {"viewCount": "120000", "hiddenSubscriberCount": true, "videoCount": "0"}
+    },
+    {
+      "id": "UCbig0000001",
+      "snippet": {"title": "Big Lore", "publishedAt": "2015-01-01T00:00:00Z", "country": "GB"},
+      "statistics": {"viewCount": "450000000", "subscriberCount": "2100000", "hiddenSubscriberCount": false, "videoCount": "800"}
+    }
+  ]
+}
