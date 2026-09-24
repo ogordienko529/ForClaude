@@ -40,6 +40,8 @@ DEFAULTS: dict[str, Any] = {
         "relevance_language": "en",
         "max_results": 50,
         "published_within_days": 30,
+        # relevanceLanguage is only a hint; also drop videos whose declared audio language differs.
+        "filter_by_audio_language": True,
     },
     "shorts": {
         # A Short must be <= this long AND have a vertical embed (height > width).

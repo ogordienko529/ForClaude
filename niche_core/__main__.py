@@ -12,6 +12,7 @@ import sys
 from typing import Any
 
 from .config import ConfigError, load_config
+from .enrich import OUTLIER_METRICS
 from .service import FORMATS, NicheService, QuotaBudgetError
 from .youtube_client import MissingAPIKeyError, YouTubeAPIError
 
@@ -41,6 +42,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--order", default="viewCount", choices=["viewCount", "date", "relevance", "rating"])
     _add_budget_args(p)
 
+    p = sub.add_parser("outliers", help="find_outliers: small-channel videos far above their channel's size")
+    _add_search_args(p)
+    p.add_argument("--min-score", type=float, default=10, help="minimum outlier score (default 10)")
+    p.add_argument("--max-subs", type=int, default=None, help="max channel subscribers (default 50000)")
+    p.add_argument("--metric", choices=OUTLIER_METRICS, default="subs",
+                   help="which score must pass --min-score (default subs = views/subscribers)")
+    p.add_argument("--days", type=int, default=None)
+    p.add_argument("--max-results", type=int, default=None, help="per duration bucket (default 50)")
+    p.add_argument("--limit", type=int, default=50, help="max outliers returned")
+    p.add_argument("--table", action="store_true", help="print a readable table instead of JSON")
+    _add_budget_args(p)
+
     p = sub.add_parser("channels", help="get_channel_stats for channel IDs")
     p.add_argument("channel_ids", nargs="+")
     _add_budget_args(p)
@@ -66,6 +79,34 @@ def _run_paid(fn, kwargs: dict[str, Any], args: argparse.Namespace) -> dict[str,
     return fn(**kwargs, max_units=args.max_units)
 
 
+def _fmt_num(x) -> str:
+    if x is None:
+        return "?"
+    x = float(x)
+    for unit, div in (("M", 1e6), ("k", 1e3)):
+        if abs(x) >= div:
+            return f"{x / div:.1f}{unit}"
+    return f"{x:.0f}"
+
+
+def outliers_table(out: dict[str, Any]) -> str:
+    lines = [
+        f"find_outliers '{out['query']}' [{out['format']}]  scanned={out['scanned']}  outliers={out['count']}",
+        f"rejected={out['rejected']}  excluded={out['excluded']}",
+        f"summary={out['summary']}",
+        "",
+        f"{'views':>7} {'subs':>6} {'x subs':>7} {'x chan':>6} {'age':>5} {'new':>3}  {'channel':<22} title",
+    ]
+    for o in out["outliers"]:
+        lines.append(
+            f"{_fmt_num(o['views']):>7} {_fmt_num(o['channel_subs']):>6} "
+            f"{_fmt_num(o['sub_outlier_score']):>7} {_fmt_num(o['channel_relative_score']):>6} "
+            f"{o['age_days'] or 0:>4.0f}d {'Y' if o['is_new_channel'] else '':>3}  "
+            f"{o['channel_title'][:22]:<22} {o['title'][:70]}"
+        )
+    return "\n".join(lines)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
@@ -84,6 +125,23 @@ def main(argv: list[str] | None = None) -> int:
                 ),
                 args,
             )
+        elif args.command == "outliers":
+            out = _run_paid(
+                svc.find_outliers,
+                dict(
+                    query=args.query,
+                    format=args.format,
+                    min_outlier_score=args.min_score,
+                    max_channel_subs=args.max_subs,
+                    metric=args.metric,
+                    published_within_days=args.days,
+                    max_results=args.max_results,
+                    region_code=args.region_code,
+                    relevance_language=args.relevance_language,
+                    limit=args.limit,
+                ),
+                args,
+            )
         elif args.command == "channels":
             out = _run_paid(svc.get_channel_stats, dict(channel_ids=args.channel_ids), args)
         elif args.command == "quota":
@@ -98,7 +156,10 @@ def main(argv: list[str] | None = None) -> int:
     except YouTubeAPIError as exc:
         print(f"YouTube API error: {exc}", file=sys.stderr)
         return 1
-    print(json.dumps(out, indent=2, ensure_ascii=False))
+    if getattr(args, "table", False) and "outliers" in out:
+        print(outliers_table(out))
+    else:
+        print(json.dumps(out, indent=2, ensure_ascii=False))
     if out.get("quota"):
         q = out["quota"]
         print(

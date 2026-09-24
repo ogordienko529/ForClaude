@@ -14,6 +14,7 @@ from typing import Any
 from .cache import Store, search_cache_key
 from .config import Config, get_api_key, load_config
 from .durations import LIVE, LONG, SHORT, SHORT_LONGFORM, SHORT_UNVERIFIED
+from .enrich import METRIC_SUBS, OUTLIER_METRICS, EnrichedVideo, enrich, select_outliers
 from .models import Channel, QuotaReceipt, Video, to_iso, utcnow
 from .quota import COSTS, QuotaTracker, estimate_list_calls, search_pages
 from .youtube_client import QuotaExceededError, YouTubeAPIError, YouTubeClient
@@ -254,7 +255,11 @@ class NicheService:
         ids = self.run_searches(specs, errors)
         videos = self.fetch_videos(ids, errors)
         allowed = FORMAT_CLASSES[validate_format(fmt)]
-        excluded = {c: 0 for c in (SHORT_LONGFORM, SHORT_UNVERIFIED, LIVE, "other_format", "no_views")}
+        lang = specs[0].relevance_language if specs else ""
+        filter_lang = bool(lang) and self.config.search.get("filter_by_audio_language", True)
+        excluded = {
+            c: 0 for c in (SHORT_LONGFORM, SHORT_UNVERIFIED, LIVE, "other_format", "no_views", "other_language")
+        }
         kept: list[Video] = []
         for vid in ids:
             v = videos.get(vid)
@@ -266,6 +271,9 @@ class NicheService:
                 continue
             if v.view_count is None:
                 excluded["no_views"] += 1
+                continue
+            if filter_lang and not language_matches(v.default_audio_language, lang):
+                excluded["other_language"] += 1
                 continue
             kept.append(v)
         channels = self.fetch_channels([v.channel_id for v in kept], errors) if with_channels else {}
@@ -325,6 +333,101 @@ class NicheService:
                 "videos": [_video_summary(v, now) for v in videos],
                 "excluded": excluded,
                 "data_quality": _video_quality(videos),
+                "errors": errors,
+                "quota": self.receipt(est["total"], start).to_dict(),
+            }
+        )
+        return result
+
+    def enrich(self, videos: list[Video], channels: dict[str, Channel]) -> list[EnrichedVideo]:
+        t = self.config.thresholds
+        return enrich(
+            videos,
+            channels,
+            now=self.clock(),
+            hit_views={f: int(self.config.bands(f)["hit_views"]) for f in ("shorts", "long")},
+            sub_floor=int(t["outlier_sub_floor"]),
+            new_channel_max_age_days=int(t["new_channel_max_age_days"]),
+        )
+
+    def find_outliers(
+        self,
+        query: str,
+        format: str = "both",
+        min_outlier_score: float = 10,
+        max_channel_subs: int | None = None,
+        metric: str = METRIC_SUBS,
+        published_within_days: int | None = None,
+        max_results: int | None = None,
+        region_code: str | None = None,
+        relevance_language: str | None = None,
+        limit: int = 50,
+        dry_run: bool = False,
+        max_units: int | None = None,
+    ) -> dict[str, Any]:
+        fmt = validate_format(format)
+        if metric not in OUTLIER_METRICS:
+            raise ValueError(f"metric must be one of {OUTLIER_METRICS}")
+        max_subs = max_channel_subs if max_channel_subs is not None else self.config.thresholds["small_channel_max_subs"]
+        days = published_within_days or self.config.search["published_within_days"]
+        n = max_results or self.config.search["max_results"]
+        specs = self.make_specs(query, fmt, days, n, "viewCount", region_code, relevance_language)
+        est = self.estimate_collect(specs, with_channels=True)
+        result: dict[str, Any] = {
+            "tool": "find_outliers",
+            "query": query,
+            "format": fmt,
+            "params": {
+                "min_outlier_score": min_outlier_score,
+                "max_channel_subs": max_subs,
+                "metric": metric,
+                "published_within_days": days,
+                "duration_buckets": list(FORMAT_DURATIONS[fmt]),
+                "region_code": specs[0].region_code,
+                "relevance_language": specs[0].relevance_language,
+            },
+            "quota_estimate": est,
+        }
+        if dry_run:
+            result["quota"] = self.receipt(est["total"], self.quota.session_units, "dry run: nothing spent").to_dict()
+            return result
+        self._check_budget(est["total"], max_units)
+
+        start = self.quota.session_units
+        errors: list[str] = []
+        videos: list[Video] = []
+        channels: dict[str, Channel] = {}
+        excluded: dict[str, int] = {}
+        try:
+            videos, channels, excluded = self.collect(specs, fmt, with_channels=True, errors=errors)
+        except QuotaExceededError as exc:
+            errors.append(str(exc))
+            result["partial"] = True
+        enriched = self.enrich(videos, channels)
+        outliers, rejected = select_outliers(
+            enriched, min_outlier_score=min_outlier_score, max_channel_subs=max_subs, metric=metric
+        )
+        result.update(
+            {
+                "scanned": len(enriched),
+                "count": len(outliers),
+                "outliers": [e.to_dict() for e in outliers[:limit]],
+                "rejected": rejected,
+                "excluded": excluded,
+                "summary": {
+                    "distinct_channels": len({e.video.channel_id for e in outliers}),
+                    "new_channels": len({e.video.channel_id for e in outliers if e.is_new_channel}),
+                    "hits_within_14d": sum(1 for e in outliers if e.hit_within_14d),
+                },
+                "data_quality": {
+                    **_video_quality(videos),
+                    "channels_subs_hidden": sum(1 for c in channels.values() if c.subs_hidden),
+                },
+                "notes": [
+                    "sub_outlier_score = views / max(subs, outlier_sub_floor)",
+                    "channel_relative_score = views / (channel views / channel video count)",
+                    "Shorts are ranked by channel_relative_score, long-form by sub_outlier_score.",
+                ],
                 "errors": errors,
                 "quota": self.receipt(est["total"], start).to_dict(),
             }
@@ -401,3 +504,10 @@ def _video_quality(videos: list[Video]) -> dict[str, int]:
         "likes_hidden": sum(1 for v in videos if v.like_count is None),
         "comments_disabled": sum(1 for v in videos if v.comment_count is None),
     }
+
+
+def language_matches(audio_language: str | None, wanted: str) -> bool:
+    """Unknown audio language passes; 'en-US' matches 'en'."""
+    if not audio_language or not wanted:
+        return True
+    return audio_language.lower().split("-")[0] == wanted.lower().split("-")[0]

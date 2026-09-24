@@ -19,6 +19,7 @@ region_code = "US"           # regionCode
 relevance_language = "en"    # relevanceLanguage
 max_results = 50             # per videoDuration bucket (short / medium / long)
 published_within_days = 30
+filter_by_audio_language = true   # relevanceLanguage is only a hint; drop videos with a different declared audio language
 
 [shorts]
 max_seconds = 180            # a Short is <= this AND has a vertical embed (height > width)
