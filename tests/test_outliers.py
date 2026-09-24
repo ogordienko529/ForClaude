@@ -113,3 +113,16 @@ def test_find_outliers_language_filter(service, fake):
     fake.videos["vShortVert01"]["snippet"]["defaultAudioLanguage"] = "ru"
     out = service.find_outliers("lighthouse lore", format="shorts", min_outlier_score=5)
     assert out["count"] == 0 and out["excluded"]["other_language"] == 1
+
+
+def test_analyze_niche_end_to_end(service, fake, tmp_path):
+    out = service.analyze_niche("lighthouse lore", format="both", export=True)
+    assert set(out["formats"]) == {"shorts", "long"}
+    assert out["best_format"] in out["formats"]
+    assert out["low_confidence"] is True  # fixture has only a handful of videos
+    searches = [c[1] for c in fake.calls if c[0] == "search"]
+    assert {s["order"] for s in searches} == {"viewCount", "date"}
+    assert all("publishedBefore" in s for s in searches if s["order"] == "date")
+    assert "Niche report" in out["summary_markdown"]
+    assert out["exported_to"].endswith(".md")
+    assert 0 < out["quota"]["actual"] <= out["quota"]["estimated"]

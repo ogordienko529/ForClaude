@@ -71,6 +71,7 @@ class YouTubeClient:
         max_results: int = 50,
         video_duration: str = "any",
         published_after: str | None = None,
+        published_before: str | None = None,
         order: str = "viewCount",
         region_code: str | None = None,
         relevance_language: str | None = None,
@@ -90,6 +91,8 @@ class YouTubeClient:
             }
             if published_after:
                 params["publishedAfter"] = published_after
+            if published_before:
+                params["publishedBefore"] = published_before
             if region_code:
                 params["regionCode"] = region_code
             if relevance_language:

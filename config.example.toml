@@ -32,17 +32,28 @@ new_channel_max_age_days = 365
 outlier_sub_floor = 100
 min_sample_videos = 30
 min_small_channel_hits = 5
+sample_min_age_days = 7            # base-rate sample = newest uploads at least this old
+new_channel_target = 5             # new channels with hits needed for new_channel_proof = 100
+consistency_channel_target = 8     # distinct small channels with hits for full spread credit
+promo_avg_views_per_sub = 100      # long-form: channel avg views/subs above this = likely paid ads, excluded
 
 # Shorts views count every play/replay, so bands are separate per format.
 [bands.shorts]
 hit_views = 10000
-velocity_views_per_day_low = 500       # -> velocity score 0
-velocity_views_per_day_high = 100000   # -> velocity score 100 (log scale in between)
+# Velocity = median views/day of typical uploads (date-ordered sample), not of the top videos.
+velocity_views_per_day_low = 50        # -> velocity score 0
+velocity_views_per_day_high = 50000    # -> velocity score 100 (log scale in between)
+hit_share_high = 0.30                  # share of small-channel uploads hitting hit_views that scores 100
+outlier_median_low = 0.5               # median channel-relative score -> 0
+outlier_median_high = 5                # -> 100
 
 [bands.long]
 hit_views = 10000
-velocity_views_per_day_low = 100
+velocity_views_per_day_low = 20
 velocity_views_per_day_high = 20000
+hit_share_high = 0.30
+outlier_median_low = 0.5               # median views/subscribers -> 0
+outlier_median_high = 10               # -> 100
 
 [weights]
 opportunity = 0.25
@@ -51,3 +62,12 @@ velocity = 0.15
 consistency = 0.15
 competition = 0.10
 monetization = 0.15
+
+# Monetization is an ESTIMATE (heuristic lookup), not API data. Override any part, e.g.:
+# [monetization]
+# high_keywords = ["finance", "invest", "insurance"]
+# [monetization.category_tiers]
+# "27" = "high"          # treat Education as high
+# [monetization.long.high]
+# score = 90
+# rpm_range_usd = "$8-20+"

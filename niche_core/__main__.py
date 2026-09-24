@@ -54,6 +54,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--table", action="store_true", help="print a readable table instead of JSON")
     _add_budget_args(p)
 
+    p = sub.add_parser("analyze", help="analyze_niche: scored niche report")
+    _add_search_args(p)
+    p.add_argument("--days", type=int, default=None)
+    p.add_argument("--max-results", type=int, default=None, help="per search (default 50)")
+    p.add_argument("--export", action="store_true", help="also write the markdown report to reports/")
+    p.add_argument("--json", action="store_true", help="print full JSON instead of the markdown summary")
+    _add_budget_args(p)
+
     p = sub.add_parser("channels", help="get_channel_stats for channel IDs")
     p.add_argument("channel_ids", nargs="+")
     _add_budget_args(p)
@@ -142,6 +150,20 @@ def main(argv: list[str] | None = None) -> int:
                 ),
                 args,
             )
+        elif args.command == "analyze":
+            out = _run_paid(
+                svc.analyze_niche,
+                dict(
+                    query=args.query,
+                    format=args.format,
+                    published_within_days=args.days,
+                    max_results=args.max_results,
+                    region_code=args.region_code,
+                    relevance_language=args.relevance_language,
+                    export=args.export,
+                ),
+                args,
+            )
         elif args.command == "channels":
             out = _run_paid(svc.get_channel_stats, dict(channel_ids=args.channel_ids), args)
         elif args.command == "quota":
@@ -156,7 +178,11 @@ def main(argv: list[str] | None = None) -> int:
     except YouTubeAPIError as exc:
         print(f"YouTube API error: {exc}", file=sys.stderr)
         return 1
-    if getattr(args, "table", False) and "outliers" in out:
+    if args.command == "analyze" and not args.json and "summary_markdown" in out:
+        print(out["summary_markdown"])
+        if out.get("exported_to"):
+            print(f"\nExported to {out['exported_to']}", file=sys.stderr)
+    elif getattr(args, "table", False) and "outliers" in out:
         print(outliers_table(out))
     else:
         print(json.dumps(out, indent=2, ensure_ascii=False))

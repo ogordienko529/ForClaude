@@ -14,6 +14,9 @@ from typing import Any
 from .cache import Store, search_cache_key
 from .config import Config, get_api_key, load_config
 from .durations import LIVE, LONG, SHORT, SHORT_LONGFORM, SHORT_UNVERIFIED
+from .report import build_insights, export_markdown, render_analysis_markdown
+from .rpm import estimate_monetization
+from .scoring import ScoringParams, score_niche
 from .enrich import METRIC_SUBS, OUTLIER_METRICS, EnrichedVideo, enrich, select_outliers
 from .models import Channel, QuotaReceipt, Video, to_iso, utcnow
 from .quota import COSTS, QuotaTracker, estimate_list_calls, search_pages
@@ -47,9 +50,10 @@ class SearchSpec:
     order: str
     region_code: str
     relevance_language: str
+    published_before_days: int = 0  # >0: only videos at least this old (unbiased base-rate sample)
 
     def cache_params(self) -> dict[str, Any]:
-        return {
+        params = {
             "videoDuration": self.video_duration,
             "published_within_days": self.published_within_days,
             "maxResults": self.max_results,
@@ -57,6 +61,9 @@ class SearchSpec:
             "regionCode": self.region_code,
             "relevanceLanguage": self.relevance_language,
         }
+        if self.published_before_days:
+            params["published_before_days"] = self.published_before_days
+        return params
 
     @property
     def key(self) -> str:
@@ -107,6 +114,7 @@ class NicheService:
         order: str = "viewCount",
         region_code: str | None = None,
         relevance_language: str | None = None,
+        published_before_days: int = 0,
     ) -> list[SearchSpec]:
         fmt = validate_format(fmt)
         region = region_code if region_code is not None else self.config.search["region_code"]
@@ -120,6 +128,7 @@ class NicheService:
                 order=order,
                 region_code=(region or "").upper(),
                 relevance_language=(lang or "").lower(),
+                published_before_days=int(published_before_days),
             )
             for d in FORMAT_DURATIONS[fmt]
         ]
@@ -185,13 +194,17 @@ class NicheService:
         for spec in specs:
             ids = self.store.get_search(spec.key, self.config.search_ttl_hours)
             if ids is None:
-                published_after = to_iso(now - timedelta(days=spec.published_within_days)).replace("+00:00", "Z")
+                published_after = _rfc3339(now - timedelta(days=spec.published_within_days))
+                published_before = (
+                    _rfc3339(now - timedelta(days=spec.published_before_days)) if spec.published_before_days else None
+                )
                 try:
                     ids = self.client.search_video_ids(
                         spec.query,
                         max_results=spec.max_results,
                         video_duration=spec.video_duration,
                         published_after=published_after,
+                        published_before=published_before,
                         order=spec.order,
                         region_code=spec.region_code or None,
                         relevance_language=spec.relevance_language or None,
@@ -252,16 +265,25 @@ class NicheService:
         self, specs: list[SearchSpec], fmt: str, with_channels: bool, errors: list[str]
     ) -> tuple[list[Video], dict[str, Channel], dict[str, int]]:
         """Search -> videos (-> channels). Returns in-format videos, channels, excluded counts."""
-        ids = self.run_searches(specs, errors)
-        videos = self.fetch_videos(ids, errors)
+        groups, channels, excluded = self.collect_groups({"all": specs}, fmt, with_channels, errors)
+        return groups["all"], channels, excluded
+
+    def collect_groups(
+        self, groups: dict[str, list[SearchSpec]], fmt: str, with_channels: bool, errors: list[str]
+    ) -> tuple[dict[str, list[Video]], dict[str, Channel], dict[str, int]]:
+        """Like collect() for several search groups, sharing one batched videos/channels fetch."""
+        ids_by_group = {name: self.run_searches(specs, errors) for name, specs in groups.items()}
+        all_ids = list(dict.fromkeys(i for ids in ids_by_group.values() for i in ids))
+        videos = self.fetch_videos(all_ids, errors)
         allowed = FORMAT_CLASSES[validate_format(fmt)]
-        lang = specs[0].relevance_language if specs else ""
+        first = next((specs[0] for specs in groups.values() if specs), None)
+        lang = first.relevance_language if first else ""
         filter_lang = bool(lang) and self.config.search.get("filter_by_audio_language", True)
         excluded = {
             c: 0 for c in (SHORT_LONGFORM, SHORT_UNVERIFIED, LIVE, "other_format", "no_views", "other_language")
         }
-        kept: list[Video] = []
-        for vid in ids:
+        kept_ids: set[str] = set()
+        for vid in all_ids:
             v = videos.get(vid)
             if v is None:
                 continue
@@ -275,9 +297,11 @@ class NicheService:
             if filter_lang and not language_matches(v.default_audio_language, lang):
                 excluded["other_language"] += 1
                 continue
-            kept.append(v)
+            kept_ids.add(vid)
+        out = {name: [videos[i] for i in ids if i in kept_ids] for name, ids in ids_by_group.items()}
+        kept = [videos[i] for i in all_ids if i in kept_ids]
         channels = self.fetch_channels([v.channel_id for v in kept], errors) if with_channels else {}
-        return kept, channels, excluded
+        return out, channels, excluded
 
     # ================================================================ tools
     def search_niche(
@@ -434,6 +458,119 @@ class NicheService:
         )
         return result
 
+    def scoring_params(self, fmt: str) -> ScoringParams:
+        t, b = self.config.thresholds, self.config.bands(fmt)
+        return ScoringParams(
+            fmt=fmt,
+            hit_views=int(b["hit_views"]),
+            velocity_low=float(b["velocity_views_per_day_low"]),
+            velocity_high=float(b["velocity_views_per_day_high"]),
+            outlier_median_low=float(b["outlier_median_low"]),
+            outlier_median_high=float(b["outlier_median_high"]),
+            hit_share_high=float(b["hit_share_high"]),
+            small_channel_max_subs=int(t["small_channel_max_subs"]),
+            large_channel_min_subs=int(t["large_channel_min_subs"]),
+            new_channel_target=int(t["new_channel_target"]),
+            consistency_channel_target=int(t["consistency_channel_target"]),
+            promo_avg_views_per_sub=float(t["promo_avg_views_per_sub"]),
+            min_sample_videos=int(t["min_sample_videos"]),
+            min_small_channel_hits=int(t["min_small_channel_hits"]),
+            weights=self.config.weights,
+        )
+
+    def analysis_specs(
+        self, query: str, fmt: str, days: int, n: int, region_code: str | None, relevance_language: str | None
+    ) -> dict[str, list[SearchSpec]]:
+        """pool = view-ordered (what wins); sample = date-ordered uploads at least N days old (base rates)."""
+        min_age = int(self.config.thresholds["sample_min_age_days"])
+        return {
+            "pool": self.make_specs(query, fmt, days, n, "viewCount", region_code, relevance_language),
+            "sample": self.make_specs(query, fmt, days, n, "date", region_code, relevance_language, min_age),
+        }
+
+    def analyze_niche(
+        self,
+        query: str,
+        format: str = "both",
+        published_within_days: int | None = None,
+        max_results: int | None = None,
+        region_code: str | None = None,
+        relevance_language: str | None = None,
+        export: bool = False,
+        dry_run: bool = False,
+        max_units: int | None = None,
+    ) -> dict[str, Any]:
+        fmt = validate_format(format)
+        days = published_within_days or self.config.search["published_within_days"]
+        n = max_results or self.config.search["max_results"]
+        groups = self.analysis_specs(query, fmt, days, n, region_code, relevance_language)
+        est = self.estimate_collect(groups["pool"] + groups["sample"], with_channels=True)
+        first = groups["pool"][0]
+        result: dict[str, Any] = {
+            "tool": "analyze_niche",
+            "query": query,
+            "format": fmt,
+            "params": {
+                "published_within_days": days,
+                "max_results_per_search": n,
+                "duration_buckets": list(FORMAT_DURATIONS[fmt]),
+                "sample_min_age_days": groups["sample"][0].published_before_days,
+                "region_code": first.region_code,
+                "relevance_language": first.relevance_language,
+            },
+            "quota_estimate": est,
+        }
+        if dry_run:
+            result["quota"] = self.receipt(est["total"], self.quota.session_units, "dry run: nothing spent").to_dict()
+            return result
+        self._check_budget(est["total"], max_units)
+
+        start = self.quota.session_units
+        errors: list[str] = []
+        videos_by_group: dict[str, list[Video]] = {"pool": [], "sample": []}
+        channels: dict[str, Channel] = {}
+        excluded: dict[str, int] = {}
+        try:
+            videos_by_group, channels, excluded = self.collect_groups(groups, fmt, with_channels=True, errors=errors)
+        except QuotaExceededError as exc:
+            errors.append(str(exc))
+            result["partial"] = True
+
+        formats: dict[str, Any] = {}
+        for f in (("shorts", "long") if fmt == "both" else (fmt,)):
+            cls = SHORT if f == "shorts" else LONG
+            pool = self.enrich([v for v in videos_by_group["pool"] if v.format_class == cls], channels)
+            sample = self.enrich([v for v in videos_by_group["sample"] if v.format_class == cls], channels)
+            params = self.scoring_params(f)
+            categories = [e.video.category_id for e in pool + sample]
+            monetization = estimate_monetization(query, categories, f, self.config.monetization)
+            formats[f] = {
+                **score_niche(pool, sample, monetization, params),
+                **build_insights(pool, sample, query, params),
+            }
+        best = max(formats, key=lambda f: formats[f]["final_score"])
+        result.update(
+            {
+                "final_score": formats[best]["final_score"],
+                "best_format": best,
+                "low_confidence": formats[best]["low_confidence"],
+                "formats": formats,
+                "excluded": excluded,
+                "data_quality": {
+                    "channels_subs_hidden": sum(1 for c in channels.values() if c.subs_hidden),
+                    "channels": len(channels),
+                },
+                "errors": errors,
+                "quota": self.receipt(est["total"], start).to_dict(),
+            }
+        )
+        result["summary_markdown"] = render_analysis_markdown(result)
+        if export:
+            path = export_markdown(result["summary_markdown"], self.config.reports_dir,
+                                   f"{query}-{fmt}", self.clock())
+            result["exported_to"] = str(path)
+        return result
+
     def get_channel_stats(
         self, channel_ids: list[str], dry_run: bool = False, max_units: int | None = None
     ) -> dict[str, Any]:
@@ -511,3 +648,7 @@ def language_matches(audio_language: str | None, wanted: str) -> bool:
     if not audio_language or not wanted:
         return True
     return audio_language.lower().split("-")[0] == wanted.lower().split("-")[0]
+
+
+def _rfc3339(dt: datetime) -> str:
+    return to_iso(dt).replace("+00:00", "Z")

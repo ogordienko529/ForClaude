@@ -57,19 +57,32 @@ DEFAULTS: dict[str, Any] = {
         "outlier_sub_floor": 100,
         "min_sample_videos": 30,
         "min_small_channel_hits": 5,
+        # Base-rate sample: newest uploads that are at least this old, so they had time to get views.
+        "sample_min_age_days": 7,
+        "new_channel_target": 5,          # new channels with hits needed for new_channel_proof = 100
+        "consistency_channel_target": 8,  # distinct small channels with hits for full spread credit
+        # Long-form: channel avg views per video / subs above this => likely paid promotion; excluded.
+        "promo_avg_views_per_sub": 100,
     },
     # Per-format bands. Shorts views count every play/replay, so the numbers are not
     # comparable with long-form and must be normalised separately.
     "bands": {
         "shorts": {
             "hit_views": 10_000,
-            "velocity_views_per_day_low": 500,
-            "velocity_views_per_day_high": 100_000,
+            # Median views/day of *typical* uploads (date-ordered sample), not of top videos.
+            "velocity_views_per_day_low": 50,
+            "velocity_views_per_day_high": 50_000,
+            "hit_share_high": 0.30,        # share of small-channel uploads reaching hit_views that scores 100
+            "outlier_median_low": 0.5,     # median channel-relative score -> 0
+            "outlier_median_high": 5,      # -> 100
         },
         "long": {
             "hit_views": 10_000,
-            "velocity_views_per_day_low": 100,
+            "velocity_views_per_day_low": 20,
             "velocity_views_per_day_high": 20_000,
+            "hit_share_high": 0.30,
+            "outlier_median_low": 0.5,     # median views/subs -> 0
+            "outlier_median_high": 10,     # -> 100
         },
     },
     "weights": {
@@ -166,6 +179,12 @@ class Config:
     def bands(self, fmt: str) -> dict[str, float]:
         """fmt: 'shorts' or 'long'."""
         return self.raw["bands"][fmt]
+
+    @property
+    def monetization(self) -> dict[str, Any]:
+        from .rpm import DEFAULT_MONETIZATION
+
+        return _deep_merge(DEFAULT_MONETIZATION, self.raw.get("monetization", {}))
 
     def validate(self) -> None:
         rd = self.retention_days
