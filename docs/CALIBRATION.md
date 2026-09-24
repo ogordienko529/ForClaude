@@ -149,11 +149,11 @@ Findings:
 
 | Criterion | Shorts | Long | Target |
 |---|---|---|---|
-| P1: view score ρ with outcome (current weights) | 0.56 | 0.00 (n=5) | ≥ 0.5 |
-| P1: fitted weights, leave-one-out ρ | 0.77 | 0.70 (n=5) | ≥ 0.5 |
+| P1: view score ρ with outcome (current weights) | **0.76** (v1: 0.24) | **0.70** (v1: −0.10; n=5) | ≥ 0.5 |
+| P1: fitted weights, leave-one-out ρ | 0.76 | 0.70 (n=5) | ≥ 0.5 |
 | P2: forecast MAE vs constant baseline | 0.30 vs 0.34 | 0.058 vs 0.082 | beat the baseline |
 | P2: 80% interval coverage | 80% | 80% | ≈ 80% |
-| S2: score std across niches | 13 | 24 | ≥ 12 |
+| S2: score std across niches; components stuck at 0/100 | 22.6; none ≥ 80% | 25.4; none ≥ 80% | ≥ 12; none |
 
 Shorts hit rates move a lot from month to month (drift sd 0.30), so a Shorts forecast is honest
 but wide. Long-form hit rates are stable (drift sd 0.08), so the long-form forecast is informative.

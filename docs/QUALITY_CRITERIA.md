@@ -12,12 +12,12 @@ predictive, not cosmetic.
 
 | ID | Status | Evidence |
 |---|---|---|
-| P1 | Shorts: ρ 0.56 (current weights), 0.77 (fitted, leave-one-out). Long: needs more niches (5 so far) | CALIBRATION.md, round 1 |
+| P1 | Shorts ρ 0.76, long ρ 0.70 (v1: 0.24 / −0.10). Long-form rests on only 5 niches so far | CALIBRATION.md, round 1 |
 | P2 | Forecast built (hit probability + 80% range). Beats the constant baseline in both formats; coverage 80% | CALIBRATION.md |
 | P3 | Competition and monetization carry no predictive weight (competition reported only, monetization is a separate axis) | CALIBRATION.md |
 | P4 | Fitted per format; final fit after round 2 | pending round 2 |
 | S1 | Done: bootstrap 80% range on the view score; low-confidence flag uses its width | `scoring.bootstrap_interval` |
-| S2 | Shorts std 13, long std 24; new-channel proof still saturates for Shorts | CALIBRATION.md |
+| S2 | Shorts std 22.6, long std 25.4; no component stuck at 0/100 | CALIBRATION.md |
 | S3 | 75% of Shorts niches and 100% of long-form niches have ≥ 30 base-sample videos | CALIBRATION.md |
 | D1 | 0 unverified Shorts in the panel | CALIBRATION.md |
 | D2 | 0.7–0.8% non-Latin titles kept | CALIBRATION.md |
