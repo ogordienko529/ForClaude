@@ -8,6 +8,7 @@ dry_run=true to get only the estimate, or max_units to refuse anything more expe
 from __future__ import annotations
 
 import functools
+import threading
 from typing import Any, Literal
 
 try:  # mcp >= 2.0 renamed FastMCP to MCPServer
@@ -28,7 +29,8 @@ earning potential too. Typical flow: expand_keywords(seed) -> compare_niches(can
 analyze_niche(best). search costs 100 units per call; analyze_niche costs ~200 (shorts) to ~400
 (long) units uncached, ~600 for both. Results are cached (24h videos/searches, 7d channels),
 so re-running is nearly free. Call with dry_run=true first when unsure about cost.
-region_code / relevance_language default to the config (US / en) when omitted.
+Omitted optional arguments (region_code, relevance_language, published_within_days, max_results,
+max_channel_subs) use the config defaults (US, en, 30 days, 50 per search, 50,000 subs).
 Monetization numbers are ESTIMATES, not API data."""
 
 mcp = _Server("youtube-niche-research", instructions=INSTRUCTIONS)
@@ -39,13 +41,19 @@ def service() -> NicheService:
     return NicheService()
 
 
+# Sync tools run on worker threads and clients call tools in parallel; the service holds one
+# SQLite connection and quota counters, so calls are serialised.
+_LOCK = threading.Lock()
+
+
 def _safe(fn):
-    """Turn expected failures into structured errors the model can act on."""
+    """Serialise calls and turn expected failures into structured errors the model can act on."""
 
     @functools.wraps(fn)
     def wrapper(*args, **kwargs) -> dict[str, Any]:
         try:
-            return fn(*args, **kwargs)
+            with _LOCK:
+                return fn(*args, **kwargs)
         except MissingAPIKeyError as exc:
             return {"error": str(exc), "error_type": "missing_api_key"}
         except QuotaBudgetError as exc:
@@ -63,8 +71,8 @@ def _safe(fn):
 def search_niche(
     query: str,
     format: Format = "both",
-    published_within_days: int = 30,
-    max_results: int = 50,
+    published_within_days: int | None = None,
+    max_results: int | None = None,
     region_code: str | None = None,
     relevance_language: str | None = None,
     dry_run: bool = False,
@@ -93,9 +101,9 @@ def find_outliers(
     query: str,
     format: Format = "both",
     min_outlier_score: float = 10,
-    max_channel_subs: int = 50_000,
+    max_channel_subs: int | None = None,
     metric: OutlierMetric = "subs",
-    published_within_days: int = 30,
+    published_within_days: int | None = None,
     region_code: str | None = None,
     relevance_language: str | None = None,
     limit: int = 30,
@@ -118,7 +126,7 @@ def find_outliers(
 def analyze_niche(
     query: str,
     format: Format = "both",
-    published_within_days: int = 30,
+    published_within_days: int | None = None,
     region_code: str | None = None,
     relevance_language: str | None = None,
     export: bool = False,
@@ -139,7 +147,7 @@ def analyze_niche(
 def compare_niches(
     queries: list[str],
     format: Format = "both",
-    published_within_days: int = 30,
+    published_within_days: int | None = None,
     region_code: str | None = None,
     relevance_language: str | None = None,
     export: bool = False,

@@ -82,6 +82,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--json", action="store_true")
     _add_budget_args(p)
 
+    p = sub.add_parser("backtest", help="temporal backtest + calibration report (see docs/QUALITY_CRITERIA.md)")
+    p.add_argument("--format", "-f", choices=["shorts", "long"], required=True)
+    p.add_argument("--queries", nargs="*", default=None, help="default: calibration/panel.toml")
+    p.add_argument("--panel", default="calibration/panel.toml")
+    p.add_argument("--collect", action="store_true", help="fetch missing data from the API (costs quota)")
+    p.add_argument("--prior-strength", type=float, default=None)
+    _add_budget_args(p)
+
     p = sub.add_parser("channels", help="get_channel_stats for channel IDs")
     p.add_argument("channel_ids", nargs="+")
     _add_budget_args(p)
@@ -133,6 +141,47 @@ def outliers_table(out: dict[str, Any]) -> str:
             f"{o['channel_title'][:22]:<22} {o['title'][:70]}"
         )
     return "\n".join(lines)
+
+
+def _backtest(svc: NicheService, args: argparse.Namespace) -> int:
+    import tomllib
+
+    from .backtest import collect_case, estimate_case
+    from .calibrate import analyse, render
+
+    queries = args.queries
+    if not queries:
+        with open(args.panel, "rb") as fh:
+            queries = tomllib.load(fh)[args.format]
+    if args.collect:
+        est = sum(estimate_case(svc, q, args.format) for q in queries)
+        if args.dry_run:
+            print(f"Estimated quota cost to collect {len(queries)} niches: {est} units", file=sys.stderr)
+            return 0
+        if args.max_units is not None and est > args.max_units:
+            print(f"error: estimate {est} > max_units {args.max_units}", file=sys.stderr)
+            return 2
+        if not _confirm(est, args.yes):
+            return 1
+    else:
+        svc.offline = True
+    start = svc.quota.session_units
+    cases = []
+    for q in queries:
+        try:
+            case = collect_case(svc, q, args.format)
+        except YouTubeAPIError as exc:  # quota ran out mid-panel: evaluate what we have
+            print(f"stopped at {q!r}: {exc}", file=sys.stderr)
+            break
+        cases.append(case)
+        print(f"  {q}: pool {len(case.pool)}, sample {len(case.sample)}, target {len(case.target)}"
+              + (f"  [{'; '.join(case.errors)}]" if case.errors else ""), file=sys.stderr)
+    params = svc.scoring_params(args.format)
+    if args.prior_strength:
+        params.prior_strength = args.prior_strength
+    print(render(analyse(cases, params), params))
+    print(f"\nQuota spent: {svc.quota.session_units - start}; used today {svc.quota.used_today()}", file=sys.stderr)
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -210,6 +259,8 @@ def main(argv: list[str] | None = None) -> int:
                 ),
                 args,
             )
+        elif args.command == "backtest":
+            return _backtest(svc, args)
         elif args.command == "channels":
             out = _run_paid(svc.get_channel_stats, dict(channel_ids=args.channel_ids), args)
         elif args.command == "quota":

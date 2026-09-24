@@ -26,42 +26,79 @@ max_seconds = 180            # a Short is <= this AND has a vertical embed (heig
 player_max_height = 720
 
 [thresholds]
-small_channel_max_subs = 50000
+small_channel_max_subs = 50000     # "small channel" = at most this many subscribers
 large_channel_min_subs = 100000
 new_channel_max_age_days = 365
 outlier_sub_floor = 100
 min_sample_videos = 30
 min_small_channel_hits = 5
 sample_min_age_days = 7            # base-rate sample = newest uploads at least this old
-new_channel_target = 5             # new channels with hits needed for new_channel_proof = 100
+new_channel_target = 20            # distinct new channels with hits for full count credit (log scale)
 consistency_channel_target = 8     # distinct small channels with hits for full spread credit
-promo_avg_views_per_sub = 100      # long-form: channel avg views/subs above this = likely paid ads, excluded
+# Paid-promotion filter: many views + near-zero engagement + channel avg views >> subscribers.
+promo_min_views = 100000
+promo_max_like_rate = 0.001        # < 0.1% likes per view
+promo_max_comment_rate = 0.00005   # used when likes are hidden
+promo_min_avg_views_per_sub = 20
+max_ci_width = 25                  # 80% view-score interval wider than this => low confidence
 
-# Shorts views count every play/replay, so bands are separate per format.
+# Bands map raw numbers to 0-100 (log scale for views). They were set from the backtest panel's
+# 10th-90th percentiles (docs/CALIBRATION.md). Shorts views count every replay, so they differ per format.
 [bands.shorts]
 hit_views = 10000
-# Velocity = median views/day of typical uploads (date-ordered sample), not of the top videos.
-velocity_views_per_day_low = 2         # -> velocity score 0 (most uploads get almost nothing)
-velocity_views_per_day_high = 50000    # -> velocity score 100 (log scale in between)
-hit_share_high = 0.30                  # share of small-channel uploads hitting hit_views that scores 100
-outlier_median_low = 0.5               # median channel-relative score -> 0
-outlier_median_high = 5                # -> 100
+velocity_views_per_day_low = 1         # median views/day of a typical upload -> 0
+velocity_views_per_day_high = 3000     # -> 100
+hit_share_high = 0.60                  # small-channel hit share that scores 100
+small_views_low = 50000                # median views of small channels in the top results -> 0
+small_views_high = 10000000
+demand_views_low = 50000               # median views of the top results -> 0
+demand_views_high = 10000000
 
 [bands.long]
 hit_views = 10000
-velocity_views_per_day_low = 1
-velocity_views_per_day_high = 20000
+velocity_views_per_day_low = 0.5
+velocity_views_per_day_high = 500
 hit_share_high = 0.30
-outlier_median_low = 0.5               # median views/subscribers -> 0
-outlier_median_high = 10               # -> 100
+small_views_low = 1000
+small_views_high = 500000
+demand_views_low = 5000
+demand_views_high = 2000000
 
+# final = (1 - monetization) * view_score + monetization * monetization_estimate.
+# View weights per format, fitted on the temporal backtest (docs/CALIBRATION.md).
+# Competition is reported but weighted 0: the backtest showed big channels signal demand, not a barrier.
+# An old-style flat [weights] table (opportunity = 0.25, ...) is still accepted and applies to both formats.
 [weights]
-opportunity = 0.25
-new_channel_proof = 0.20
-velocity = 0.15
-consistency = 0.15
-competition = 0.10
 monetization = 0.15
+
+[weights.shorts]
+opportunity = 0.35
+demand = 0.30
+new_channel_proof = 0.15
+velocity = 0.10
+consistency = 0.10
+competition = 0.0
+
+[weights.long]
+opportunity = 0.40
+demand = 0.30
+new_channel_proof = 0.10
+velocity = 0.10
+consistency = 0.10
+competition = 0.0
+
+# Hit-probability forecast: Beta-binomial shrinkage toward the panel's mean hit rate, widened by the
+# month-to-month drift the backtest measured.
+[forecast]
+prior_strength = 10
+
+[forecast.shorts]
+prior_hit_rate = 0.49
+drift_sd = 0.30
+
+[forecast.long]
+prior_hit_rate = 0.13
+drift_sd = 0.08
 
 # Monetization is an ESTIMATE (heuristic lookup), not API data. Override any part, e.g.:
 # [monetization]

@@ -5,15 +5,19 @@ Official API only; no scraping. The API key is kept out of every error message.
 
 from __future__ import annotations
 
+import logging
 import time
 from collections.abc import Callable
 from typing import Any
 
 import httpx
 
-from .quota import COSTS, IDS_PER_CALL, MAX_RESULTS_PER_PAGE, QuotaTracker
+from .quota import COSTS, IDS_PER_CALL, MAX_RESULTS_PER_PAGE, QuotaTracker, search_pages
 
 BASE_URL = "https://www.googleapis.com/youtube/v3"
+
+# httpx logs every request URL at INFO (and MCP servers enable INFO logging); keep it quiet.
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 QUOTA_REASONS = {"quotaExceeded", "dailyLimitExceeded"}
 RETRY_REASONS = {"backendError", "rateLimitExceeded", "userRateLimitExceeded", "internalError"}
@@ -36,6 +40,8 @@ class YouTubeAPIError(Exception):
 
 class QuotaExceededError(YouTubeAPIError):
     """Daily quota exhausted (reported by the API or predicted locally)."""
+
+    partial_ids: list[str] = []  # search IDs collected (and paid for) before the quota ran out
 
 
 class MissingAPIKeyError(Exception):
@@ -76,10 +82,14 @@ class YouTubeClient:
         region_code: str | None = None,
         relevance_language: str | None = None,
     ) -> list[str]:
-        """search.list (100 units per page of up to 50 results)."""
+        """search.list (100 units per page of up to 50 results).
+
+        Pages are capped at ceil(max_results / 50) so the cost never exceeds the estimate, even when
+        YouTube returns short pages with a nextPageToken. Fewer IDs than requested is normal.
+        """
         ids: list[str] = []
         page_token: str | None = None
-        while len(ids) < max_results:
+        for _page in range(search_pages(max_results)):
             params: dict[str, Any] = {
                 "part": "id",
                 "q": query,
@@ -99,13 +109,18 @@ class YouTubeClient:
                 params["relevanceLanguage"] = relevance_language
             if page_token:
                 params["pageToken"] = page_token
-            data = self._get("search", params)
+            try:
+                data = self._get("search", params)
+            except QuotaExceededError as exc:
+                exc.partial_ids = list(ids)  # earlier pages were paid for; let the caller keep them
+                raise
+            before = len(ids)
             for item in data.get("items", []):
                 vid = (item.get("id") or {}).get("videoId")
                 if vid and vid not in ids:
                     ids.append(vid)
             page_token = data.get("nextPageToken")
-            if not page_token or not data.get("items"):
+            if not page_token or len(ids) == before or len(ids) >= max_results:
                 break
         return ids[:max_results]
 
@@ -145,18 +160,19 @@ class YouTubeClient:
     # ------------------------------------------------------------------ internals
     def _get(self, endpoint: str, params: dict[str, Any]) -> dict:
         cost = COSTS[endpoint]
-        if self.quota.remaining() < cost:
-            raise QuotaExceededError(
-                f"Local quota guard: {endpoint}.list needs {cost} units but only "
-                f"{self.quota.remaining()} remain today (resets at midnight Pacific).",
-                reason="localQuotaGuard",
-            )
-
         attempt = 0
         while True:
             attempt += 1
+            # Checked before every attempt: retries are charged too.
+            if self.quota.remaining() < cost:
+                raise QuotaExceededError(
+                    f"Local quota guard: {endpoint}.list needs {cost} units but only "
+                    f"{self.quota.remaining()} remain today (resets at midnight Pacific).",
+                    reason="localQuotaGuard",
+                )
             try:
-                resp = self.http.get(f"/{endpoint}", params={**params, "key": self._key})
+                # Key in a header, not the URL: URLs end up in logs (httpx logs requests at INFO).
+                resp = self.http.get(f"/{endpoint}", params=params, headers={"X-Goog-Api-Key": self._key})
             except httpx.RequestError as exc:
                 # No response received: Google did not charge for it.
                 self.quota.record(endpoint, 0, ok=False, error=f"network: {type(exc).__name__}")
@@ -167,7 +183,10 @@ class YouTubeClient:
 
             if resp.status_code == 200:
                 self.quota.record(endpoint, cost, ok=True)
-                return resp.json()
+                try:
+                    return resp.json()
+                except ValueError:
+                    raise YouTubeAPIError(f"{endpoint}.list returned a malformed response", 200, "badJson") from None
 
             status, reason, message = _parse_error(resp)
             message = self._redact(message)

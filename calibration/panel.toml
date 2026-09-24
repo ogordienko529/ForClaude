@@ -1,0 +1,12 @@
+# Niche panel for the temporal backtest (python -m niche_core backtest).
+# Deliberately diverse: easy/hard, high/low RPM, Shorts-native and long-form-native topics.
+shorts = [
+  "roman empire history", "life hacks", "math tricks", "football skills", "cooking hacks",
+  "geography facts", "space facts", "ai news", "motivational quotes", "funny cats",
+  "car facts", "psychology facts",
+]
+long = [
+  "personal finance for beginners", "true crime documentary", "minecraft survival", "ai tools tutorial",
+  "stoicism philosophy", "aviation history", "space documentary", "home workout", "budget travel",
+  "woodworking projects", "chess openings", "sleep stories", "mythology explained", "real estate investing",
+]

@@ -98,21 +98,26 @@ class Store:
     def __init__(self, db_path: Path | str, clock: Clock = utcnow):
         if str(db_path) != ":memory:":
             Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-        self.conn = sqlite3.connect(str(db_path))
+        # The MCP server runs sync tools on worker threads; calls are serialised by a lock there.
+        self.conn = sqlite3.connect(str(db_path), check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(SCHEMA)
         self.clock = clock
+        # Reads without a TTL ("any age") still never return data older than this (API policy).
+        self.retention_days = 30
 
     def close(self) -> None:
         self.conn.close()
 
-    def _cutoff(self, hours: float) -> str:
+    def _cutoff(self, hours: float | None) -> str:
+        if hours is None:
+            hours = self.retention_days * 24
         return to_iso(self.clock() - timedelta(hours=hours))
 
     # ------------------------------------------------------------------ searches
     def get_search(self, key: str, ttl_hours: float | None = None) -> list[str] | None:
         """Cached search result; ttl_hours=None accepts any age still within retention."""
-        cutoff = self._cutoff(ttl_hours) if ttl_hours is not None else ""
+        cutoff = self._cutoff(ttl_hours)
         row = self.conn.execute(
             "SELECT video_ids_json FROM searches WHERE cache_key = ? AND fetched_at >= ?",
             (key, cutoff),
@@ -126,13 +131,24 @@ class Store:
         )
         self.conn.commit()
 
-    def video_ids_for_query(self, query: str) -> list[str]:
-        """All cached result IDs for a query across any params (region, format, order...)."""
+    def video_ids_for_query(self, query: str, region_code: str | None = None,
+                            relevance_language: str | None = None) -> list[str]:
+        """Cached result IDs for a query across formats/orders/windows, optionally one region/language."""
         norm = " ".join(query.lower().split())
         ids: list[str] = []
-        for row in self.conn.execute("SELECT query, video_ids_json FROM searches ORDER BY fetched_at DESC"):
-            if " ".join(row["query"].lower().split()) == norm:
-                ids.extend(i for i in json.loads(row["video_ids_json"]) if i not in ids)
+        rows = self.conn.execute(
+            "SELECT query, params_json, video_ids_json FROM searches WHERE fetched_at >= ? ORDER BY fetched_at DESC",
+            (self._cutoff(None),),
+        )
+        for row in rows:
+            if " ".join(row["query"].lower().split()) != norm:
+                continue
+            params = json.loads(row["params_json"])
+            if region_code is not None and params.get("regionCode", "") != region_code:
+                continue
+            if relevance_language is not None and params.get("relevanceLanguage", "") != relevance_language:
+                continue
+            ids.extend(i for i in json.loads(row["video_ids_json"]) if i not in ids)
         return ids
 
     # ------------------------------------------------------------------ videos
@@ -163,7 +179,7 @@ class Store:
         """Return cached videos (only those fresher than ttl_hours, if given)."""
         ids = list(dict.fromkeys(ids))
         out: dict[str, Video] = {}
-        cutoff = self._cutoff(ttl_hours) if ttl_hours is not None else ""
+        cutoff = self._cutoff(ttl_hours)
         for chunk in _chunks(ids, 500):
             marks = ",".join("?" * len(chunk))
             rows = self.conn.execute(
@@ -204,7 +220,7 @@ class Store:
     def get_channels(self, ids: Iterable[str], ttl_hours: float | None = None) -> dict[str, Channel]:
         ids = list(dict.fromkeys(ids))
         out: dict[str, Channel] = {}
-        cutoff = self._cutoff(ttl_hours) if ttl_hours is not None else ""
+        cutoff = self._cutoff(ttl_hours)
         for chunk in _chunks(ids, 500):
             marks = ",".join("?" * len(chunk))
             rows = self.conn.execute(

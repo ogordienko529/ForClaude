@@ -11,7 +11,8 @@ from niche_core.models import Channel, Video
 from niche_core.report import build_insights, render_format_section
 from niche_core.rpm import estimate_monetization
 from niche_core.scoring import (
-    final_score, linear_score, log_score, score_competition, score_consistency, score_niche, suspected_paid_promotion,
+    combine, forecast, linear_score, log_score, score_competition, score_consistency, score_niche,
+    suspected_paid_promotion,
 )
 from niche_core.service import NicheService
 
@@ -60,17 +61,26 @@ def test_log_and_linear_scores():
 
 
 def test_weights_default_and_final_score():
-    w = load_config().weights
-    assert w == {"opportunity": 0.25, "new_channel_proof": 0.20, "velocity": 0.15,
-                 "consistency": 0.15, "competition": 0.10, "monetization": 0.15}
-    assert abs(sum(w.values()) - 1) < 1e-9
+    cfg = load_config()
+    assert cfg.monetization_weight == 0.15
+    for fmt in ("shorts", "long"):
+        w = cfg.view_weights(fmt)
+        assert w["competition"] == 0 and abs(sum(w.values()) - 1) < 1e-9
 
 
-def test_final_score_is_weighted_mean(svc):
+def test_old_flat_weights_still_work():
+    cfg = load_config(overrides={"weights": {"opportunity": 0.25, "new_channel_proof": 0.20, "velocity": 0.15,
+                                             "consistency": 0.15, "competition": 0.10, "monetization": 0.15}})
+    assert cfg.view_weights("shorts")["competition"] == 0.10
+    assert cfg.monetization_weight == pytest.approx(0.15)
+
+
+def test_final_score_combines_view_score_and_money(svc):
     r = run("healthy", svc)
-    comps = r["components"]
-    expected = sum(c["score"] * c["weight"] for c in comps.values()) / sum(c["weight"] for c in comps.values())
-    assert r["final_score"] == pytest.approx(expected, abs=0.1)
+    money = r["components"]["monetization"]["score"]
+    assert r["final_score"] == pytest.approx(combine(r["view_score"], money, 0.15), abs=0.1)
+    lo, hi = r["view_score_interval_80"]
+    assert lo <= r["view_score"] + 5 and hi >= r["view_score"] - 5
 
 
 # ---------------------------------------------------------------- niche comparisons
@@ -96,7 +106,7 @@ def test_one_viral_video_scores_low_consistency(svc):
 
 def test_new_channel_proof_counts_distinct_new_channels(svc):
     healthy = run("healthy", svc)["components"]["new_channel_proof"]
-    assert healthy["raw"]["new_channels_with_hits"] >= 5 and healthy["score"] == 100
+    assert healthy["raw"]["new_channels_with_hits"] >= 5 and 50 < healthy["score"] <= 100
     assert run("dominated", svc)["components"]["new_channel_proof"]["score"] < healthy["score"]
 
 
@@ -109,7 +119,7 @@ def test_thin_niche_flagged_low_confidence(svc):
 
 def test_shorts_use_their_own_bands_and_lower_monetization(svc):
     shorts = run("shorts_healthy", svc)
-    assert shorts["components"]["velocity"]["raw"]["band_high"] == 50_000
+    assert shorts["components"]["velocity"]["raw"]["band_high"] == 3_000
     assert shorts["components"]["monetization"]["score"] < run("healthy", svc)["components"]["monetization"]["score"]
     assert "ESTIMATE" in shorts["components"]["monetization"]["explanation"]
 
@@ -121,31 +131,47 @@ def test_every_component_has_explanation_and_bounds(svc):
 
 
 # ---------------------------------------------------------------- specific rules
-def _e(svc, subs, views, avg_views, fmt="long", created=2000, age=5.0, vid="v"):
+def _e(svc, subs, views, avg_views, fmt="long", created=2000, age=5.0, vid="v", likes=None):
     ch = Channel("c" + vid, "c", subs, False, int(avg_views * 10), 10, FIXED_NOW - timedelta(days=created))
     v = Video(vid, "c" + vid, "c", "t", FIXED_NOW - timedelta(days=age), 600 if fmt == "long" else 40,
-              "long" if fmt == "long" else "short", views)
+              "long" if fmt == "long" else "short", views, like_count=likes)
     return enrich([v], {ch.channel_id: ch}, now=FIXED_NOW, hit_views={"shorts": 10_000, "long": 10_000})[0]
 
 
-def test_paid_promotion_detected_for_long_only(svc):
-    brand = _e(svc, 5_100, 3_600_000, 3_500_000)  # avg/subs ~ 686
-    organic = _e(svc, 5_200, 979_000, 291_000, vid="o")  # avg/subs ~ 56
-    assert suspected_paid_promotion(brand, svc.scoring_params("long"))
-    assert not suspected_paid_promotion(organic, svc.scoring_params("long"))
-    assert not suspected_paid_promotion(_e(svc, 5_100, 3_600_000, 3_500_000, fmt="short", vid="s"),
-                                        svc.scoring_params("shorts"))
+def test_paid_promotion_is_engagement_based(svc):
+    p = svc.scoring_params("long")
+    brand = _e(svc, 5_100, 3_600_000, 3_500_000, likes=40)          # 0.001% likes, avg/subs ~ 686
+    viral = _e(svc, 23_800, 4_500_000, 3_200_000, likes=33_000, vid="d")  # organic: 0.7% likes
+    tiny = _e(svc, 1, 155, 154, likes=0, vid="t")                     # under the view floor
+    assert suspected_paid_promotion(brand, p)
+    assert not suspected_paid_promotion(viral, p)
+    assert not suspected_paid_promotion(tiny, p)
+    assert not suspected_paid_promotion(_e(svc, 5_100, 3_600_000, 3_500_000, vid="h"), p)  # likes hidden, no comments data
 
 
 def test_paid_promotion_excluded_from_consistency(svc):
     p = svc.scoring_params("long")
-    brand = _e(svc, 5_100, 3_600_000, 3_500_000, vid="b")
+    brand = _e(svc, 5_100, 3_600_000, 3_500_000, vid="b", likes=10)
     c = score_consistency([brand], [], p)
     assert c.raw["small_channel_hits"] == 0 and c.score == 0
 
 
-def test_competition_empty_pool_is_neutral(svc):
-    assert score_competition([], svc.scoring_params("long")).score == 100
+def test_competition_empty_pool_scores_zero(svc):
+    assert score_competition([], svc.scoring_params("long")).score == 0
+
+
+def test_empty_niche_has_no_score(svc):
+    r = score_niche([], [], estimate_monetization("x", [], "long"), svc.scoring_params("long"))
+    assert r["final_score"] is None and r["low_confidence"]
+
+
+def test_forecast_shrinks_small_samples_and_has_interval(svc):
+    p = svc.scoring_params("long")
+    pool, sample, _, _ = build("healthy", svc)
+    f = forecast(sample, p)
+    assert 0 <= f["interval_80"][0] <= f["hit_probability"] <= f["interval_80"][1] <= 1
+    tiny = forecast(sample[:1], p)  # one upload: pulled strongly toward the prior
+    assert abs(tiny["hit_probability"] - p.prior_hit_rate) < 0.1
 
 
 def test_monetization_rules():

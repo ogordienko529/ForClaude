@@ -59,10 +59,15 @@ DEFAULTS: dict[str, Any] = {
         "min_small_channel_hits": 5,
         # Base-rate sample: newest uploads that are at least this old, so they had time to get views.
         "sample_min_age_days": 7,
-        "new_channel_target": 5,          # new channels with hits needed for new_channel_proof = 100
+        "new_channel_target": 20,         # distinct new channels with hits for full count credit (log scale)
         "consistency_channel_target": 8,  # distinct small channels with hits for full spread credit
-        # Long-form: channel avg views per video / subs above this => likely paid promotion; excluded.
-        "promo_avg_views_per_sub": 100,
+        # Paid-promotion filter: many views, near-zero engagement, channel avg views >> subscribers.
+        "promo_min_views": 100_000,
+        "promo_max_like_rate": 0.001,
+        "promo_max_comment_rate": 0.00005,
+        "promo_min_avg_views_per_sub": 20,
+        # 80% bootstrap interval of the view score wider than this => low confidence.
+        "max_ci_width": 25,
     },
     # Per-format bands. Shorts views count every play/replay, so the numbers are not
     # comparable with long-form and must be normalised separately.
@@ -70,28 +75,44 @@ DEFAULTS: dict[str, Any] = {
         "shorts": {
             "hit_views": 10_000,
             # Median views/day of *typical* uploads (date-ordered sample), not of top videos.
-            "velocity_views_per_day_low": 2,
-            "velocity_views_per_day_high": 50_000,
-            "hit_share_high": 0.30,        # share of small-channel uploads reaching hit_views that scores 100
-            "outlier_median_low": 0.5,     # median channel-relative score -> 0
-            "outlier_median_high": 5,      # -> 100
+            "velocity_views_per_day_low": 1,
+            "velocity_views_per_day_high": 3_000,
+            "hit_share_high": 0.60,          # small-channel hit share that scores 100
+            "small_views_low": 50_000,       # median views of small channels in the top results -> 0
+            "small_views_high": 10_000_000,  # -> 100
+            "demand_views_low": 50_000,      # median views of the top results -> 0
+            "demand_views_high": 10_000_000, # -> 100
         },
         "long": {
             "hit_views": 10_000,
-            "velocity_views_per_day_low": 1,
-            "velocity_views_per_day_high": 20_000,
+            "velocity_views_per_day_low": 0.5,
+            "velocity_views_per_day_high": 500,
             "hit_share_high": 0.30,
-            "outlier_median_low": 0.5,     # median views/subs -> 0
-            "outlier_median_high": 10,     # -> 100
+            "small_views_low": 1_000,
+            "small_views_high": 500_000,
+            "demand_views_low": 5_000,
+            "demand_views_high": 2_000_000,
         },
     },
+    # Share of the final score that is money; the rest is the view-opportunity score. View weights are
+    # per format and were fitted on the temporal backtest (docs/CALIBRATION.md).
     "weights": {
-        "opportunity": 0.25,
-        "new_channel_proof": 0.20,
-        "velocity": 0.15,
-        "consistency": 0.15,
-        "competition": 0.10,
         "monetization": 0.15,
+        "shorts": {
+            "opportunity": 0.35, "demand": 0.30, "new_channel_proof": 0.15,
+            "velocity": 0.10, "consistency": 0.10, "competition": 0.0,
+        },
+        "long": {
+            "opportunity": 0.40, "demand": 0.30, "new_channel_proof": 0.10,
+            "velocity": 0.10, "consistency": 0.10, "competition": 0.0,
+        },
+    },
+    # Forecast of a small channel's hit probability (Beta-binomial shrinkage + month-to-month drift),
+    # both measured by the backtest.
+    "forecast": {
+        "prior_strength": 10,
+        "shorts": {"prior_hit_rate": 0.49, "drift_sd": 0.30},
+        "long": {"prior_hit_rate": 0.13, "drift_sd": 0.08},
     },
 }
 
@@ -173,8 +194,28 @@ class Config:
         return self.raw["thresholds"]
 
     @property
-    def weights(self) -> dict[str, float]:
-        return {k: float(v) for k, v in self.raw["weights"].items()}
+    def monetization_weight(self) -> float:
+        w = self.raw["weights"]
+        flat = self._flat_weights()
+        if flat:  # old-style config: monetization's share of the flat total
+            total = sum(flat.values()) + float(w.get("monetization", 0))
+            return float(w.get("monetization", 0)) / total if total else 0.0
+        return float(w.get("monetization", 0.15))
+
+    def _flat_weights(self) -> dict[str, float]:
+        """Old-style [weights] with component keys at top level (applies to both formats)."""
+        return {k: float(v) for k, v in self.raw["weights"].items()
+                if k not in ("monetization", "shorts", "long") and not isinstance(v, dict)}
+
+    def view_weights(self, fmt: str) -> dict[str, float]:
+        flat = self._flat_weights()
+        if flat:
+            return flat
+        return {k: float(v) for k, v in self.raw["weights"][fmt].items()}
+
+    def forecast(self, fmt: str) -> dict[str, float]:
+        f = self.raw["forecast"]
+        return {"prior_strength": float(f["prior_strength"]), **{k: float(v) for k, v in f[fmt].items()}}
 
     def bands(self, fmt: str) -> dict[str, float]:
         """fmt: 'shorts' or 'long'."""
@@ -197,8 +238,12 @@ class Config:
             b = self.bands(fmt)
             if b["velocity_views_per_day_low"] >= b["velocity_views_per_day_high"]:
                 raise ConfigError(f"bands.{fmt}: velocity low must be < high")
-        if any(w < 0 for w in self.weights.values()) or sum(self.weights.values()) <= 0:
-            raise ConfigError("weights must be non-negative and sum to > 0")
+        for fmt in ("shorts", "long"):
+            w = self.view_weights(fmt)
+            if any(x < 0 for x in w.values()) or sum(w.values()) <= 0:
+                raise ConfigError(f"weights.{fmt} must be non-negative and sum to > 0")
+        if not 0 <= self.monetization_weight <= 1:
+            raise ConfigError("weights.monetization must be between 0 and 1")
 
 
 def load_config(path: Path | str | None = None, overrides: dict | None = None) -> Config:

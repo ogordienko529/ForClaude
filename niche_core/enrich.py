@@ -114,14 +114,17 @@ def enrich(
             age_c = c.age_days(now)
             is_new = age_c is not None and age_c <= new_channel_max_age_days
         threshold = hit_views["shorts" if v.format_class == SHORT else "long"]
-        age = v.age_days(now)
+        # Views are as of the fetch, so ages/velocity are measured at fetch time, not "now"
+        # (matters when cached data is reused hours or days later).
+        as_of = v.fetched_at if v.fetched_at and v.fetched_at <= now else now
+        age = v.age_days(as_of)
         is_hit = views >= threshold
         out.append(
             EnrichedVideo(
                 video=v,
                 channel=c,
                 age_days=age,
-                views_per_day=v.views_per_day(now),
+                views_per_day=v.views_per_day(as_of),
                 sub_outlier_score=sub_score,
                 channel_relative_score=rel_score,
                 is_new_channel=is_new,

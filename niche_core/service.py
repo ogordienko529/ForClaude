@@ -88,6 +88,7 @@ class NicheService:
         client: YouTubeClient | None = None,
         clock: Callable[[], datetime] = utcnow,
         purge_on_start: bool = True,
+        offline: bool = False,
     ):
         self.config = config or load_config()
         self.clock = clock
@@ -95,9 +96,14 @@ class NicheService:
         # Share the client's tracker so "actual" cost reflects the calls it makes.
         self.quota = client.quota if client else QuotaTracker(self.store, self.config.daily_quota)
         self._client = client
+        # offline: serve everything from the cache at any age (within retention), never call the API.
+        self.offline = offline
+        self._quota_blocked_until: datetime | None = None
+        self.store.retention_days = self.config.retention_days
         self.last_purge: dict[str, int] | None = None
+        self._last_purge_at: datetime | None = None
         if purge_on_start:
-            self.last_purge = self.store.purge(self.config.retention_days)
+            self.maybe_purge()
 
     @property
     def client(self) -> YouTubeClient:
@@ -118,8 +124,7 @@ class NicheService:
         published_before_days: int = 0,
     ) -> list[SearchSpec]:
         fmt = validate_format(fmt)
-        region = region_code if region_code is not None else self.config.search["region_code"]
-        lang = relevance_language if relevance_language is not None else self.config.search["relevance_language"]
+        region, lang = self._region_lang(region_code, relevance_language)
         return [
             SearchSpec(
                 query=query.strip(),
@@ -127,8 +132,8 @@ class NicheService:
                 published_within_days=int(published_within_days),
                 max_results=int(max_results),
                 order=order,
-                region_code=(region or "").upper(),
-                relevance_language=(lang or "").lower(),
+                region_code=region,
+                relevance_language=lang,
                 published_before_days=int(published_before_days),
             )
             for d in FORMAT_DURATIONS[fmt]
@@ -187,12 +192,49 @@ class NicheService:
             note=note,
         )
 
+    def _region_lang(self, region_code: str | None, relevance_language: str | None) -> tuple[str, str]:
+        region = region_code if region_code is not None else self.config.search["region_code"]
+        lang = relevance_language if relevance_language is not None else self.config.search["relevance_language"]
+        return (region or "").upper(), (lang or "").lower()
+
+    def _window(self, days: int | None, n: int | None) -> tuple[int, int]:
+        days = self.config.search["published_within_days"] if days is None else days
+        n = self.config.search["max_results"] if n is None else n
+        if int(days) < 1:
+            raise ValueError("published_within_days must be >= 1")
+        if not 1 <= int(n) <= 500:
+            raise ValueError("max_results must be between 1 and 500")
+        return int(days), int(n)
+
+    # ================================================================ quota state
+    def _note_quota(self, exc: QuotaExceededError, errors: list[str]) -> None:
+        """After a quota error, the rest of the work is served from cache for a while."""
+        errors.append(f"{QUOTA_MARK} {exc}")
+        self._quota_blocked_until = self.clock() + timedelta(minutes=15)
+
+    def _quota_blocked(self) -> bool:
+        return self._quota_blocked_until is not None and self.clock() < self._quota_blocked_until
+
+    def maybe_purge(self) -> None:
+        """Enforce retention in long-running processes (the MCP server), at most once an hour."""
+        now = self.clock()
+        if self._last_purge_at is None or now - self._last_purge_at > timedelta(hours=1):
+            self.last_purge = self.store.purge(self.config.retention_days)
+            self._last_purge_at = now
+
     # ================================================================ data access
     def run_searches(self, specs: list[SearchSpec], errors: list[str]) -> list[str]:
         """Return de-duplicated video IDs across specs, cache-first."""
         all_ids: list[str] = []
         now = self.clock()
         for spec in specs:
+            if self.offline or self._quota_blocked():
+                ids = self.store.get_search(spec.key)
+                if ids is None:
+                    errors.append(f"no cached search for {spec.query!r} ({spec.video_duration}/{spec.order})"
+                                  + ("" if self.offline else " (quota exhausted)"))
+                all_ids.extend(i for i in ids or [] if i not in all_ids)
+                continue
             ids = self.store.get_search(spec.key, self.config.search_ttl_hours)
             if ids is None:
                 published_after = _rfc3339(now - timedelta(days=spec.published_within_days))
@@ -210,8 +252,9 @@ class NicheService:
                         region_code=spec.region_code or None,
                         relevance_language=spec.relevance_language or None,
                     )
-                except QuotaExceededError:
-                    raise
+                except QuotaExceededError as exc:
+                    self._note_quota(exc, errors)
+                    ids = exc.partial_ids or self.store.get_search(spec.key) or []
                 except YouTubeAPIError as exc:
                     errors.append(f"search ({spec.video_duration}/{spec.order}): {exc}")
                     # Fall back to an expired cached result, if any.
@@ -222,6 +265,8 @@ class NicheService:
         return all_ids
 
     def fetch_videos(self, ids: list[str], errors: list[str]) -> dict[str, Video]:
+        if self.offline or self._quota_blocked():
+            return self.store.get_videos(ids)
         cached = self.store.get_videos(ids, self.config.video_ttl_hours)
         missing = [i for i in ids if i not in cached]
         if missing:
@@ -232,17 +277,20 @@ class NicheService:
                 self.store.upsert_videos(videos, {it["id"]: it for it in items})
                 cached.update({v.video_id: v for v in videos})
             except YouTubeAPIError as exc:
-                errors.append(f"videos.list: {exc}")
+                if isinstance(exc, QuotaExceededError):
+                    self._note_quota(exc, errors)
+                else:
+                    errors.append(f"videos.list: {exc}")
                 stale = self.store.get_videos(missing)  # any age within retention
                 if stale:
                     errors.append(f"using {len(stale)} stale cached videos")
                 cached.update(stale)
-                if isinstance(exc, QuotaExceededError):
-                    raise
         return cached
 
     def fetch_channels(self, ids: list[str], errors: list[str]) -> dict[str, Channel]:
         ids = [i for i in dict.fromkeys(ids) if i]
+        if self.offline or self._quota_blocked():
+            return self.store.get_channels(ids)
         cached = self.store.get_channels(ids, self.config.channel_ttl_hours)
         missing = [i for i in ids if i not in cached]
         if missing:
@@ -253,13 +301,14 @@ class NicheService:
                 self.store.upsert_channels(channels, {it["id"]: it for it in items})
                 cached.update({c.channel_id: c for c in channels})
             except YouTubeAPIError as exc:
-                errors.append(f"channels.list: {exc}")
+                if isinstance(exc, QuotaExceededError):
+                    self._note_quota(exc, errors)
+                else:
+                    errors.append(f"channels.list: {exc}")
                 stale = self.store.get_channels(missing)
                 if stale:
                     errors.append(f"using {len(stale)} stale cached channels")
                 cached.update(stale)
-                if isinstance(exc, QuotaExceededError):
-                    raise
         return cached
 
     def collect(
@@ -272,7 +321,10 @@ class NicheService:
     def collect_groups(
         self, groups: dict[str, list[SearchSpec]], fmt: str, with_channels: bool, errors: list[str]
     ) -> tuple[dict[str, list[Video]], dict[str, Channel], dict[str, int]]:
-        """Like collect() for several search groups, sharing one batched videos/channels fetch."""
+        """Like collect() for several search groups, sharing one batched videos/channels fetch.
+        Never raises on quota exhaustion: whatever was fetched is returned and errors get a QUOTA mark."""
+        if not self.offline:
+            self.maybe_purge()
         ids_by_group = {name: self.run_searches(specs, errors) for name, specs in groups.items()}
         all_ids = list(dict.fromkeys(i for ids in ids_by_group.values() for i in ids))
         videos = self.fetch_videos(all_ids, errors)
@@ -318,8 +370,7 @@ class NicheService:
         max_units: int | None = None,
     ) -> dict[str, Any]:
         fmt = validate_format(format)
-        days = published_within_days or self.config.search["published_within_days"]
-        n = max_results or self.config.search["max_results"]
+        days, n = self._window(published_within_days, max_results)
         specs = self.make_specs(query, fmt, days, n, order, region_code, relevance_language)
         est = self.estimate_collect(specs, with_channels=False)
         result: dict[str, Any] = {
@@ -352,6 +403,7 @@ class NicheService:
             result["partial"] = True
         now = self.clock()
         videos.sort(key=lambda v: v.view_count or 0, reverse=True)
+        result["partial"] = result.get("partial", False) or is_partial(errors)
         result.update(
             {
                 "count": len(videos),
@@ -394,8 +446,7 @@ class NicheService:
         if metric not in OUTLIER_METRICS:
             raise ValueError(f"metric must be one of {OUTLIER_METRICS}")
         max_subs = max_channel_subs if max_channel_subs is not None else self.config.thresholds["small_channel_max_subs"]
-        days = published_within_days or self.config.search["published_within_days"]
-        n = max_results or self.config.search["max_results"]
+        days, n = self._window(published_within_days, max_results)
         specs = self.make_specs(query, fmt, days, n, "viewCount", region_code, relevance_language)
         est = self.estimate_collect(specs, with_channels=True)
         result: dict[str, Any] = {
@@ -428,6 +479,7 @@ class NicheService:
         except QuotaExceededError as exc:
             errors.append(str(exc))
             result["partial"] = True
+        result["partial"] = result.get("partial", False) or is_partial(errors)
         enriched = self.enrich(videos, channels)
         outliers, rejected = select_outliers(
             enriched, min_outlier_score=min_outlier_score, max_channel_subs=max_subs, metric=metric
@@ -460,23 +512,33 @@ class NicheService:
         return result
 
     def scoring_params(self, fmt: str) -> ScoringParams:
-        t, b = self.config.thresholds, self.config.bands(fmt)
+        t, b, f = self.config.thresholds, self.config.bands(fmt), self.config.forecast(fmt)
         return ScoringParams(
             fmt=fmt,
             hit_views=int(b["hit_views"]),
             velocity_low=float(b["velocity_views_per_day_low"]),
             velocity_high=float(b["velocity_views_per_day_high"]),
-            outlier_median_low=float(b["outlier_median_low"]),
-            outlier_median_high=float(b["outlier_median_high"]),
+            small_views_low=float(b["small_views_low"]),
+            small_views_high=float(b["small_views_high"]),
+            demand_low=float(b["demand_views_low"]),
+            demand_high=float(b["demand_views_high"]),
             hit_share_high=float(b["hit_share_high"]),
             small_channel_max_subs=int(t["small_channel_max_subs"]),
             large_channel_min_subs=int(t["large_channel_min_subs"]),
             new_channel_target=int(t["new_channel_target"]),
             consistency_channel_target=int(t["consistency_channel_target"]),
-            promo_avg_views_per_sub=float(t["promo_avg_views_per_sub"]),
+            promo_min_views=int(t["promo_min_views"]),
+            promo_max_like_rate=float(t["promo_max_like_rate"]),
+            promo_max_comment_rate=float(t["promo_max_comment_rate"]),
+            promo_min_avg_views_per_sub=float(t["promo_min_avg_views_per_sub"]),
             min_sample_videos=int(t["min_sample_videos"]),
             min_small_channel_hits=int(t["min_small_channel_hits"]),
-            weights=self.config.weights,
+            prior_hit_rate=f["prior_hit_rate"],
+            prior_strength=f["prior_strength"],
+            drift_sd=f["drift_sd"],
+            max_ci_width=float(t["max_ci_width"]),
+            weights=self.config.view_weights(fmt),
+            monetization_weight=self.config.monetization_weight,
         )
 
     def analysis_specs(
@@ -484,9 +546,11 @@ class NicheService:
     ) -> dict[str, list[SearchSpec]]:
         """pool = view-ordered (what wins); sample = date-ordered uploads at least N days old (base rates)."""
         min_age = int(self.config.thresholds["sample_min_age_days"])
+        # The base-rate sample needs uploads at least min_age old; widen its window if needed.
+        sample_days = max(days, min_age + 7)
         return {
             "pool": self.make_specs(query, fmt, days, n, "viewCount", region_code, relevance_language),
-            "sample": self.make_specs(query, fmt, days, n, "date", region_code, relevance_language, min_age),
+            "sample": self.make_specs(query, fmt, sample_days, n, "date", region_code, relevance_language, min_age),
         }
 
     def analyze_niche(
@@ -502,8 +566,7 @@ class NicheService:
         max_units: int | None = None,
     ) -> dict[str, Any]:
         fmt = validate_format(format)
-        days = published_within_days or self.config.search["published_within_days"]
-        n = max_results or self.config.search["max_results"]
+        days, n = self._window(published_within_days, max_results)
         groups = self.analysis_specs(query, fmt, days, n, region_code, relevance_language)
         est = self.estimate_collect(groups["pool"] + groups["sample"], with_channels=True)
         first = groups["pool"][0]
@@ -537,6 +600,7 @@ class NicheService:
             errors.append(str(exc))
             result["partial"] = True
 
+        result["partial"] = result.get("partial", False) or is_partial(errors)
         formats: dict[str, Any] = {}
         for f in (("shorts", "long") if fmt == "both" else (fmt,)):
             cls = SHORT if f == "shorts" else LONG
@@ -549,10 +613,12 @@ class NicheService:
                 **score_niche(pool, sample, monetization, params),
                 **build_insights(pool, sample, query, params),
             }
-        best = max(formats, key=lambda f: formats[f]["final_score"])
+        best = max(formats, key=lambda f: _score_key(formats[f]["final_score"]))
         result.update(
             {
                 "final_score": formats[best]["final_score"],
+                "view_score": formats[best]["view_score"],
+                "forecast": formats[best]["forecast"],
                 "best_format": best,
                 "low_confidence": formats[best]["low_confidence"],
                 "formats": formats,
@@ -588,8 +654,7 @@ class NicheService:
         queries = [q.strip() for q in dict.fromkeys(queries) if q and q.strip()]
         if not queries:
             raise ValueError("queries must contain at least one niche")
-        days = published_within_days or self.config.search["published_within_days"]
-        n = max_results or self.config.search["max_results"]
+        days, n = self._window(published_within_days, max_results)
         per_query = {}
         for q in queries:
             groups = self.analysis_specs(q, fmt, days, n, region_code, relevance_language)
@@ -613,13 +678,16 @@ class NicheService:
             try:
                 r = self.analyze_niche(q, fmt, days, n, region_code, relevance_language)
             except QuotaBudgetError as exc:  # remaining quota ran out between niches
-                rows.append({"query": q, "error": str(exc), "final_score": -1})
+                rows.append({"query": q, "error": str(exc), "final_score": None})
                 continue
             best = r["formats"][r["best_format"]]
             rows.append(
                 {
                     "query": q,
                     "final_score": r["final_score"],
+                    "view_score": r["view_score"],
+                    "view_score_interval_80": best["view_score_interval_80"],
+                    "forecast": best["forecast"],
                     "best_format": r["best_format"],
                     "low_confidence": r["low_confidence"],
                     "components": {k: v["score"] for k, v in best["components"].items()},
@@ -630,7 +698,7 @@ class NicheService:
                 }
             )
             reports[q] = r
-        rows.sort(key=lambda r: r["final_score"], reverse=True)
+        rows.sort(key=lambda r: _score_key(r["final_score"]), reverse=True)
         table = render_compare_markdown(rows, fmt)
         result.update(
             {
@@ -663,7 +731,8 @@ class NicheService:
         (cost reported); there is no dedicated paid keyword API call.
         """
         fmt = validate_format(format)
-        ids = self.store.video_ids_for_query(seed)
+        region, lang = self._region_lang(region_code, relevance_language)
+        ids = self.store.video_ids_for_query(seed, region, lang)
         est = 0
         if ids:
             # Cached videos are reused at any age; only channels missing from the cache cost units.
@@ -690,8 +759,9 @@ class NicheService:
         start = self.quota.session_units
         errors: list[str] = []
         if not ids:
-            self.find_outliers(seed, fmt, region_code=region_code, relevance_language=relevance_language)
-            ids = self.store.video_ids_for_query(seed)
+            fo = self.find_outliers(seed, fmt, region_code=region_code, relevance_language=relevance_language)
+            errors.extend(fo.get("errors", []))
+            ids = self.store.video_ids_for_query(seed, region, lang)
 
         allowed = FORMAT_CLASSES[fmt]
         videos = [v for v in self.store.get_videos(ids).values() if v.format_class in allowed and v.view_count]
@@ -702,7 +772,7 @@ class NicheService:
             channels = self.store.get_channels([v.channel_id for v in videos])
         enriched = self.enrich(videos, channels)
         small_max = self.config.thresholds["small_channel_max_subs"]
-        small = [e for e in enriched if e.subs is not None and e.subs < small_max]
+        small = [e for e in enriched if e.subs is not None and e.subs <= small_max]
         basis = [e for e in small if e.is_hit] or small
         basis.sort(key=lambda e: e.primary_score or 0, reverse=True)
         basis = basis[:40]
@@ -711,6 +781,7 @@ class NicheService:
             seed,
             top=max_suggestions,
         )
+        result["partial"] = is_partial(errors)
         result.update(
             {
                 "based_on": {"outlier_videos": len(basis), "channels": len({e.video.channel_id for e in basis})},
@@ -741,6 +812,7 @@ class NicheService:
         except QuotaExceededError as exc:
             errors.append(str(exc))
             result["partial"] = True
+        result["partial"] = result.get("partial", False) or is_partial(errors)
         now = self.clock()
         result.update(
             {
@@ -803,3 +875,15 @@ def language_matches(audio_language: str | None, wanted: str) -> bool:
 
 def _rfc3339(dt: datetime) -> str:
     return to_iso(dt).replace("+00:00", "Z")
+
+
+QUOTA_MARK = "QUOTA:"
+
+
+def is_partial(errors: list[str]) -> bool:
+    return any(e.startswith(QUOTA_MARK) for e in errors)
+
+
+def _score_key(score: float | None) -> float:
+    """Sort key that puts niches without a score (no data, errors) last."""
+    return -1.0 if score is None else score

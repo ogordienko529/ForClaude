@@ -15,10 +15,11 @@ from .scoring import ScoringParams, is_small, suspected_paid_promotion, unique
 
 COMPONENT_LABELS = {
     "opportunity": "Opportunity",
+    "demand": "Demand",
     "new_channel_proof": "New-channel proof",
     "velocity": "Velocity",
     "consistency": "Consistency",
-    "competition": "Competition",
+    "competition": "Competition (info)",
     "monetization": "Monetization (ESTIMATE)",
 }
 
@@ -108,7 +109,14 @@ def _md_escape(text: str) -> str:
 
 
 def render_format_section(fmt: str, r: dict[str, Any]) -> list[str]:
-    lines = [f"### {fmt.capitalize()}: {r['final_score']:.0f}/100" + ("  ⚠️ LOW CONFIDENCE" if r["low_confidence"] else "")]
+    if r["final_score"] is None:
+        return [f"### {fmt.capitalize()}: no score", *[f"- ⚠️ {flag}" for flag in r["confidence_flags"]]]
+    lo, hi = r["view_score_interval_80"]
+    lines = [f"### {fmt.capitalize()}: {r['final_score']:.0f}/100" + ("  ⚠️ LOW CONFIDENCE" if r["low_confidence"] else ""),
+             "",
+             f"**Forecast:** {r['forecast']['explanation']}",
+             f"**View score** {r['view_score']:.0f}/100 (80% range {lo:.0f}–{hi:.0f}); final score adds the "
+             f"monetization ESTIMATE at {r['components']['monetization']['weight']:.0%}."]
     for flag in r["confidence_flags"]:
         lines.append(f"- ⚠️ {flag}")
     lines += ["", "| Component | Score | Weight | Why |", "|---|---:|---:|---|"]
@@ -149,9 +157,10 @@ def render_format_section(fmt: str, r: dict[str, Any]) -> list[str]:
 
 def render_analysis_markdown(result: dict[str, Any]) -> str:
     q = result["quota"]
+    final = result["final_score"]
     lines = [
         f"## Niche report: “{result['query']}” [{result['format']}]",
-        f"Final score **{result['final_score']:.0f}/100**"
+        (f"Final score **{final:.0f}/100**" if final is not None else "**No score: no videos could be analysed**")
         + (f" (best format: {result['best_format']})" if result["format"] == "both" else "")
         + f" · region {result['params']['region_code']} · language {result['params']['relevance_language']}"
         + f" · last {result['params']['published_within_days']} days",
@@ -169,23 +178,28 @@ def render_compare_markdown(rows: list[dict[str, Any]], fmt: str) -> str:
     lines = [
         f"## Niche comparison [{fmt}]",
         "",
-        "| # | Niche | Final | Best format | Opportunity | New-channel proof | Velocity | Consistency "
-        "| Competition | Monetization (est.) | Confidence |",
-        "|---:|---|---:|---|---:|---:|---:|---:|---:|---|---|",
+        "| # | Niche | Final | Hit chance (80% range) | View score (80% range) | Format | Opportunity | Demand "
+        "| New-channel proof | Velocity | Consistency | Monetization (est.) | Confidence |",
+        "|---:|---|---:|---|---|---|---:|---:|---:|---:|---:|---|---|",
     ]
     for i, r in enumerate(rows, 1):
-        if r.get("error"):
-            lines.append(f"| {i} | {_md_escape(r['query'])} | – | – | – | – | – | – | – | – | error: {_md_escape(r['error'])} |")
+        if r.get("error") or r.get("final_score") is None:
+            why = r.get("error") or "no data"
+            lines.append(f"| {i} | {_md_escape(r['query'])} | – | – | – | – | – | – | – | – | – | – | {_md_escape(why)} |")
             continue
-        c = r["components"]
+        c, f = r["components"], r["forecast"]
+        lo, hi = r["view_score_interval_80"]
         conf = "⚠️ low" if r["low_confidence"] else "ok"
         lines.append(
-            f"| {i} | {_md_escape(r['query'])} | **{r['final_score']:.0f}** | {r['best_format']} | "
-            f"{c['opportunity']:.0f} | {c['new_channel_proof']:.0f} | {c['velocity']:.0f} | {c['consistency']:.0f} | "
-            f"{c['competition']:.0f} | {c['monetization']:.0f} ({r['rpm_tier']}) | {conf} |"
+            f"| {i} | {_md_escape(r['query'])} | **{r['final_score']:.0f}** | "
+            f"{f['hit_probability']:.0%} ({f['interval_80'][0]:.0%}–{f['interval_80'][1]:.0%}) | "
+            f"{r['view_score']:.0f} ({lo:.0f}–{hi:.0f}) | {r['best_format']} | {c['opportunity']:.0f} | {c['demand']:.0f} | "
+            f"{c['new_channel_proof']:.0f} | {c['velocity']:.0f} | {c['consistency']:.0f} | "
+            f"{c['monetization']:.0f} ({r['rpm_tier']}) | {conf} |"
         )
-    lines += ["", "_Scores are 0–100; higher is better (Competition: higher = less dominated by 100k+ channels). "
-                  "Monetization is an ESTIMATE, not data._"]
+    lines += ["", "_Hit chance = share of small-channel uploads reaching the hit threshold in their first 1–3 weeks "
+                  "(backtested; the range includes month-to-month drift). Scores are 0–100. Monetization is an "
+                  "ESTIMATE, not data._"]
     return "\n".join(lines)
 
 

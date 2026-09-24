@@ -57,7 +57,7 @@ def title_patterns(hit_titles: list[str], other_titles: list[str], top: int = 8)
         o = sum(1 for t in other_titles if name in title_features(t)) / len(other_titles) if other_titles else None
         if h == 0:
             continue
-        lift = h / o if o else None
+        lift = h / o if o else (3.0 if other_titles else None)  # only in hits: treat as the cap
         out.append({"pattern": name, "hit_share": round(h, 2),
                     "other_share": round(o, 2) if o is not None else None,
                     "lift": round(lift, 2) if lift is not None else None})
@@ -86,6 +86,18 @@ def top_ngrams(titles: list[str], exclude: Iterable[str] = (), n_max: int = 3, t
     return [(g, c) for g, c in ranked if c >= 2][:top]
 
 
+def _same_stem(a: str, b: str) -> bool:
+    """rome/roman/romans share a stem; chain/ai or oman/roman do not."""
+    if min(len(a), len(b)) < 4:
+        return a == b
+    common = 0
+    for x, y in zip(a, b):
+        if x != y:
+            break
+        common += 1
+    return common >= max(3, min(len(a), len(b)) - 1)
+
+
 def expand_candidates(
     videos: list[tuple[str, str, list[str], float]],
     seed: str,
@@ -106,9 +118,10 @@ def expand_candidates(
         words = phrase.split()
         if not words or len(phrase) < 4 or all(w in seed_words or w in GENERIC_WORDS for w in words):
             return
-        if phrase.replace(" ", "") in seed_joined or seed_joined in phrase.replace(" ", ""):
-            return  # "historydocumentary" / "romanempire" tags = the seed itself
-        if len(words) == 1 and any(words[0][:3] == sw[:3] for sw in seed_words):
+        joined = phrase.replace(" ", "")
+        if len(words) == 1 and (joined == seed_joined or (len(joined) >= 6 and seed_joined.startswith(joined))):
+            return  # "historydocumentary" / "romanempire" tags = the seed glued together
+        if len(words) == 1 and any(_same_stem(words[0], sw) for sw in seed_words):
             return  # inflections of a seed word: rome/romans for "roman empire"
         if words[0] in GENERIC_WORDS or words[-1] in GENERIC_WORDS:
             return  # "entire history", "rome explained": trim to the topical core instead
