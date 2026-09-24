@@ -126,6 +126,15 @@ class Store:
         )
         self.conn.commit()
 
+    def video_ids_for_query(self, query: str) -> list[str]:
+        """All cached result IDs for a query across any params (region, format, order...)."""
+        norm = " ".join(query.lower().split())
+        ids: list[str] = []
+        for row in self.conn.execute("SELECT query, video_ids_json FROM searches ORDER BY fetched_at DESC"):
+            if " ".join(row["query"].lower().split()) == norm:
+                ids.extend(i for i in json.loads(row["video_ids_json"]) if i not in ids)
+        return ids
+
     # ------------------------------------------------------------------ videos
     def upsert_videos(self, videos: Iterable[Video], raw_items: dict[str, dict] | None = None) -> None:
         raw_items = raw_items or {}

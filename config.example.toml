@@ -41,7 +41,7 @@ promo_avg_views_per_sub = 100      # long-form: channel avg views/subs above thi
 [bands.shorts]
 hit_views = 10000
 # Velocity = median views/day of typical uploads (date-ordered sample), not of the top videos.
-velocity_views_per_day_low = 50        # -> velocity score 0
+velocity_views_per_day_low = 2         # -> velocity score 0 (most uploads get almost nothing)
 velocity_views_per_day_high = 50000    # -> velocity score 100 (log scale in between)
 hit_share_high = 0.30                  # share of small-channel uploads hitting hit_views that scores 100
 outlier_median_low = 0.5               # median channel-relative score -> 0
@@ -49,7 +49,7 @@ outlier_median_high = 5                # -> 100
 
 [bands.long]
 hit_views = 10000
-velocity_views_per_day_low = 20
+velocity_views_per_day_low = 1
 velocity_views_per_day_high = 20000
 hit_share_high = 0.30
 outlier_median_low = 0.5               # median views/subscribers -> 0

@@ -14,7 +14,8 @@ from typing import Any
 from .cache import Store, search_cache_key
 from .config import Config, get_api_key, load_config
 from .durations import LIVE, LONG, SHORT, SHORT_LONGFORM, SHORT_UNVERIFIED
-from .report import build_insights, export_markdown, render_analysis_markdown
+from .patterns import expand_candidates
+from .report import build_insights, export_markdown, render_analysis_markdown, render_compare_markdown
 from .rpm import estimate_monetization
 from .scoring import ScoringParams, score_niche
 from .enrich import METRIC_SUBS, OUTLIER_METRICS, EnrichedVideo, enrich, select_outliers
@@ -569,6 +570,156 @@ class NicheService:
             path = export_markdown(result["summary_markdown"], self.config.reports_dir,
                                    f"{query}-{fmt}", self.clock())
             result["exported_to"] = str(path)
+        return result
+
+    def compare_niches(
+        self,
+        queries: list[str],
+        format: str = "both",
+        published_within_days: int | None = None,
+        max_results: int | None = None,
+        region_code: str | None = None,
+        relevance_language: str | None = None,
+        export: bool = False,
+        dry_run: bool = False,
+        max_units: int | None = None,
+    ) -> dict[str, Any]:
+        fmt = validate_format(format)
+        queries = [q.strip() for q in dict.fromkeys(queries) if q and q.strip()]
+        if not queries:
+            raise ValueError("queries must contain at least one niche")
+        days = published_within_days or self.config.search["published_within_days"]
+        n = max_results or self.config.search["max_results"]
+        per_query = {}
+        for q in queries:
+            groups = self.analysis_specs(q, fmt, days, n, region_code, relevance_language)
+            per_query[q] = self.estimate_collect(groups["pool"] + groups["sample"], with_channels=True)["total"]
+        est = sum(per_query.values())
+        result: dict[str, Any] = {
+            "tool": "compare_niches",
+            "format": fmt,
+            "queries": queries,
+            "quota_estimate": {"total": est, "per_query": per_query},
+        }
+        if dry_run:
+            result["quota"] = self.receipt(est, self.quota.session_units, "dry run: nothing spent").to_dict()
+            return result
+        self._check_budget(est, max_units)
+
+        start = self.quota.session_units
+        rows: list[dict[str, Any]] = []
+        reports: dict[str, Any] = {}
+        for q in queries:
+            try:
+                r = self.analyze_niche(q, fmt, days, n, region_code, relevance_language)
+            except QuotaBudgetError as exc:  # remaining quota ran out between niches
+                rows.append({"query": q, "error": str(exc), "final_score": -1})
+                continue
+            best = r["formats"][r["best_format"]]
+            rows.append(
+                {
+                    "query": q,
+                    "final_score": r["final_score"],
+                    "best_format": r["best_format"],
+                    "low_confidence": r["low_confidence"],
+                    "components": {k: v["score"] for k, v in best["components"].items()},
+                    "rpm_tier": best["components"]["monetization"]["raw"]["tier"],
+                    "confidence_flags": best["confidence_flags"],
+                    "partial": r.get("partial", False),
+                    "errors": r["errors"],
+                }
+            )
+            reports[q] = r
+        rows.sort(key=lambda r: r["final_score"], reverse=True)
+        table = render_compare_markdown(rows, fmt)
+        result.update(
+            {
+                "ranking": rows,
+                "table_markdown": table,
+                "top_outliers_by_niche": {
+                    q: r["formats"][r["best_format"]]["top_outliers"][:3] for q, r in reports.items()
+                },
+                "quota": self.receipt(est, start).to_dict(),
+            }
+        )
+        if export:
+            md = table + "\n\n" + "\n\n---\n\n".join(r["summary_markdown"] for r in reports.values())
+            result["exported_to"] = str(export_markdown(md, self.config.reports_dir, f"compare-{fmt}", self.clock()))
+        return result
+
+    def expand_keywords(
+        self,
+        seed: str,
+        format: str = "both",
+        max_suggestions: int = 15,
+        region_code: str | None = None,
+        relevance_language: str | None = None,
+        dry_run: bool = False,
+        max_units: int | None = None,
+    ) -> dict[str, Any]:
+        """Sub-niche queries mined from titles and tags of the seed's outlier videos.
+
+        Uses cached data only. If the seed was never searched, runs find_outliers once first
+        (cost reported); there is no dedicated paid keyword API call.
+        """
+        fmt = validate_format(format)
+        ids = self.store.video_ids_for_query(seed)
+        est = 0
+        if ids:
+            # Cached videos are reused at any age; only channels missing from the cache cost units.
+            channel_ids = {
+                v.channel_id for v in self.store.get_videos(ids).values()
+                if v.format_class in FORMAT_CLASSES[fmt] and v.view_count
+            }
+            fresh = self.store.get_channels(channel_ids, self.config.channel_ttl_hours)
+            est = estimate_list_calls(len(channel_ids - fresh.keys()))
+        else:
+            specs = self.make_specs(seed, fmt, self.config.search["published_within_days"],
+                                    self.config.search["max_results"], "viewCount", region_code, relevance_language)
+            est = self.estimate_collect(specs, with_channels=True)["total"]
+        result: dict[str, Any] = {
+            "tool": "expand_keywords",
+            "seed": seed,
+            "format": fmt,
+            "source": "cache" if ids else "find_outliers (seed not cached yet)",
+        }
+        if dry_run:
+            result["quota"] = self.receipt(est, self.quota.session_units, "dry run: nothing spent").to_dict()
+            return result
+        self._check_budget(est, max_units)
+        start = self.quota.session_units
+        errors: list[str] = []
+        if not ids:
+            self.find_outliers(seed, fmt, region_code=region_code, relevance_language=relevance_language)
+            ids = self.store.video_ids_for_query(seed)
+
+        allowed = FORMAT_CLASSES[fmt]
+        videos = [v for v in self.store.get_videos(ids).values() if v.format_class in allowed and v.view_count]
+        try:
+            channels = self.fetch_channels([v.channel_id for v in videos], errors)
+        except QuotaExceededError as exc:
+            errors.append(str(exc))
+            channels = self.store.get_channels([v.channel_id for v in videos])
+        enriched = self.enrich(videos, channels)
+        small_max = self.config.thresholds["small_channel_max_subs"]
+        small = [e for e in enriched if e.subs is not None and e.subs < small_max]
+        basis = [e for e in small if e.is_hit] or small
+        basis.sort(key=lambda e: e.primary_score or 0, reverse=True)
+        basis = basis[:40]
+        candidates = expand_candidates(
+            [(e.video.channel_id, e.video.title, e.video.tags, e.primary_score or 0) for e in basis],
+            seed,
+            top=max_suggestions,
+        )
+        result.update(
+            {
+                "based_on": {"outlier_videos": len(basis), "channels": len({e.video.channel_id for e in basis})},
+                "suggestions": candidates,
+                "next_step": "Run compare_niches on the most promising suggestions (each costs ~100-400 units).",
+                "errors": errors,
+                "quota": self.receipt(est, start).to_dict(),
+            }
+        )
         return result
 
     def get_channel_stats(

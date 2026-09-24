@@ -165,6 +165,30 @@ def render_analysis_markdown(result: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def render_compare_markdown(rows: list[dict[str, Any]], fmt: str) -> str:
+    lines = [
+        f"## Niche comparison [{fmt}]",
+        "",
+        "| # | Niche | Final | Best format | Opportunity | New-channel proof | Velocity | Consistency "
+        "| Competition | Monetization (est.) | Confidence |",
+        "|---:|---|---:|---|---:|---:|---:|---:|---:|---|---|",
+    ]
+    for i, r in enumerate(rows, 1):
+        if r.get("error"):
+            lines.append(f"| {i} | {_md_escape(r['query'])} | – | – | – | – | – | – | – | – | error: {_md_escape(r['error'])} |")
+            continue
+        c = r["components"]
+        conf = "⚠️ low" if r["low_confidence"] else "ok"
+        lines.append(
+            f"| {i} | {_md_escape(r['query'])} | **{r['final_score']:.0f}** | {r['best_format']} | "
+            f"{c['opportunity']:.0f} | {c['new_channel_proof']:.0f} | {c['velocity']:.0f} | {c['consistency']:.0f} | "
+            f"{c['competition']:.0f} | {c['monetization']:.0f} ({r['rpm_tier']}) | {conf} |"
+        )
+    lines += ["", "_Scores are 0–100; higher is better (Competition: higher = less dominated by 100k+ channels). "
+                  "Monetization is an ESTIMATE, not data._"]
+    return "\n".join(lines)
+
+
 def export_markdown(markdown: str, reports_dir: Path, name: str, now: datetime) -> Path:
     reports_dir.mkdir(parents=True, exist_ok=True)
     slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:60] or "report"

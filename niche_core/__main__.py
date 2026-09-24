@@ -62,6 +62,26 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--json", action="store_true", help="print full JSON instead of the markdown summary")
     _add_budget_args(p)
 
+    p = sub.add_parser("compare", help="compare_niches: ranked table of several niches")
+    p.add_argument("queries", nargs="+", help="niche queries (quote multi-word ones)")
+    p.add_argument("--format", "-f", choices=FORMATS, default="both")
+    p.add_argument("--region", dest="region_code", default=None)
+    p.add_argument("--lang", dest="relevance_language", default=None)
+    p.add_argument("--days", type=int, default=None)
+    p.add_argument("--max-results", type=int, default=None)
+    p.add_argument("--export", action="store_true")
+    p.add_argument("--json", action="store_true")
+    _add_budget_args(p)
+
+    p = sub.add_parser("expand", help="expand_keywords: sub-niche queries from outlier titles/tags")
+    p.add_argument("seed")
+    p.add_argument("--format", "-f", choices=FORMATS, default="both")
+    p.add_argument("--region", dest="region_code", default=None)
+    p.add_argument("--lang", dest="relevance_language", default=None)
+    p.add_argument("--max-suggestions", type=int, default=15)
+    p.add_argument("--json", action="store_true")
+    _add_budget_args(p)
+
     p = sub.add_parser("channels", help="get_channel_stats for channel IDs")
     p.add_argument("channel_ids", nargs="+")
     _add_budget_args(p)
@@ -164,6 +184,32 @@ def main(argv: list[str] | None = None) -> int:
                 ),
                 args,
             )
+        elif args.command == "compare":
+            out = _run_paid(
+                svc.compare_niches,
+                dict(
+                    queries=args.queries,
+                    format=args.format,
+                    published_within_days=args.days,
+                    max_results=args.max_results,
+                    region_code=args.region_code,
+                    relevance_language=args.relevance_language,
+                    export=args.export,
+                ),
+                args,
+            )
+        elif args.command == "expand":
+            out = _run_paid(
+                svc.expand_keywords,
+                dict(
+                    seed=args.seed,
+                    format=args.format,
+                    max_suggestions=args.max_suggestions,
+                    region_code=args.region_code,
+                    relevance_language=args.relevance_language,
+                ),
+                args,
+            )
         elif args.command == "channels":
             out = _run_paid(svc.get_channel_stats, dict(channel_ids=args.channel_ids), args)
         elif args.command == "quota":
@@ -178,7 +224,17 @@ def main(argv: list[str] | None = None) -> int:
     except YouTubeAPIError as exc:
         print(f"YouTube API error: {exc}", file=sys.stderr)
         return 1
-    if args.command == "analyze" and not args.json and "summary_markdown" in out:
+    if args.command == "compare" and not args.json and "table_markdown" in out:
+        print(out["table_markdown"])
+        if out.get("exported_to"):
+            print(f"\nExported to {out['exported_to']}", file=sys.stderr)
+    elif args.command == "expand" and not args.json and "suggestions" in out:
+        print(f"Sub-niches for '{out['seed']}' ({out['based_on']['outlier_videos']} outlier videos, "
+              f"{out['based_on']['channels']} channels):")
+        for s in out["suggestions"]:
+            print(f"  {s['score']:>6.1f}  {s['query']:<40} channels={s['channels']:<3} {'/'.join(s['sources']):<9} "
+                  f"e.g. {s['example_titles'][0][:60]}")
+    elif args.command == "analyze" and not args.json and "summary_markdown" in out:
         print(out["summary_markdown"])
         if out.get("exported_to"):
             print(f"\nExported to {out['exported_to']}", file=sys.stderr)

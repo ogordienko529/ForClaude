@@ -70,7 +70,7 @@ DEFAULTS: dict[str, Any] = {
         "shorts": {
             "hit_views": 10_000,
             # Median views/day of *typical* uploads (date-ordered sample), not of top videos.
-            "velocity_views_per_day_low": 50,
+            "velocity_views_per_day_low": 2,
             "velocity_views_per_day_high": 50_000,
             "hit_share_high": 0.30,        # share of small-channel uploads reaching hit_views that scores 100
             "outlier_median_low": 0.5,     # median channel-relative score -> 0
@@ -78,7 +78,7 @@ DEFAULTS: dict[str, Any] = {
         },
         "long": {
             "hit_views": 10_000,
-            "velocity_views_per_day_low": 20,
+            "velocity_views_per_day_low": 1,
             "velocity_views_per_day_high": 20_000,
             "hit_share_high": 0.30,
             "outlier_median_low": 0.5,     # median views/subs -> 0
