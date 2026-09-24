@@ -85,6 +85,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("backtest", help="temporal backtest + calibration report (see docs/QUALITY_CRITERIA.md)")
     p.add_argument("--format", "-f", choices=["shorts", "long"], required=True)
     p.add_argument("--queries", nargs="*", default=None, help="default: calibration/panel.toml")
+    p.add_argument("--set", dest="panel_set", choices=["design", "holdout", "all"], default="design",
+                   help="panel list: design (used to build the scoring), holdout (test only), or all")
     p.add_argument("--panel", default="calibration/panel.toml")
     p.add_argument("--collect", action="store_true", help="fetch missing data from the API (costs quota)")
     p.add_argument("--prior-strength", type=float, default=None)
@@ -152,7 +154,9 @@ def _backtest(svc: NicheService, args: argparse.Namespace) -> int:
     queries = args.queries
     if not queries:
         with open(args.panel, "rb") as fh:
-            queries = tomllib.load(fh)[args.format]
+            panel = tomllib.load(fh)
+        design, holdout = panel.get(args.format, []), panel.get(f"{args.format}_holdout", [])
+        queries = {"design": design, "holdout": holdout, "all": design + holdout}[args.panel_set]
     if args.collect:
         est = sum(estimate_case(svc, q, args.format) for q in queries)
         if args.dry_run:

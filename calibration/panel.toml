@@ -1,12 +1,21 @@
 # Niche panel for the temporal backtest (python -m niche_core backtest).
 # Deliberately diverse: easy/hard, high/low RPM, Shorts-native and long-form-native topics.
+# Round 1 niches were used to design scoring v2; the holdout lists are used only to test it.
 shorts = [
   "roman empire history", "life hacks", "math tricks", "football skills", "cooking hacks",
   "geography facts", "space facts", "ai news", "motivational quotes", "funny cats",
   "car facts", "psychology facts",
 ]
+shorts_holdout = [
+  "personal finance tips", "gym motivation", "dog training tips", "makeup tutorial", "minecraft shorts",
+  "science experiments", "history facts", "english learning", "tech gadgets", "street food",
+  "fishing", "bible verses",
+]
 long = [
   "personal finance for beginners", "true crime documentary", "minecraft survival", "ai tools tutorial",
-  "stoicism philosophy", "aviation history", "space documentary", "home workout", "budget travel",
-  "woodworking projects", "chess openings", "sleep stories", "mythology explained", "real estate investing",
+  "stoicism philosophy",
+]
+long_holdout = [
+  "aviation history", "space documentary", "home workout", "budget travel", "woodworking projects",
+  "chess openings", "sleep stories", "mythology explained", "real estate investing",
 ]
