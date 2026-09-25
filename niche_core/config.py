@@ -75,23 +75,23 @@ DEFAULTS: dict[str, Any] = {
         "shorts": {
             "hit_views": 10_000,
             # Median views/day of *typical* uploads (date-ordered sample), not of top videos.
-            "velocity_views_per_day_low": 1,
-            "velocity_views_per_day_high": 3_000,
+            "velocity_views_per_day_low": 3,
+            "velocity_views_per_day_high": 1_700,
             "hit_share_high": 0.60,          # small-channel hit share that scores 100
-            "small_views_low": 50_000,       # median views of small channels in the top results -> 0
-            "small_views_high": 10_000_000,  # -> 100
-            "demand_views_low": 50_000,      # median views of the top results -> 0
-            "demand_views_high": 10_000_000, # -> 100
+            "small_views_low": 100_000,      # median views of small channels in the top results -> 0
+            "small_views_high": 20_000_000,  # -> 100
+            "demand_views_low": 75_000,      # median views of the top results -> 0
+            "demand_views_high": 13_000_000, # -> 100
         },
         "long": {
             "hit_views": 10_000,
-            "velocity_views_per_day_low": 0.5,
-            "velocity_views_per_day_high": 500,
+            "velocity_views_per_day_low": 1,
+            "velocity_views_per_day_high": 100,
             "hit_share_high": 0.30,
-            "small_views_low": 1_000,
+            "small_views_low": 6_000,
             "small_views_high": 500_000,
-            "demand_views_low": 5_000,
-            "demand_views_high": 2_000_000,
+            "demand_views_low": 13_000,
+            "demand_views_high": 1_200_000,
         },
     },
     # Share of the final score that is money; the rest is the view-opportunity score. View weights are
@@ -103,16 +103,16 @@ DEFAULTS: dict[str, Any] = {
             "velocity": 0.10, "consistency": 0.10, "competition": 0.0,
         },
         "long": {
-            "opportunity": 0.40, "demand": 0.30, "new_channel_proof": 0.10,
-            "velocity": 0.10, "consistency": 0.10, "competition": 0.0,
+            "opportunity": 0.50, "demand": 0.50, "new_channel_proof": 0.0,
+            "velocity": 0.0, "consistency": 0.0, "competition": 0.0,
         },
     },
     # Forecast of a small channel's hit probability (Beta-binomial shrinkage + month-to-month drift),
     # both measured by the backtest.
     "forecast": {
         "prior_strength": 10,
-        "shorts": {"prior_hit_rate": 0.49, "drift_sd": 0.30},
-        "long": {"prior_hit_rate": 0.13, "drift_sd": 0.08},
+        "shorts": {"prior_hit_rate": 0.48, "drift_sd": 0.30},
+        "long": {"prior_hit_rate": 0.13, "drift_sd": 0.055},
     },
 }
 

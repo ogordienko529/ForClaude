@@ -8,24 +8,32 @@ The tool's job: *tell a new or small channel which niches give it a realistic ch
 views per video within 1–14 days, and how much that is worth.* So the most important criteria are
 predictive, not cosmetic.
 
-## Status
+## Status (after round 2, 2026-09-25)
+
+✅ met · 🟡 partially met · ⏳ deferred
 
 | ID | Status | Evidence |
 |---|---|---|
-| P1 | Shorts ρ 0.76, long ρ 0.70 (v1: 0.24 / −0.10). Long-form rests on only 5 niches so far | CALIBRATION.md, round 1 |
-| P2 | Forecast built (hit probability + 80% range). Beats the constant baseline in both formats; coverage 80% | CALIBRATION.md |
-| P3 | Competition and monetization carry no predictive weight (competition reported only, monetization is a separate axis) | CALIBRATION.md |
-| P4 | Fitted per format; final fit after round 2 | pending round 2 |
-| S1 | Done: bootstrap 80% range on the view score; low-confidence flag uses its width | `scoring.bootstrap_interval` |
-| S2 | Shorts std 22.6, long std 25.4; no component stuck at 0/100 | CALIBRATION.md |
-| S3 | 75% of Shorts niches and 100% of long-form niches have ≥ 30 base-sample videos | CALIBRATION.md |
-| D1 | 0 unverified Shorts in the panel | CALIBRATION.md |
-| D2 | 0.7–0.8% non-Latin titles kept | CALIBRATION.md |
-| D4 | Rule switched to engagement: organic hits are no longer flagged, the brand ad still is | tests + panel |
-| C1 | The pool search is needed (demand is its strongest signal); the `long` bucket is needed (74% of long-form hits are over 20 min) | CALIBRATION.md |
-| C2 | Fixed: pagination capped at the estimate; the guard is checked before every retry | tests |
-| R2 | All 15 review findings fixed (3 high, 6 medium, 6 low) | `tests/test_review_fixes.py` |
-| R3 | 99 tests green | pytest |
+| P1 | ✅ Shorts ρ 0.78 on new niches with the unchanged model (0.73 honest leave-one-out). Long-form ρ 0.83 leave-one-out after the refit (0.32 before it, on new niches) | CALIBRATION.md, round 2 |
+| P2 | ✅ Long-form: MAE 0.046 vs 0.058 for a constant, 86% coverage. 🟡 Shorts: beats the constant (0.288 vs 0.320), but coverage is 71%; the known window-age bias in the backtest is explained in CALIBRATION.md | CALIBRATION.md |
+| P3 | ✅ Components that don't predict carry weight 0: competition (both formats) and new-channel/velocity/consistency (long-form). They are still reported | config |
+| P4 | ✅ Weights chosen from data; the selection procedure is validated leave-one-out | CALIBRATION.md |
+| S1 | ✅ Bootstrap 80% range on the view score; the low-confidence flag uses its width | `scoring.bootstrap_interval` |
+| S2 | ✅ Score std 21.7 (Shorts) and 24.3 (long); no component stuck at 0/100 in ≥ 80% of niches | CALIBRATION.md |
+| S3 | ✅ 83–100% of niches have ≥ 30 base-sample videos | CALIBRATION.md |
+| S4 | ⏳ Day-to-day stability not re-measured (costs ~400 units per niche) | – |
+| D1 | ✅ 0 unverified Shorts across 35 niches | CALIBRATION.md |
+| D2 | ✅ 0.3–0.8% non-Latin titles kept | CALIBRATION.md |
+| D4 | ✅ Engagement rule: no organic hits flagged on the panel; the brand ad (0 likes on 3.6M views) is caught | tests + panel |
+| C1 | ✅ Every search earns its cost: the pool carries demand, the strongest signal, and 63–74% of long-form hits are over 20 min | CALIBRATION.md |
+| C2 | ✅ Pagination capped at the estimate; the guard is checked before every retry | tests |
+| C3 | ✅ ~24 long-form or ~48 Shorts analyses per day (≈410 / ≈205 units each) | arithmetic |
+| C4 | ✅ Cached repeats cost 0–5 units | receipts |
+| R1 | ✅ Quota exhaustion keeps already-paid data and returns partial results | tests |
+| R2 | ✅ All 15 independent-review findings fixed | `tests/test_review_fixes.py` |
+| R3 | ✅ 99 tests green | pytest |
+| U1 | ✅ Reports open with the forecast and its range, then the view score and its range, then the evidence | report.py |
+| U2 | ✅ README and MCP docstrings updated | README.md |
 
 ## P. Prediction
 

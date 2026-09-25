@@ -31,7 +31,7 @@ python3 -m venv .venv
 source .venv/bin/activate            # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 cp config.example.toml config.toml   # optional: tweak thresholds, weights, bands
-pytest                               # 80+ tests, no network needed
+pytest                               # ~100 tests, no network needed
 ```
 
 ## 3. Use it from the command line
@@ -47,6 +47,7 @@ python -m niche_core expand "history documentary" -f long           # sub-niche 
 python -m niche_core compare "aviation history" "cold war history" "mythology explained" -f long
 python -m niche_core channels UCxxxxxxxxxxxxxxxxxxxxxx              # channel stats
 python -m niche_core purge                                          # delete cached data older than retention
+python -m niche_core backtest -f shorts --set all                   # calibration report (offline from cache)
 ```
 
 Every search tool accepts `--region` (regionCode, default `US`) and `--lang` (relevanceLanguage, default `en`).
@@ -98,7 +99,7 @@ On Windows the command is `C:\\path\\to\\ForClaude\\.venv\\Scripts\\python.exe`.
 | `search_niche(query, format, published_within_days=30, max_results=50)` | Recent videos: views, likes, comments, duration, publish date, channel id | 100 per duration bucket + 1 per 50 videos |
 | `get_channel_stats(channel_ids)` | Subscribers (None if hidden), total views, video count, created date, avg views/video | 1 per 50 channels |
 | `find_outliers(query, format, min_outlier_score=10, max_channel_subs=50000)` | Small-channel videos far above their channel's size, with both outlier scores | ≈ search + 2–4 |
-| `analyze_niche(query, format)` | Scored report (JSON + `summary_markdown`) | shorts ≈ 205, long ≈ 410, both ≈ 615 |
+| `analyze_niche(query, format)` | Forecast + view score (with 80% ranges) + final score, components, top outliers (JSON + `summary_markdown`) | shorts ≈ 205, long ≈ 410, both ≈ 615 |
 | `compare_niches(queries, format)` | Ranked markdown table (`table_markdown`) + per-niche scores | sum of analyze_niche |
 | `expand_keywords(seed)` | Sub-niche queries from outlier titles/tags | 0 if seed cached, else find_outliers once |
 | `quota_status()` | Units used today, remaining, per-endpoint breakdown | 0 |
@@ -115,28 +116,58 @@ Every tool accepts `dry_run` (estimate only) and `max_units` (refuse if the esti
 
 ## 5. How niches are scored
 
-Each component is 0–100 and carries its raw numbers plus a one-line explanation. The final score is a weighted mean; weights live in `config.toml`:
+Every analysis returns three things:
 
-| Component | Weight | What it measures |
-|---|---:|---|
-| Opportunity | 0.25 | Share of recent small-channel (<50k subs) uploads that reached the hit threshold (60%) + median outlier score (40%) |
-| New-channel proof | 0.20 | Channels created in the last 12 months with a hit video (5+ = 100) |
-| Velocity | 0.15 | Median views/day of typical uploads under 30 days old, log scale, per-format band |
-| Consistency | 0.15 | Hits spread across many small channels, and a low share held by the single biggest hit |
-| Competition | 0.10 | How little 100k+ channels dominate the top results (share of videos and of views) |
-| Monetization | 0.15 | **ESTIMATE, not data**: RPM tier (low/medium/high) from query keywords, then video category. Shorts use a separate, much lower table |
+1. **Forecast:** the chance that a typical upload from a small channel (≤ 50k subs) reaches 10,000
+   views in its first 1–3 weeks, with an 80% range. It uses the niche's recent uploads, shrunk
+   toward the panel average when the sample is small, and widened by how much niches drift month
+   to month.
+2. **View score (0–100)** with an 80% range (bootstrap): how good the niche is for views.
+3. **Final score** = 0.85 × view score + 0.15 × monetization ESTIMATE. Both weights are in `config.toml`.
 
-Design choices worth knowing:
+View-score components (each 0–100, with raw numbers and a one-line explanation):
 
-- **Two samples.** Each analysis runs a view-ordered search (what wins: outliers, competition) and a date-ordered search restricted to uploads at least 7 days old (what a *typical* upload gets: hit share, velocity). Using only view-ordered results would make every niche look great.
-- **Direct 1–14 day evidence.** The API returns only current views, so `hit_within_14d` marks hits that are still ≤14 days old. Each refresh is stored as a snapshot, so repeat runs build a views-over-time history.
-- **Shorts vs long-form.** A Short is ≤180 s **and** has a vertical embed (`part=player`, no extra cost). Horizontal clips under 3 min are excluded from Shorts stats. Long-form searches both the `medium` (4–20 min) and `long` (20+ min) buckets. Hit thresholds and velocity bands are configured separately per format, because Shorts views count every replay.
-- **Two outlier scores.** `sub_outlier_score = views / max(subs, 100)` and `channel_relative_score = views / (channel views / video count)`. Shorts are ranked by the channel-relative score, long-form by the subscriber score.
-- **Paid-promotion filter.** Long-form channels whose average views per video exceed 100× their subscriber count (typically ad-driven brand channels) are excluded from scoring and counted separately.
-- **Language.** `relevanceLanguage` is only a hint to YouTube, so videos whose declared audio language differs are dropped and counted (`filter_by_audio_language`).
-- **Low confidence.** Niches with fewer than 30 analysed videos or fewer than 5 small-channel hits are flagged.
+| Component | What it measures | Weight: Shorts | Weight: long |
+|---|---|---:|---:|
+| Opportunity | Share of typical small-channel uploads that reached 10k (shrunk), plus median views of small channels in the top results | 0.35 | 0.50 |
+| Demand | Median views of the top results: how much audience the topic pulls | 0.30 | 0.50 |
+| New-channel proof | Channels under 12 months old with a 10k+ video, plus their hit rate | 0.15 | 0 |
+| Velocity | Median views/day of a typical upload | 0.10 | 0 |
+| Consistency | Hits spread across many small channels rather than one lucky video | 0.10 | 0 |
+| Competition | Share of top results and views taken by 100k+ channels (reported, not weighted) | 0 | 0 |
+| Monetization | **ESTIMATE, not data**: RPM tier from query keywords, then category; separate Shorts table | final score only | final score only |
 
-The velocity bands were calibrated on a handful of real niches. Treat scores as a ranking aid, compare niches within the same format, and read the explanations.
+### How we know it works
+
+The weights are not guesses. `python -m niche_core backtest` runs a temporal backtest: a score
+computed on uploads 60–30 days old is checked against what small channels actually got 21–7 days
+ago (`docs/CALIBRATION.md`, criteria in `docs/QUALITY_CRITERIA.md`):
+
+- **Shorts:** ranking ρ 0.78 on 11 niches the model had never seen.
+- **Long-form:** ρ 0.83, leave-one-out, over 14 niches.
+- **Long-form forecasts** are off by 4–6 percentage points on average.
+- **Shorts forecasts** are much wider, because Shorts niches swing ±30 pp from month to month.
+
+Findings that shaped the design:
+
+- **Big channels in a niche signal demand, not a barrier.** "Fewer big channels = better" had the
+  wrong sign in both formats, so competition is shown but not penalised.
+- **Long-form hits are mostly over 20 minutes (63–74%).** Long-form therefore searches both the
+  4–20 min and 20+ min buckets.
+- **Ad-driven views are filtered by engagement.** Near-zero likes and comments on a huge view
+  count mark them (a brand video had 0 likes on 3.6M views); organic hits sit at 0.2–3% likes.
+
+Other design choices:
+
+- **Shorts vs long-form.** A Short is ≤ 180 s **and** has a vertical embed (`part=player`, no extra
+  cost). Horizontal clips under 3 minutes are excluded. Bands are set per format, because Shorts
+  views count every replay.
+- **Two outlier scores** in `find_outliers`: `views / max(subs, 100)` and `views / channel average`.
+- **Language.** `relevanceLanguage` is only a hint, so videos whose declared audio language differs
+  are dropped and counted.
+
+Re-run the backtest on your own niches with `python -m niche_core backtest -f long --queries "..." --collect`.
+After collecting, calibration iterations run offline for free.
 
 ## 6. Quota, cache and data retention
 

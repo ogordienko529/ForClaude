@@ -133,10 +133,12 @@ def analyze_niche(
     dry_run: bool = False,
     max_units: int | None = None,
 ) -> dict[str, Any]:
-    """Scored niche report (0-100): opportunity, new-channel proof, velocity, consistency, competition,
-    monetization ESTIMATE, weighted final score, low-confidence flags, top 10 outliers, title patterns,
-    typical length and recency. `summary_markdown` holds a readable version. export=true also writes
-    it to reports/. format=both scores Shorts and long-form separately and reports the better one."""
+    """Backtested niche report. `forecast`: chance a small channel's upload reaches 10k views in its
+    first 1-3 weeks, with an 80% range. `view_score` (0-100, with 80% range) from opportunity, demand,
+    new-channel proof, velocity, consistency (competition reported, not weighted); `final_score` adds
+    the monetization ESTIMATE (15%). Also top 10 outliers, title patterns, typical length, recency and
+    low-confidence flags. `summary_markdown` is a readable version; export=true writes it to reports/.
+    format=both scores Shorts and long-form separately and reports the better one."""
     result = service().analyze_niche(query, format, published_within_days, None, region_code, relevance_language,
                                      export=export, dry_run=dry_run, max_units=max_units)
     return result

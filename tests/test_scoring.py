@@ -119,7 +119,7 @@ def test_thin_niche_flagged_low_confidence(svc):
 
 def test_shorts_use_their_own_bands_and_lower_monetization(svc):
     shorts = run("shorts_healthy", svc)
-    assert shorts["components"]["velocity"]["raw"]["band_high"] == 3_000
+    assert shorts["components"]["velocity"]["raw"]["band_high"] == svc.config.bands("shorts")["velocity_views_per_day_high"] != svc.config.bands("long")["velocity_views_per_day_high"]
     assert shorts["components"]["monetization"]["score"] < run("healthy", svc)["components"]["monetization"]["score"]
     assert "ESTIMATE" in shorts["components"]["monetization"]["explanation"]
 

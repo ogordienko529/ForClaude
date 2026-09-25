@@ -46,23 +46,23 @@ max_ci_width = 25                  # 80% view-score interval wider than this => 
 # 10th-90th percentiles (docs/CALIBRATION.md). Shorts views count every replay, so they differ per format.
 [bands.shorts]
 hit_views = 10000
-velocity_views_per_day_low = 1         # median views/day of a typical upload -> 0
-velocity_views_per_day_high = 3000     # -> 100
+velocity_views_per_day_low = 3         # median views/day of a typical upload -> 0
+velocity_views_per_day_high = 1700     # -> 100
 hit_share_high = 0.60                  # small-channel hit share that scores 100
-small_views_low = 50000                # median views of small channels in the top results -> 0
-small_views_high = 10000000
-demand_views_low = 50000               # median views of the top results -> 0
-demand_views_high = 10000000
+small_views_low = 100000               # median views of small channels in the top results -> 0
+small_views_high = 20000000
+demand_views_low = 75000               # median views of the top results -> 0
+demand_views_high = 13000000
 
 [bands.long]
 hit_views = 10000
-velocity_views_per_day_low = 0.5
-velocity_views_per_day_high = 500
+velocity_views_per_day_low = 1
+velocity_views_per_day_high = 100
 hit_share_high = 0.30
-small_views_low = 1000
+small_views_low = 6000
 small_views_high = 500000
-demand_views_low = 5000
-demand_views_high = 2000000
+demand_views_low = 13000
+demand_views_high = 1200000
 
 # final = (1 - monetization) * view_score + monetization * monetization_estimate.
 # View weights per format, fitted on the temporal backtest (docs/CALIBRATION.md).
@@ -80,11 +80,13 @@ consistency = 0.10
 competition = 0.0
 
 [weights.long]
-opportunity = 0.40
-demand = 0.30
-new_channel_proof = 0.10
-velocity = 0.10
-consistency = 0.10
+# Long-form: only opportunity and demand predicted later small-channel hit rates on the 14-niche
+# panel; the other components are still reported, but carry no weight.
+opportunity = 0.50
+demand = 0.50
+new_channel_proof = 0.0
+velocity = 0.0
+consistency = 0.0
 competition = 0.0
 
 # Hit-probability forecast: Beta-binomial shrinkage toward the panel's mean hit rate, widened by the
@@ -93,12 +95,12 @@ competition = 0.0
 prior_strength = 10
 
 [forecast.shorts]
-prior_hit_rate = 0.49
+prior_hit_rate = 0.48
 drift_sd = 0.30
 
 [forecast.long]
 prior_hit_rate = 0.13
-drift_sd = 0.08
+drift_sd = 0.055
 
 # Monetization is an ESTIMATE (heuristic lookup), not API data. Override any part, e.g.:
 # [monetization]
