@@ -76,6 +76,39 @@ def fade(audio: np.ndarray, sr: int, ms: float) -> np.ndarray:
     return audio
 
 
+def stretch_pauses(audio: np.ndarray, sr: int, target: float, rng: random.Random, jitter: float,
+                   min_gap: float = 0.35, floor_db: float = -45.0) -> np.ndarray:
+    """Lengthen the silences between sentences inside a paragraph to `target` seconds (±jitter).
+    Short gaps (commas, breaths) are left alone, so the paragraph keeps its natural intonation."""
+    if audio.size == 0 or target <= 0:
+        return audio
+    frame = max(int(sr * 0.01), 1)
+    n = audio.size // frame
+    if n == 0:
+        return audio
+    rms = np.sqrt(np.mean(np.square(audio[: n * frame].reshape(n, frame)), axis=1) + 1e-12)
+    quiet = 20 * np.log10(rms) < floor_db
+    pieces, last, i = [], 0, 0
+    while i < n:
+        if quiet[i]:
+            j = i
+            while j < n and quiet[j]:
+                j += 1
+            gap = (j - i) * frame / sr
+            if gap >= min_gap and i > 0 and j < n:  # interior gap between two sentences
+                want = target * (1 + rng.uniform(-jitter, jitter))
+                if want > gap:
+                    mid = (i + j) // 2 * frame
+                    pieces.append(audio[last:mid])
+                    pieces.append(np.zeros(int((want - gap) * sr), dtype=audio.dtype))
+                    last = mid
+            i = j
+        else:
+            i += 1
+    pieces.append(audio[last:])
+    return np.concatenate(pieces)
+
+
 def cache_key(engine_id: str, text: str, speed: float) -> str:
     return hashlib.sha1(f"{engine_id}|{speed:.3f}|{text}".encode()).hexdigest()
 
@@ -105,10 +138,31 @@ class RenderResult:
     cached: int
 
 
+def _units(script: Script, unit: str):
+    """Yield ("pause", seconds, None) or ("speech", [segments], after) groups.
+    unit="paragraph": consecutive sentences up to a paragraph/chapter break are spoken in one go,
+    so intonation flows like a person reading; unit="sentence": one sentence at a time."""
+    group = []
+    for seg in script.segments:
+        if seg.kind == "pause":
+            if group:
+                yield "speech", group, "sentence"
+                group = []
+            yield "pause", seg.seconds, None
+            continue
+        group.append(seg)
+        if unit == "sentence" or seg.after != "sentence":
+            yield "speech", group, seg.after
+            group = []
+    if group:
+        yield "speech", group, group[-1].after
+
+
 def render(script: Script, engine: Engine, out_wav: Path, pacing: Pacing | None = None,
            cache_dir: Path | None = CACHE_DIR, lead_in: float = 2.0, tail: float = 6.0,
-           log=lambda msg: print(msg, file=sys.stderr)) -> RenderResult:
+           unit: str | None = None, log=lambda msg: print(msg, file=sys.stderr)) -> RenderResult:
     p = pacing or Pacing()
+    unit = unit or getattr(engine, "preferred_unit", "sentence")
     rng = random.Random(p.seed)
     sr = engine.sample_rate
     total_words = max(script.word_count(), 1)
@@ -118,7 +172,9 @@ def render(script: Script, engine: Engine, out_wav: Path, pacing: Pacing | None 
     t = 0.0
     synthesized = cached = 0
     started = time.time()
-    sentences = script.sentences
+    groups = list(_units(script, unit))
+    speech_groups = [g for g in groups if g[0] == "speech"]
+    texts = [" ".join(s.text for s in g[1]) for g in speech_groups]
     if cache_dir:
         cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -133,40 +189,54 @@ def render(script: Script, engine: Engine, out_wav: Path, pacing: Pacing | None 
 
         silence(lead_in)
         last_chapter = None
-        for i, seg in enumerate(script.segments):
-            pos = words_done / total_words
-            if seg.kind == "pause":
-                silence(seg.seconds)
+        done = 0
+        for kind, payload, after in groups:
+            if kind == "pause":
+                silence(payload)
                 continue
-            if seg.chapter != last_chapter and seg.chapter:
-                chapters.append((t, seg.chapter))
-                last_chapter = seg.chapter
+            segs = payload
+            pos = words_done / total_words
+            if segs[0].chapter != last_chapter and segs[0].chapter:
+                chapters.append((t, segs[0].chapter))
+                last_chapter = segs[0].chapter
+            text = texts[done]
             speed = round(speed_at(pos, p), 3)
-            key = cache_key(engine.engine_id, seg.text, speed)
+            inner = round(p.sentence_pause * pause_scale_at(pos, p), 2) if len(segs) > 1 else 0.0
+            key = cache_key(f"{engine.engine_id}|{unit}|{inner}", text, speed)
             path = cache_dir / f"{key}.npy" if cache_dir else None
             if path and path.exists():
                 audio = np.load(path)
                 cached += 1
             else:
-                audio = engine.synthesize(seg.text, speed)
+                if hasattr(engine, "context"):  # engines that use neighbouring text for continuity
+                    engine.context = (texts[done - 1] if done else "", texts[done + 1] if done + 1 < len(texts) else "")
+                audio = engine.synthesize(text, speed, inner)
                 if path:
                     np.save(path, audio)
                 synthesized += 1
+            if len(segs) > 1:
+                audio = stretch_pauses(audio, sr, p.sentence_pause * pause_scale_at(pos, p), rng, p.jitter)
             audio = fade(level_match(audio, p.target_level_db, p.max_gain_db), sr, p.fade_ms)
             start = t
             f.write(audio)
             t += audio.size / sr
-            cues.append((start, t, seg.text))
-            words_done += len(seg.text.split())
+            # Subtitle cues: split the group's time across its sentences by text length.
+            total_chars = sum(len(s.text) for s in segs) or 1
+            cursor = start
+            for s in segs:
+                span = (t - start) * len(s.text) / total_chars
+                cues.append((cursor, cursor + span, s.text))
+                cursor += span
+            words_done += sum(len(s.text.split()) for s in segs)
+            done += 1
 
-            base = {"sentence": p.sentence_pause, "paragraph": p.paragraph_pause, "chapter": p.chapter_pause}[seg.after]
+            base = {"sentence": p.sentence_pause, "paragraph": p.paragraph_pause, "chapter": p.chapter_pause}[after]
             silence(base * pause_scale_at(pos, p) * (1 + rng.uniform(-p.jitter, p.jitter)))
 
-            done = sum(1 for s in script.segments[: i + 1] if s.kind == "sentence")
-            if done % 25 == 0 or done == len(sentences):
+            if done % 10 == 0 or done == len(speech_groups):
                 elapsed = time.time() - started
-                eta = elapsed / done * (len(sentences) - done)
-                log(f"  {done}/{len(sentences)} sentences, {chapter_time(t)} of audio, ETA {eta / 60:.1f} min")
+                eta = elapsed / done * (len(speech_groups) - done)
+                log(f"  {done}/{len(speech_groups)} {unit}s, {chapter_time(t)} of audio, ETA {eta / 60:.1f} min")
         silence(tail)
     if chapters and chapters[0][0] > 0:
         chapters[0] = (0.0, chapters[0][1])  # YouTube requires the first chapter at 0:00

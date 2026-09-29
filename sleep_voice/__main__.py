@@ -76,8 +76,18 @@ def estimate_seconds(script, pacing: Pacing) -> float:
     return speech + pauses + 8.0  # + lead-in and tail silence
 
 
+def engine_from_args(args, voice: str | None = None):
+    from .engine import make_engine
+
+    opts = {}
+    if args.engine == "openai" and args.instructions:
+        opts["instructions"] = args.instructions
+    if args.engine == "chatterbox":
+        opts.update(exaggeration=args.exaggeration, cfg_weight=args.cfg_weight)
+    return make_engine(args.engine, voice if voice is not None else args.voice, **opts)
+
+
 def cmd_render(args) -> int:
-    from .engine import KokoroEngine
 
     pacing, mastering = build(args)
     script = parse_script(Path(args.script).read_text(encoding="utf-8"), load_lexicon(args.lexicon))
@@ -88,11 +98,11 @@ def cmd_render(args) -> int:
     est = estimate_seconds(script, pacing)
     print(f"{script.word_count():,} words, {len(script.sentences)} sentences -> about {chapter_time(est)} of audio",
           file=sys.stderr)
-    engine = KokoroEngine(args.voice)
+    engine = engine_from_args(args)
     started = time.time()
     with tempfile.TemporaryDirectory() as tmp:
         raw = Path(tmp) / "raw.wav" if not args.no_master else out.with_suffix(".wav")
-        result = render(script, engine, raw, pacing)
+        result = render(script, engine, raw, pacing, unit=args.unit)
         if args.no_master:
             final = raw
         else:
@@ -111,19 +121,22 @@ def cmd_render(args) -> int:
 
 
 def cmd_samples(args) -> int:
-    from .engine import KokoroEngine
-
     outdir = Path(args.output)
     outdir.mkdir(parents=True, exist_ok=True)
     pacing, mastering = build(args)
     text = Path(args.text).read_text(encoding="utf-8") if args.text else SAMPLE_TEXT
     script = parse_script(text)
-    voices = args.voices or ["am_michael", "am_onyx", "bm_george", "bm_lewis",
-                             "am_michael:0.6,bm_george:0.4", "am_onyx:0.5,am_michael:0.5"]
+    defaults = {
+        "kokoro": ["am_michael", "am_onyx", "bm_george", "bm_lewis", "am_michael:0.6,bm_george:0.4",
+                   "am_onyx:0.5,am_michael:0.5"],
+        "openai": ["onyx", "ash", "cedar", "echo", "sage"],
+    }
+    voices = args.voices or defaults.get(args.engine, [None])
     with tempfile.TemporaryDirectory() as tmp:
         for v in voices:
-            name = v.replace(":", "").replace(",", "+").replace(".", "")
-            res = render(script, KokoroEngine(v), Path(tmp) / f"{name}.wav", pacing, log=lambda m: None)
+            name = f"{args.engine}_" + (str(v) if v else "default").replace(":", "").replace(",", "+").replace(".", "").replace("/", "_")
+            res = render(script, engine_from_args(args, v), Path(tmp) / f"{name}.wav", pacing, unit=args.unit,
+                         log=lambda m: None)
             master(Path(tmp) / f"{name}.wav", outdir / f"{name}.mp3", res.duration, mastering)
             print(f"  {outdir / (name + '.mp3')}  ({chapter_time(res.duration)})")
     return 0
@@ -150,6 +163,16 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="sleep_voice", description="Calm English male narration for sleep videos")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
+    def engine_args(p):
+        p.add_argument("--engine", choices=["kokoro", "chatterbox", "openai", "elevenlabs"], default="kokoro",
+                       help="kokoro (free, CPU) | chatterbox (free, GPU, most natural open model) | "
+                            "openai (OPENAI_API_KEY, ~$0.015/min) | elevenlabs (ELEVENLABS_API_KEY)")
+        p.add_argument("--unit", choices=["paragraph", "sentence"], default=None,
+                       help="speak whole paragraphs (natural intonation, default) or single sentences")
+        p.add_argument("--instructions", help="openai: custom style instructions")
+        p.add_argument("--exaggeration", type=float, default=0.3, help="chatterbox: expressiveness (0.25-0.5 calm)")
+        p.add_argument("--cfg-weight", dest="cfg_weight", type=float, default=0.35, help="chatterbox: lower = slower")
+
     def pacing_args(p):
         p.add_argument("--preset", choices=list(PRESETS), default="sleep")
         p.add_argument("--speed", type=float, help="start speed (default 0.88)")
@@ -165,11 +188,14 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("render", help="narrate a script")
     p.add_argument("script")
     p.add_argument("-o", "--output", required=True, help=".mp3 / .m4a / .wav / .flac")
-    p.add_argument("--voice", default="am_michael", help="voice or blend, e.g. am_michael:0.6,bm_george:0.4")
+    p.add_argument("--voice", default=None,
+                   help="kokoro: voice or blend (am_michael:0.6,bm_george:0.4); openai: onyx/ash/cedar...; "
+                        "elevenlabs: voice_id; chatterbox: path to a reference WAV to clone")
     p.add_argument("--lexicon", help="TOML file of word = \"respelling\" pronunciation fixes")
     p.add_argument("--no-master", action="store_true", help="skip ffmpeg mastering (raw WAV)")
     p.add_argument("--no-srt", action="store_true")
     pacing_args(p)
+    engine_args(p)
     p.set_defaults(fn=cmd_render)
 
     p = sub.add_parser("samples", help="demo each male voice to choose from")
@@ -177,6 +203,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--text", help="custom sample script")
     p.add_argument("--voices", nargs="*")
     pacing_args(p)
+    engine_args(p)
     p.set_defaults(fn=cmd_samples)
 
     sub.add_parser("voices", help="list male voices").set_defaults(fn=cmd_voices)

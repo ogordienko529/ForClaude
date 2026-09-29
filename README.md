@@ -217,6 +217,26 @@ first use.
 **Script format:** plain text. A blank line starts a new paragraph, `# Title` starts a chapter, and
 `[pause 5s]` inserts silence. See `examples/lighthouse_sleep_demo.txt`.
 
+**Engines** (`--engine`), from free to most natural:
+
+| Engine | Naturalness | Cost | Needs |
+|---|---|---|---|
+| `kokoro` (default) | good; best of the light models | free | CPU |
+| `chatterbox` | very natural (preferred over ElevenLabs in 63% of blind tests); can clone a reference voice | free (MIT) | `pip install chatterbox-tts`; a GPU is strongly advised |
+| `openai` | very natural; style is set in plain English (`--instructions`) | ≈ $0.015/min, about $2 for 2 hours | `OPENAI_API_KEY`; voices `onyx`, `ash`, `cedar`, `echo`, `sage` |
+| `elevenlabs` | the benchmark | ≈ $0.10–0.20/min | `ELEVENLABS_API_KEY`, `--voice <voice_id>` |
+
+```bash
+python -m sleep_voice render script.txt -o ep.mp3 --engine openai --voice onyx
+python -m sleep_voice render script.txt -o ep.mp3 --engine chatterbox --voice my_calm_voice.wav --exaggeration 0.3 --cfg-weight 0.35
+python -m sleep_voice samples --engine openai -o samples_openai     # compare OpenAI voices
+```
+
+By default, every engine speaks **whole paragraphs** (`--unit paragraph`), so intonation flows like a
+person reading instead of resetting at each sentence. The pauses between sentences are then stretched
+to the sleep pacing, while short comma pauses are left alone. Use `--unit sentence` for the old behaviour.
+Only clone a voice you have the rights to, such as your own.
+
 **Voices:** `am_michael` (warm, steady; the default), `am_onyx` (deep), `bm_george` (British,
 classic documentary) and `bm_lewis` (British, deep and slow). You can also blend voices into a
 timbre of your own that stays consistent across videos, e.g. `--voice am_michael:0.6,bm_george:0.4`.

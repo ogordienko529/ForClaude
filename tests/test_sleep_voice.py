@@ -90,12 +90,16 @@ class FakeEngine:
     """0.25 s of tone per word; counts calls so caching can be checked."""
     sample_rate = 24000
     engine_id = "fake"
+    preferred_unit = "sentence"
 
-    def __init__(self):
+    def __init__(self, unit="sentence"):
         self.calls = 0
+        self.preferred_unit = unit
+        self.texts = []
 
-    def synthesize(self, text, speed):
+    def synthesize(self, text, speed, sentence_pause=0.0):
         self.calls += 1
+        self.texts.append(text)
         n = int(self.sample_rate * 0.25 * len(text.split()) / speed)
         return (0.2 * np.sin(np.arange(n) * 2 * np.pi * 150 / self.sample_rate)).astype(np.float32)
 
@@ -144,3 +148,85 @@ def test_master_hits_target_loudness_and_peak(tmp_path):
     out = tmp_path / "out.mp3"
     master(res.wav_path, out, res.duration, Mastering(background="brown"))
     assert measure_loudness(out) == pytest.approx(-20, abs=1.0)
+
+
+def test_paragraph_mode_speaks_whole_paragraphs(tmp_path):
+    sc = parse_script(SCRIPT)
+    eng = FakeEngine(unit="paragraph")
+    res = render(sc, eng, tmp_path / "p.wav", Pacing(jitter=0), cache_dir=None, log=lambda m: None)
+    assert "One two three. Four five six." in eng.texts      # one call for the 2-sentence paragraph
+    assert eng.calls < len(sc.sentences)
+    assert len(res.cues) == len(sc.sentences)                 # subtitles still per sentence
+    assert all(b > a for a, b, _ in res.cues)
+
+
+def _mock_http(handler):
+    import httpx
+    return httpx.Client(transport=httpx.MockTransport(handler))
+
+
+def test_openai_engine_request():
+    import json
+    import httpx
+    from sleep_voice.engine import OpenAIEngine
+
+    seen = {}
+
+    def handler(req):
+        seen["url"], seen["auth"], seen["body"] = str(req.url), req.headers["authorization"], json.loads(req.content)
+        return httpx.Response(200, content=(np.ones(2400, dtype="<i2") * 1000).tobytes())
+
+    eng = OpenAIEngine("onyx", api_key="sk-test", http=_mock_http(handler))
+    audio = eng.synthesize("Hello there.", 0.8)
+    assert seen["url"].endswith("/v1/audio/speech") and seen["auth"] == "Bearer sk-test"
+    assert seen["body"]["model"] == "gpt-4o-mini-tts" and seen["body"]["response_format"] == "pcm"
+    assert "very slowly" in seen["body"]["instructions"]
+    assert audio.dtype == np.float32 and audio.size == 2400
+    assert OpenAIEngine("onyx", api_key="x", http=_mock_http(handler)).engine_id == eng.engine_id  # stable cache id
+
+
+def test_elevenlabs_engine_sends_context_and_retries():
+    import json
+    import httpx
+    from sleep_voice.engine import ElevenLabsEngine
+
+    calls = []
+
+    def handler(req):
+        calls.append(json.loads(req.content))
+        if len(calls) == 1:
+            return httpx.Response(429, text="slow down")
+        return httpx.Response(200, content=np.zeros(100, dtype="<i2").tobytes())
+
+    eng = ElevenLabsEngine("voice123", api_key="k", http=_mock_http(handler))
+    eng.context = ("Before.", "After.")
+    import time as _t
+    real_sleep = _t.sleep
+    _t.sleep = lambda s: None
+    try:
+        eng.synthesize("Middle.", 0.85)
+    finally:
+        _t.sleep = real_sleep
+    assert len(calls) == 2
+    assert calls[-1]["previous_text"] == "Before." and calls[-1]["next_text"] == "After."
+    assert calls[-1]["voice_settings"]["speed"] == 0.85
+
+
+def test_cloud_engines_require_keys(monkeypatch):
+    from sleep_voice.engine import make_engine
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    with pytest.raises(RuntimeError, match="OPENAI_API_KEY"):
+        make_engine("openai")
+    with pytest.raises(ValueError):
+        make_engine("elevenlabs")
+
+
+def test_stretch_pauses_lengthens_sentence_gaps_only():
+    import random
+    from sleep_voice.render import stretch_pauses
+    sr = 24000
+    tone = lambda sec: (0.2 * np.sin(np.arange(int(sr * sec)) * 0.05)).astype(np.float32)  # noqa: E731
+    gap = lambda sec: np.zeros(int(sr * sec), dtype=np.float32)  # noqa: E731
+    audio = np.concatenate([tone(1), gap(0.15), tone(1), gap(0.4), tone(1)])  # comma-like, then sentence gap
+    out = stretch_pauses(audio, sr, target=1.0, rng=random.Random(1), jitter=0)
+    assert abs(out.size / sr - (audio.size / sr + 0.6)) < 0.03   # only the 0.4 s gap grew, to ~1.0 s
