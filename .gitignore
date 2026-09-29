@@ -8,3 +8,5 @@ config.toml
 reports/*.md
 .env
 reports/*.log
+voice_samples/
+*.npy

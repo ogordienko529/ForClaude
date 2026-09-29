@@ -176,7 +176,61 @@ After collecting, calibration iterations run offline for free.
 - **Data retention:** the YouTube API policies require stored API data to be refreshed or deleted within 30 days. Rows older than `retention_days` (default 30, max 30; enforced at config load) are deleted on every startup and by `python -m niche_core purge`.
 - Errors: `quotaExceeded` stops the run and returns partial results (`partial: true`). 5xx and rate-limit errors are retried up to 3 times with backoff. If the API fails, older cached data within retention is used and reported under `errors`. Hidden subscriber counts and disabled likes or comments are `null`, never 0, and are counted under `data_quality`.
 
-## 7. Project layout
+## 7. Sleep narration: `sleep_voice`
+
+Turns a script into a calm, natural English male voice-over for sleep documentaries, with
+subtitles and YouTube chapters. It runs locally and free, with no API key: Kokoro-82M TTS
+(Apache-2.0 licence, so commercial and monetized use is allowed) plus a sleep-specific
+processing chain.
+
+```bash
+pip install -e ".[voice]"            # + ffmpeg: brew install ffmpeg / winget install ffmpeg / apt install ffmpeg
+python -m sleep_voice voices          # list male voices
+python -m sleep_voice samples -o voice_samples     # 45-second demo of each voice and two blends
+python -m sleep_voice estimate script.txt          # how long it will be (~6,300 words per hour)
+python -m sleep_voice render script.txt -o episode.mp3 --voice am_michael --background brown
+```
+
+`render` writes `episode.mp3`, `episode.srt` (upload it as captions) and `episode.chapters.txt`
+(paste it into the description to get YouTube chapters). The model (~350 MB) downloads once on
+first use.
+
+**What makes it sleep-friendly:**
+
+- **Pace:** it starts slower than normal reading (speed 0.88) and eases down to 0.80 over the
+  episode (the wind-down). Pauses grow by about 35% along the way.
+- **Pauses:** sentence 0.85 s, paragraph 2 s, chapter 4.5 s, each with ±15% natural variation.
+  `[pause 5s]` in the script inserts exact silence.
+- **No jolts:** exclamation marks become full stops, SHOUTED words are lowered, emoji are removed,
+  and every sentence is matched to the same loudness.
+- **Softer, warmer tone:** a 9 kHz low-pass, +2 dB warmth at 180 Hz, −3 dB presence at 3.5 kHz,
+  a de-esser and a gentle compressor.
+- **Quiet and even:** −20 LUFS (YouTube plays most content at −14), true peak ≤ −3 dB.
+- **Optional bed:** brown or pink noise, or your own rain file, far below the voice (`--background`,
+  `--background-db`).
+- **Correct reading of documentary text:** 1888 → "eighteen eighty-eight", 1950s → "nineteen
+  fifties", $20 → "twenty dollars", −40°C, Dr./St./Mr., WWII, 9/11, km, % and clock times.
+  Fix any other word with `--lexicon lexicon.toml` (`Meteora = "Meh-teh-OR-ah"`).
+- **Resumable:** every sentence is cached, so a crashed 3-hour render resumes, and editing one
+  paragraph re-synthesises only that paragraph.
+
+**Script format:** plain text. A blank line starts a new paragraph, `# Title` starts a chapter, and
+`[pause 5s]` inserts silence. See `examples/lighthouse_sleep_demo.txt`.
+
+**Voices:** `am_michael` (warm, steady; the default), `am_onyx` (deep), `bm_george` (British,
+classic documentary) and `bm_lewis` (British, deep and slow). You can also blend voices into a
+timbre of your own that stays consistent across videos, e.g. `--voice am_michael:0.6,bm_george:0.4`.
+
+**Presets:** `--preset sleep` (default), `deep` (slower, quieter, darker) and `calm` (for pre-sleep
+documentaries).
+
+**Speed:** about 20 s of CPU per minute of audio on 4 cores, so a 2-hour episode takes about 40 minutes.
+
+**YouTube note:** AI narration is allowed and a narration voice does not need the "altered or
+synthetic" label. Monetization reviews do reject mass-produced, repetitive channels, though, so
+original, researched scripts matter more than the voice.
+
+## 8. Project layout
 
 ```
 niche_core/          core library (all logic) + CLI (__main__.py)
@@ -190,6 +244,7 @@ niche_core/          core library (all logic) + CLI (__main__.py)
   report.py          insights, markdown, export
   service.py         the 7 operations + purge
 niche_mcp/server.py  thin MCP wrapper
+sleep_voice/         sleep narration: text normalisation, Kokoro TTS, pacing, mastering, SRT/chapters
 tests/               fixture-based tests (no network)
 config.example.toml  every tunable, documented
 ```
