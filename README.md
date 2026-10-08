@@ -283,6 +283,8 @@ The result is `content_projects/<name>/out/video.mp4`. The review material is in
 **The storyboard is the single source of the video.** Each beat has narration, a visual template
 with its props, and sources. Everything else is derived from it, so a fix touches one beat:
 `still <name> <scene>` previews one frame and `render <name> --scene <id>` renders one scene.
+Optional `cues` (phrases from the narration) make each list item, bar, timeline event or line of
+text appear at the moment the narrator says it.
 An example is in `examples/content/concorde/`.
 
 **Visual templates:** `title`, `kinetic` (animated text), `map_route` (great-circle route with a
@@ -298,8 +300,8 @@ too short, and caption reading speed. Claude Code then reviews the contact sheet
 7-point rubric (hook, visual–narration match, readability, variety, accuracy, polish, audio) and
 fixes until no serious finding is left.
 
-**Speed** on a 4-core machine: narration about 25 s per minute of video, and rendering about
-a few times real time (measured on the demo below).
+**Speed** on a 4-core machine, for the 5-minute demo: narration 2 min, music and mix under
+1 min, rendering about 9 min (1.7x the video length) and QA about 2 min.
 
 **Licences:** Remotion is free for individuals and companies with up to 3 employees (a company
 licence is needed above that). Kokoro is Apache-2.0.

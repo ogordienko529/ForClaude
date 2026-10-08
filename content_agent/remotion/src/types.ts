@@ -5,6 +5,7 @@ export type Scene = {
   from: number;
   durationInFrames: number;
   speechOffset: number;
+  cues?: (number | null)[];
 };
 
 export type Caption = {from: number; to: number; text: string};
@@ -27,4 +28,5 @@ export type SceneProps = {
   props: Record<string, any>;
   duration: number;
   speech: number; // frame (relative to scene) where narration starts
+  cues: (number | null)[]; // frames (relative to scene) where the storyboard's cue phrases are spoken
 };

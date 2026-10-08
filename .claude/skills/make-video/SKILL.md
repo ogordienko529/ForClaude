@@ -45,12 +45,20 @@ python -m content_agent render <slug> --scene <id>               # one scene as 
 
 Edit `content_projects/<slug>/storyboard.json`. One beat = one scene = one idea.
 
-- 18-35 words of narration per beat (validator limit: 4-45). ~150 words = 1 minute.
+- 15-30 words of narration per beat (validator limit: 4-45), so the picture changes every
+  6-12 seconds. ~150 words = 1 minute. Split a beat when it has two ideas.
 - Beat 1-2: the hook (a surprising concrete fact or question). Title card by beat 3.
 - The visual must show what the narration says *at that moment*: places -> `map_route` /
   `map_point`, dates -> `timeline`, one number -> `stat`, two numbers -> `comparison`, several ->
   `bars`, reasons/steps -> `list`, a sourced claim -> `fact`, a punchline -> `kinetic`.
 - Never the same template three times in a row; aim for 5+ different templates per video.
+- **Sync reveals to the words** with `"cues"`: phrases copied from the narration, one per item
+  (list items, bars, timeline events, comparison sides, kinetic lines; the first cue also starts a
+  stat counter or map animation). Item *i* appears when cue *i* is spoken. Cues are matched in
+  order; repeat a phrase to reveal several items together. Without cues, items are spread evenly.
+  Example: narration "...Pan Am cancelled... the oil crisis... the noise..." with list items
+  `["1973: Pan Am pulls out", "The oil crisis", "Noise and the sonic boom"]` ->
+  `"cues": ["Pan Am", "oil crisis", "noise"]`.
 - On-screen text is short (limits are enforced). Narration spells numbers out in words
   ("nineteen sixty-nine") so the voice reads them naturally; on-screen text uses digits.
 - Every beat with facts lists its `sources`. End on the answer to the opening question.
@@ -60,9 +68,9 @@ Run `validate` until it prints OK and read the warnings.
 
 ## 4. Produce
 
-`python -m content_agent make <slug>` (about 2 min of voice per 5 min of video, then the
-render: roughly real time x3-5 on a 4-core laptop). Narration is cached per beat, so editing one
-beat only re-voices that beat.
+`python -m content_agent make <slug>`. On a 4-core machine a 5-minute video takes about 2 min of
+narration, under a minute of music and mixing, about 9 min of rendering and 2 min of QA.
+Narration is cached per beat, so editing one beat only re-voices that beat.
 
 ## 5. Self-review (do not skip)
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import {AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
-import {progress, rise, stagger} from '../anim';
+import {progress, revealAt, rise, stagger} from '../anim';
 import {FONTS, usePalette} from '../theme';
 import type {SceneProps} from '../types';
 import {Kicker} from '../ui';
@@ -25,7 +25,7 @@ export const TitleCard: React.FC<SceneProps> = ({props, speech}) => {
           {props.kicker}
         </Kicker>
       )}
-      <div style={{textAlign: 'center', maxWidth: 1500 * u}}>
+      <div style={{textAlign: 'center', maxWidth: 1500 * u, textWrap: 'balance'}}>
         {words.map((w, i) => {
           const r = rise(frame, fps, start + i * 3);
           return (
@@ -59,6 +59,7 @@ export const TitleCard: React.FC<SceneProps> = ({props, speech}) => {
             color: p.muted,
             textAlign: 'center',
             maxWidth: 1300 * u,
+            textWrap: 'balance',
           }}
         >
           {props.subtitle}
@@ -68,7 +69,7 @@ export const TitleCard: React.FC<SceneProps> = ({props, speech}) => {
   );
 };
 
-export const Kinetic: React.FC<SceneProps> = ({props, speech, duration}) => {
+export const Kinetic: React.FC<SceneProps> = ({props, speech, duration, cues}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const p = usePalette();
@@ -84,7 +85,14 @@ export const Kinetic: React.FC<SceneProps> = ({props, speech, duration}) => {
         <div key={li} style={{textAlign: 'center', marginBottom: 18 * u}}>
           {l.split(' ').map((w, wi) => {
             const idx = k++;
-            const r = rise(frame, fps, stagger(idx, all.length, speech, duration, 0.5));
+            // a line with a narration cue appears when its words are spoken (the first line no later than
+            // the narration itself, so the screen is never empty); otherwise words spread out
+            const c = cues[li];
+            const lineStart = typeof c === 'number' ? Math.max(c - 4, 0) : null;
+            const start = lineStart === null
+              ? stagger(idx, all.length, speech, duration, 0.5)
+              : (li === 0 ? Math.min(lineStart, speech) : lineStart) + wi * 3;
+            const r = rise(frame, fps, start);
             const isEm = emph.has(w.toLowerCase().replace(/[^a-z0-9]/g, ''));
             return (
               <span
@@ -131,7 +139,7 @@ export const FactCard: React.FC<SceneProps> = ({props, speech, duration}) => {
         }}
       >
         {props.kicker && <Kicker style={{fontSize: 26 * u, marginBottom: 22 * u}}>{props.kicker}</Kicker>}
-        <div style={{fontFamily: FONTS.serif, fontWeight: 700, fontSize: 60 * u, lineHeight: 1.3, color: p.text}}>
+        <div style={{fontFamily: FONTS.serif, fontWeight: 700, fontSize: 60 * u, lineHeight: 1.3, color: p.text, textWrap: 'pretty'}}>
           {words.map((w, i) => (
             <span
               key={i}
@@ -151,21 +159,22 @@ export const FactCard: React.FC<SceneProps> = ({props, speech, duration}) => {
   );
 };
 
-export const ListCard: React.FC<SceneProps> = ({props, speech, duration}) => {
+export const ListCard: React.FC<SceneProps> = ({props, speech, duration, cues}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const p = usePalette();
   const u = useUnit();
   const items: string[] = props.items || [];
   return (
-    <AbsoluteFill style={{justifyContent: 'center', padding: `0 ${220 * u}px`}}>
+    <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', padding: `0 ${160 * u}px`}}>
+      <div style={{maxWidth: 1500 * u}}>
       {props.title && (
         <div style={{fontFamily: FONTS.serif, fontWeight: 700, fontSize: 76 * u, color: p.text, marginBottom: 46 * u, opacity: rise(frame, fps, speech - 8)}}>
           {props.title}
         </div>
       )}
       {items.map((it, i) => {
-        const r = rise(frame, fps, stagger(i, items.length, speech + 6, duration, 0.7));
+        const r = rise(frame, fps, revealAt(i, items.length, speech + 6, duration, cues, 0.7));
         return (
           <div key={i} style={{display: 'flex', alignItems: 'center', marginBottom: 30 * u, opacity: r, transform: `translateX(${(1 - r) * -50 * u}px)`}}>
             <div style={{width: 54 * u, height: 54 * u, borderRadius: 27 * u, background: p.accent, color: p.bg1, fontFamily: FONTS.sans, fontWeight: 800, fontSize: 30 * u, display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 30 * u, flexShrink: 0}}>
@@ -175,6 +184,7 @@ export const ListCard: React.FC<SceneProps> = ({props, speech, duration}) => {
           </div>
         );
       })}
+      </div>
     </AbsoluteFill>
   );
 };

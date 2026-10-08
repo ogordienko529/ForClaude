@@ -17,3 +17,13 @@ export const stagger = (i: number, n: number, speech: number, duration: number, 
   const span = Math.max(duration - speech, 30) * share;
   return speech + (n <= 1 ? 0 : (span * i) / (n - 1));
 };
+
+/** When reveal i of n happens: at its narration cue if the storyboard gave one, else spread out. */
+export const revealAt = (i: number, n: number, speech: number, duration: number, cues: (number | null)[], share = 0.55) => {
+  const c = cues[i];
+  return typeof c === 'number' ? Math.max(c - 4, 0) : stagger(i, n, speech, duration, share);
+};
+
+/** Start of the scene's main animation: the first cue, else when narration starts. */
+export const firstCue = (speech: number, cues: (number | null)[]) =>
+  typeof cues[0] === 'number' ? Math.max((cues[0] as number) - 4, 0) : speech;

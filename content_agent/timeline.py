@@ -7,6 +7,7 @@ next scene starts. Captions come from the per-sentence timings, split into reada
 from __future__ import annotations
 
 import json
+import math
 import re
 from pathlib import Path
 
@@ -16,30 +17,75 @@ CAPTION_CHARS = {"explainer": 80, "sleep": 80, "shorts": 36}
 
 
 def chunk_text(text: str, limit: int) -> list[str]:
-    """Split a sentence into caption-sized pieces, preferring breaks after punctuation."""
+    """Split a sentence into caption-sized pieces of similar length, preferring clause breaks."""
     if len(text) <= limit:
         return [text]
     words = text.split()
-    chunks: list[str] = []
-    cur: list[str] = []
-    for w in words:
-        if cur and len(" ".join(cur + [w])) > limit:
-            # move back to the last clause break if it leaves a reasonable chunk
-            cut = next((i for i in range(len(cur) - 1, 0, -1) if re.search(r"[,;:—–]$", cur[i - 1])), None)
-            if cut and len(" ".join(cur[:cut])) >= limit * 0.45:
-                chunks.append(" ".join(cur[:cut]))
-                cur = cur[cut:]
-            else:
-                chunks.append(" ".join(cur))
-                cur = []
-        cur.append(w)
-    if cur:
-        # avoid a dangling one- or two-word tail
-        if chunks and len(cur) <= 2 and len(chunks[-1]) + len(" ".join(cur)) <= limit * 1.25:
-            chunks[-1] = chunks[-1] + " " + " ".join(cur)
-        else:
-            chunks.append(" ".join(cur))
+    ends, pos = [], 0
+    for i, w in enumerate(words):
+        pos += len(w) + (1 if i else 0)
+        ends.append(pos)  # text length up to and including word i
+    n = math.ceil(len(text) / limit)
+    chunks, first = [], 0
+    for k in range(1, n):
+        target = ends[first - 1] + (len(text) - ends[first - 1]) / (n - k + 1) if first else len(text) * k / n
+        base = ends[first - 1] + 1 if first else 0
+        best, best_score = None, None
+        for i in range(first, len(words) - 1):
+            length = ends[i] - base
+            if length > limit and best is not None:
+                break
+            score = abs(ends[i] - target)
+            if re.search(r"[,;:\u2014\u2013]$", words[i]):
+                score -= limit * 0.3  # break after a comma or dash when it is close enough
+            if best_score is None or score < best_score:
+                best, best_score = i, score
+        if best is None:
+            break
+        chunks.append(" ".join(words[first : best + 1]))
+        first = best + 1
+    chunks.append(" ".join(words[first:]))
     return chunks
+
+
+def cue_offsets(cues: list[str], sentences: list[dict], scene_from: int) -> list[int | None]:
+    """Frames (relative to the scene) at which each cue phrase is spoken, estimated within its sentence."""
+    out: list[int | None] = []
+    cursor = (0, 0)  # (sentence index, char index) of the previous match: cues are matched in order
+    last = None
+    for cue in cues:
+        found = _find(cue, sentences, cursor) or _find(cue, sentences, (0, 0))
+        if not found:
+            out.append(None)
+            continue
+        if found == last and out[-1] is not None:
+            out.append(out[-1] + 6)  # the same phrase again: reveal right after the previous item
+            continue
+        last = found
+        si, ci = found
+        s = sentences[si]
+        t = s["start"] + (s["end"] - s["start"]) * ci / max(len(s["text"]), 1)
+        out.append(max(round(t * FPS) - scene_from, 0))
+        cursor = (si, ci + 1)
+    return out
+
+
+def _find(cue: str, sentences: list[dict], cursor: tuple[int, int]) -> tuple[int, int] | None:
+    needles = {cue.lower().strip()}
+    try:
+        from sleep_voice.text import normalize
+
+        needles.add(normalize(cue).lower().strip().rstrip("."))
+    except ImportError:
+        pass
+    for si in range(cursor[0], len(sentences)):
+        hay = sentences[si]["text"].lower()
+        start = cursor[1] if si == cursor[0] else 0
+        hits = [hay.find(n, start) for n in needles if n]
+        hits = [h for h in hits if h >= 0]
+        if hits:
+            return si, min(hits)
+    return None
 
 
 def _caption_cues(sentence: dict, limit: int) -> list[dict]:
@@ -74,6 +120,7 @@ def build_timeline(storyboard: dict, voice_timing: dict, audio_rel: str, fmt: st
             "durationInFrames": max(f1 - f0, 1),
             # when the narration of this beat actually starts, relative to the scene (for reveal timing)
             "speechOffset": max(round(t["start"] * FPS) - f0, 0),
+            "cues": cue_offsets(beat.get("cues", []), t["sentences"], f0),
         })
     caps = []
     if captions:

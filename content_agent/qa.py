@@ -122,11 +122,14 @@ def technical_checks(video: Path, timeline: dict) -> tuple[list[Finding], dict]:
         findings.append(Finding("static_picture", "medium", f"picture does not change for {e - s:.1f}s",
                                 _scene_at(s, scenes, fps), s, e))
 
-    # Scene lengths
+    # Scene lengths: a long scene is fine while new elements keep appearing on narration cues
     for s in scenes:
         dur = s["durationInFrames"] / fps
         t0 = s["from"] / fps
-        if dur > th["max_scene_s"]:
+        events = sorted({0, s.get("speechOffset", 0), s["durationInFrames"],
+                         *[c for c in s.get("cues") or [] if c is not None]})
+        longest_still = max(b - a for a, b in zip(events, events[1:])) / fps
+        if dur > th["max_scene_s"] and longest_still > th["max_scene_s"] * 0.6:
             findings.append(Finding("long_scene", "medium", f"scene lasts {dur:.1f}s (max {th['max_scene_s']:.0f}s): "
                                     "split the beat or add movement", s["id"], t0, t0 + dur))
         elif dur < th["min_scene_s"]:

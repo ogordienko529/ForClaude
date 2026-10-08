@@ -1,6 +1,6 @@
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
-import {progress, rise, stagger} from '../anim';
+import {firstCue, progress, revealAt, rise} from '../anim';
 import {FONTS, usePalette} from '../theme';
 import type {SceneProps} from '../types';
 
@@ -12,14 +12,15 @@ const useUnit = () => {
 const fmt = (v: number, decimals = 0) =>
   v.toLocaleString('en-US', {minimumFractionDigits: decimals, maximumFractionDigits: decimals});
 
-export const Stat: React.FC<SceneProps> = ({props, speech}) => {
+export const Stat: React.FC<SceneProps> = ({props, speech, cues}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const p = usePalette();
   const u = useUnit();
+  const count = firstCue(speech, cues); // the number counts up when it is spoken
   const value = Number(props.value || 0);
   const decimals = props.decimals ?? (Number.isInteger(value) ? 0 : 2);
-  const k = progress(frame, speech, speech + 42);
+  const k = progress(frame, count, count + 42);
   const ring = rise(frame, fps, speech - 6, 24);
   return (
     <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center'}}>
@@ -57,13 +58,14 @@ export const Stat: React.FC<SceneProps> = ({props, speech}) => {
           color: p.text,
           textAlign: 'center',
           maxWidth: 1300 * u,
+          textWrap: 'balance',
           opacity: rise(frame, fps, speech + 10),
         }}
       >
         {props.label}
       </div>
       {props.note && (
-        <div style={{marginTop: 16 * u, fontFamily: FONTS.sans, fontSize: 32 * u, color: p.muted, opacity: rise(frame, fps, speech + 22)}}>
+        <div style={{marginTop: 18 * u, fontFamily: FONTS.sans, fontSize: 36 * u, color: p.muted, maxWidth: 1300 * u, textAlign: 'center', textWrap: 'balance', opacity: rise(frame, fps, speech + 22)}}>
           {props.note}
         </div>
       )}
@@ -71,7 +73,7 @@ export const Stat: React.FC<SceneProps> = ({props, speech}) => {
   );
 };
 
-export const Comparison: React.FC<SceneProps> = ({props, speech}) => {
+export const Comparison: React.FC<SceneProps> = ({props, speech, duration, cues}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const p = usePalette();
@@ -88,7 +90,8 @@ export const Comparison: React.FC<SceneProps> = ({props, speech}) => {
       )}
       <div style={{display: 'flex', alignItems: 'flex-end', gap: 220 * u, height: 560 * u, marginTop: 120 * u}}>
         {sides.map((s, i) => {
-          const g = progress(frame, speech + i * 14, speech + i * 14 + 36);
+          const s0 = revealAt(i, 2, speech, duration, cues, 0.5);
+          const g = progress(frame, s0, s0 + 36);
           const h = (480 * u * (Number(s.value) || 0)) / max;
           return (
             <div key={i} style={{display: 'flex', flexDirection: 'column', alignItems: 'center', width: 300 * u}}>
@@ -108,7 +111,7 @@ export const Comparison: React.FC<SceneProps> = ({props, speech}) => {
   );
 };
 
-export const Bars: React.FC<SceneProps> = ({props, speech, duration}) => {
+export const Bars: React.FC<SceneProps> = ({props, speech, duration, cues}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const p = usePalette();
@@ -123,7 +126,7 @@ export const Bars: React.FC<SceneProps> = ({props, speech, duration}) => {
         </div>
       )}
       {items.map((it, i) => {
-        const s = stagger(i, items.length, speech, duration, 0.5);
+        const s = revealAt(i, items.length, speech, duration, cues, 0.5);
         const g = progress(frame, s, s + 30);
         return (
           <div key={i} style={{display: 'flex', alignItems: 'center', marginBottom: 26 * u}}>
@@ -142,14 +145,14 @@ export const Bars: React.FC<SceneProps> = ({props, speech, duration}) => {
   );
 };
 
-export const Timeline: React.FC<SceneProps> = ({props, speech, duration}) => {
+export const Timeline: React.FC<SceneProps> = ({props, speech, duration, cues}) => {
   const frame = useCurrentFrame();
   const {fps, width} = useVideoConfig();
   const p = usePalette();
   const u = useUnit();
   const events: {year: string; label: string}[] = props.events || [];
   const n = events.length;
-  const margin = 200 * u;
+  const margin = 250 * u;
   const usable = width - 2 * margin;
   const axis = progress(frame, speech - 6, speech + 30);
   return (
@@ -162,7 +165,7 @@ export const Timeline: React.FC<SceneProps> = ({props, speech, duration}) => {
       <div style={{position: 'absolute', left: margin, top: '52%', height: 4 * u, width: usable * axis, background: p.muted, opacity: 0.5}} />
       {events.map((e, i) => {
         const x = margin + (n === 1 ? usable / 2 : (usable * i) / (n - 1));
-        const s = stagger(i, n, speech + 8, duration, 0.6);
+        const s = revealAt(i, n, speech + 8, duration, cues, 0.6);
         const r = rise(frame, fps, s);
         const hi = props.highlight === i;
         const pulse = hi ? 1 + 0.12 * Math.sin((frame - s) / 6) * r : 1;
@@ -172,7 +175,7 @@ export const Timeline: React.FC<SceneProps> = ({props, speech, duration}) => {
             <div style={{position: 'absolute', bottom: 40 * u, left: 0, transform: `translateX(-50%) translateY(${(1 - r) * 20 * u}px)`, fontFamily: FONTS.serif, fontWeight: 700, fontSize: (hi ? 64 : 52) * u, color: hi ? p.accent : p.text, whiteSpace: 'nowrap', lineHeight: 1}}>
               {e.year}
             </div>
-            <div style={{position: 'absolute', top: 44 * u, left: 0, transform: `translateX(-50%) translateY(${(1 - r) * -20 * u}px)`, width: Math.min(320 * u, usable / Math.max(n, 1) - 20 * u), fontFamily: FONTS.sans, fontWeight: 600, fontSize: 30 * u, color: hi ? p.text : p.muted, textAlign: 'center', lineHeight: 1.25}}>
+            <div style={{position: 'absolute', top: 44 * u, left: 0, transform: `translateX(-50%) translateY(${(1 - r) * -20 * u}px)`, width: Math.min(340 * u, usable / Math.max(n - 1, 1) - 24 * u), fontFamily: FONTS.sans, fontWeight: 600, fontSize: 34 * u, color: p.text, opacity: hi ? 1 : 0.78, textAlign: 'center', lineHeight: 1.25, textWrap: 'balance'}}>
               {e.label}
             </div>
           </div>

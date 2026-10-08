@@ -4,7 +4,7 @@ import {AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig} from 'remoti
 import {feature, mesh} from 'topojson-client';
 // Natural Earth 1:110m (public domain), shipped in the world-atlas npm package: works offline.
 import countries110 from 'world-atlas/countries-110m.json';
-import {progress, rise} from '../anim';
+import {firstCue, progress, rise} from '../anim';
 import {FONTS, usePalette} from '../theme';
 import type {SceneProps} from '../types';
 
@@ -71,8 +71,9 @@ const Title: React.FC<{text?: string; u: number; start: number}> = ({text, u, st
   );
 };
 
-export const MapRoute: React.FC<SceneProps> = ({props, speech, duration}) => {
+export const MapRoute: React.FC<SceneProps> = ({props, speech: speechStart, duration, cues}) => {
   const frame = useCurrentFrame();
+  const speech = firstCue(speechStart, cues); // the animation starts on the first cue; the title does not wait
   const {width, height} = useVideoConfig();
   const p = usePalette();
   const u = Math.min(width, height) / 1080;
@@ -121,13 +122,14 @@ export const MapRoute: React.FC<SceneProps> = ({props, speech, duration}) => {
           <path d={vehicle === 'ship' ? SHIP : PLANE} transform={`translate(${head[0]} ${head[1]}) rotate(${vehicle === 'ship' ? 0 : angle}) scale(${1.6 * u})`} fill={p.text} stroke={p.bg1} strokeWidth={1.5} />
         )}
       </svg>
-      <Title text={props.label} u={u} start={speech - 6} />
+      <Title text={props.label} u={u} start={speechStart - 6} />
     </AbsoluteFill>
   );
 };
 
-export const MapPoint: React.FC<SceneProps> = ({props, speech, duration}) => {
+export const MapPoint: React.FC<SceneProps> = ({props, speech: speechStart, duration, cues}) => {
   const frame = useCurrentFrame();
+  const speech = firstCue(speechStart, cues); // the animation starts on the first cue; the title does not wait
   const {width, height} = useVideoConfig();
   const p = usePalette();
   const u = Math.min(width, height) / 1080;
@@ -150,7 +152,7 @@ export const MapPoint: React.FC<SceneProps> = ({props, speech, duration}) => {
           <Marker x={x} y={y} label={place.name} color={p.accent} t={frame} u={u} />
         </g>
       </svg>
-      <Title text={props.label} u={u} start={speech - 6} />
+      <Title text={props.label} u={u} start={speechStart - 6} />
     </AbsoluteFill>
   );
 };

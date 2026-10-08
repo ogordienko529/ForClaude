@@ -204,3 +204,26 @@ def test_cli_new_and_validate(tmp_path, capsys):
     (project / "storyboard.json").write_text(json.dumps(sb))
     assert main(["validate", str(project)]) == 1
     assert "unknown template" in capsys.readouterr().out
+
+
+def test_cue_offsets_follow_the_narration():
+    from content_agent.timeline import cue_offsets
+
+    sents = [{"start": 1.0, "end": 3.0, "text": "Concorde carried about one hundred passengers."},
+             {"start": 3.5, "end": 7.5, "text": "A Boeing jumbo jet carried around four hundred."}]
+    frames = cue_offsets(["Concorde", "boeing", "Boeing", "not said"], sents, scene_from=15)
+    assert frames[0] == 30 - 15                       # at the start of the first sentence
+    assert frames[1] == round((3.5 + 4.0 * 2 / 47) * 30) - 15  # 'Boeing' is 2 characters into sentence 2
+    assert frames[2] == frames[1] + 6                 # repeated cue: next item right after
+    assert frames[3] is None                          # unknown phrase: template falls back to its default timing
+
+
+def test_timeline_carries_cues_and_validation_checks_them():
+    d = copy.deepcopy(GOOD)
+    d["beats"][1]["cues"] = ["twice the speed"]
+    tl = build_timeline(d, _timing(), "a.wav")
+    assert tl["scenes"][1]["cues"] and tl["scenes"][0]["cues"] == []
+    d["beats"][1]["cues"] = ["three times the speed"]
+    assert any("does not occur" in i.message for i in _issues(d))
+    d["beats"][1]["cues"] = "twice"
+    assert any(i.level == "error" and "cues" in i.message for i in _issues(d))

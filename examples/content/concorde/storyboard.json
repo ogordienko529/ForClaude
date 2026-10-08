@@ -25,6 +25,11 @@
       "sources": [
         "https://www.britishairways.com/content/information/about-ba/history-and-heritage/celebrating-concorde",
         "https://www.nms.ac.uk/explore-our-collections/stories/science-and-technology/concorde"
+      ],
+      "cues": [
+        "take off",
+        "land in New York",
+        "earlier"
       ]
     },
     {
@@ -69,7 +74,23 @@
     },
     {
       "id": "b04",
-      "narration": "Concorde began with a treaty signed in nineteen sixty-two. Britain and France agreed to build a supersonic airliner together, with assembly lines in Filton, near Bristol, and in Toulouse.",
+      "narration": "Concorde began with a treaty. In nineteen sixty-two, Britain and France agreed to build a supersonic airliner together and share the enormous cost.",
+      "visual": {
+        "template": "fact",
+        "props": {
+          "kicker": "29 November 1962",
+          "text": "Britain and France sign a treaty to build a supersonic airliner together.",
+          "source": "Anglo-French Concorde agreement"
+        }
+      },
+      "sources": [
+        "https://www.ebsco.com/research-starters/history/concorde-flies-passengers-supersonic-speeds",
+        "https://www.gracesguide.co.uk/Concorde"
+      ]
+    },
+    {
+      "id": "b05",
+      "narration": "Assembly lines were set up in Filton, near Bristol, and in Toulouse. The first prototype took off from Toulouse in nineteen sixty-nine.",
       "visual": {
         "template": "map_route",
         "props": {
@@ -83,18 +104,21 @@
             "lat": 43.63,
             "lon": 1.37
           },
-          "label": "Built in Britain and France",
+          "label": "Assembly lines: Filton and Toulouse",
           "vehicle": "none"
         }
       },
       "sources": [
         "https://www.ebsco.com/research-starters/history/concorde-flies-passengers-supersonic-speeds",
         "https://www.gracesguide.co.uk/Concorde"
+      ],
+      "cues": [
+        "Filton"
       ]
     },
     {
-      "id": "b05",
-      "narration": "The prototype first flew in nineteen sixty-nine. In service, Concorde cruised at Mach two point oh four, about two thousand one hundred and eighty kilometres an hour.",
+      "id": "b06",
+      "narration": "In service, Concorde cruised at Mach two point oh four, more than twice the speed of sound, or about two thousand one hundred and eighty kilometres an hour.",
       "visual": {
         "template": "stat",
         "props": {
@@ -110,7 +134,7 @@
       ]
     },
     {
-      "id": "b06",
+      "id": "b07",
       "narration": "It flew as high as sixty thousand feet. From up there, passengers could see the curve of the Earth, under a sky turning dark blue.",
       "visual": {
         "template": "stat",
@@ -126,7 +150,7 @@
       ]
     },
     {
-      "id": "b07",
+      "id": "b08",
       "narration": "Air friction heated the skin so much that the nose reached about one hundred and twenty-seven degrees Celsius, and the whole airframe stretched by several inches in flight.",
       "visual": {
         "template": "kinetic",
@@ -145,10 +169,15 @@
       "sources": [
         "https://www.gracesguide.co.uk/Concorde",
         "https://www.airport-technology.com/projects/concorde2/"
+      ],
+      "cues": [
+        "the nose",
+        "the whole airframe",
+        "several inches"
       ]
     },
     {
-      "id": "b08",
+      "id": "b09",
       "narration": "Airlines were excited. In the nineteen sixties, sixteen carriers took out options on more than seventy aircraft. Supersonic travel looked like the future.",
       "visual": {
         "template": "fact",
@@ -164,8 +193,8 @@
       ]
     },
     {
-      "id": "b09",
-      "narration": "Then almost all of them walked away. In early nineteen seventy-three, Pan Am cancelled its options and others followed. The oil crisis made fuel expensive, and the noise made Concorde unwelcome.",
+      "id": "b10",
+      "narration": "Then almost all of them walked away. Pan Am cancelled in early nineteen seventy-three and others followed, as the oil crisis made fuel expensive and the noise made Concorde unwelcome.",
       "visual": {
         "template": "list",
         "props": {
@@ -180,10 +209,15 @@
       "sources": [
         "https://www.heritageconcorde.com/concorde-orders-and-options",
         "https://www.ebsco.com/research-starters/history/concorde-flies-passengers-supersonic-speeds"
+      ],
+      "cues": [
+        "Pan Am",
+        "oil crisis",
+        "noise"
       ]
     },
     {
-      "id": "b10",
+      "id": "b11",
       "narration": "In the end, only twenty Concordes were built, and just fourteen of them carried passengers: seven with British Airways and seven with Air France.",
       "visual": {
         "template": "stat",
@@ -199,7 +233,7 @@
       ]
     },
     {
-      "id": "b11",
+      "id": "b12",
       "narration": "And there was a bigger problem: the sonic boom. In nineteen seventy-three, the United States banned civil supersonic flight over land, so Concorde could only fly fast over the sea.",
       "visual": {
         "template": "kinetic",
@@ -215,10 +249,14 @@
       },
       "sources": [
         "https://reason.com/2016/07/26/how-the-faa-killed-supersonic-flight/"
+      ],
+      "cues": [
+        "the sonic boom",
+        "banned"
       ]
     },
     {
-      "id": "b12",
+      "id": "b13",
       "narration": "Passenger service began on the twenty-first of January, nineteen seventy-six. British Airways flew to Bahrain, while Air France flew to Rio de Janeiro.",
       "visual": {
         "template": "map_route",
@@ -233,7 +271,7 @@
             "lat": 26.27,
             "lon": 50.63
           },
-          "label": "First service: 21 January 1976"
+          "label": "21 January 1976: BA to Bahrain"
         }
       },
       "sources": [
@@ -242,7 +280,7 @@
       ]
     },
     {
-      "id": "b13",
+      "id": "b14",
       "narration": "But the numbers never really worked. Concorde carried about one hundred passengers. A Boeing jumbo jet carried around four hundred, and used far less fuel for every seat.",
       "visual": {
         "template": "comparison",
@@ -262,10 +300,14 @@
       "sources": [
         "https://www.britishairways.com/content/information/about-ba/history-and-heritage/celebrating-concorde",
         "https://www.pbs.org/wgbh/nova/teachers/activities/3203_concorde.html"
+      ],
+      "cues": [
+        "Concorde carried",
+        "Boeing"
       ]
     },
     {
-      "id": "b14",
+      "id": "b15",
       "narration": "So tickets were expensive. In two thousand and three, a standard return ticket between London and New York cost about six thousand six hundred pounds.",
       "visual": {
         "template": "stat",
@@ -281,7 +323,7 @@
       ]
     },
     {
-      "id": "b15",
+      "id": "b16",
       "narration": "Its regulars were bankers, celebrities and executives, people for whom time was worth more than money. For British Airways, Concorde even made an operating profit for years.",
       "visual": {
         "template": "fact",
@@ -296,7 +338,7 @@
       ]
     },
     {
-      "id": "b16",
+      "id": "b17",
       "narration": "Then, on the twenty-fifth of July, two thousand, Air France Flight forty-five ninety began its take-off from Paris Charles de Gaulle, bound for New York.",
       "visual": {
         "template": "map_point",
@@ -316,23 +358,33 @@
       ]
     },
     {
-      "id": "b17",
+      "id": "b18",
       "narration": "On the runway lay a strip of metal that had fallen from another airliner minutes earlier. Concorde's tyre hit it and burst. Debris struck the wing, a fuel tank ruptured, and the leaking fuel caught fire.",
       "visual": {
-        "template": "fact",
+        "template": "list",
         "props": {
-          "kicker": "What went wrong",
-          "text": "A metal strip dropped by another jet burst a tyre. Debris struck the wing, a fuel tank ruptured, and the fuel caught fire.",
-          "source": "BEA accident investigation, 2002"
+          "title": "A chain of failures",
+          "items": [
+            "A metal strip lies on the runway",
+            "A tyre bursts",
+            "Debris hits the wing, a tank ruptures",
+            "The fuel catches fire"
+          ]
         }
       },
       "sources": [
         "https://www.businessinsurance.com/concorde-disaster-blamed-on-debris-from-other-jet/",
         "https://www.airport-technology.com/projects/concorde2/"
+      ],
+      "cues": [
+        "strip of metal",
+        "burst",
+        "Debris",
+        "caught fire"
       ]
     },
     {
-      "id": "b18",
+      "id": "b19",
       "narration": "Less than two minutes after take-off, the aircraft crashed into a hotel in Gonesse. All one hundred and nine people on board and four people on the ground were killed.",
       "visual": {
         "template": "stat",
@@ -347,7 +399,7 @@
       ]
     },
     {
-      "id": "b19",
+      "id": "b20",
       "narration": "It was the only fatal accident in Concorde's history, but it destroyed the aircraft's reputation for perfect safety. The whole fleet was grounded for more than a year.",
       "visual": {
         "template": "kinetic",
@@ -364,10 +416,14 @@
       "sources": [
         "https://www.airport-technology.com/projects/concorde2/",
         "https://us.cnn.com/2001/WORLD/europe/10/29/france.concorde/index.html"
+      ],
+      "cues": [
+        "only fatal accident",
+        "only fatal accident"
       ]
     },
     {
-      "id": "b20",
+      "id": "b21",
       "narration": "Engineers lined the fuel tanks with Kevlar and rubber, fitted tougher Michelin tyres and protected the wiring in the landing gear bay. Concorde was cleared to fly again.",
       "visual": {
         "template": "list",
@@ -383,10 +439,15 @@
       "sources": [
         "https://www.heritageconcorde.com/caa-and-dgac-modifications-2001",
         "https://www.airport-technology.com/projects/concorde2/"
+      ],
+      "cues": [
+        "Kevlar",
+        "Michelin",
+        "wiring"
       ]
     },
     {
-      "id": "b21",
+      "id": "b22",
       "narration": "It returned to service on the seventh of November, two thousand and one, just eight weeks after the September eleventh attacks had plunged air travel into a deep slump.",
       "visual": {
         "template": "timeline",
@@ -412,10 +473,15 @@
       "sources": [
         "https://us.cnn.com/2001/WORLD/europe/10/29/france.concorde/index.html",
         "https://www.insideflyer.com/posts/9-11-dealt-fatal-blow-to-concorde/"
+      ],
+      "cues": [
+        "It returned",
+        "September eleventh",
+        "seventh of November"
       ]
     },
     {
-      "id": "b22",
+      "id": "b23",
       "narration": "Premium travellers were slow to come back, and the aircraft were getting old. Airbus, which supported the fleet, said keeping them flying would need costly extra maintenance.",
       "visual": {
         "template": "kinetic",
@@ -433,10 +499,15 @@
       "sources": [
         "https://www.heritageconcorde.com/concorde-retirement-2003",
         "https://www.insideflyer.com/posts/9-11-dealt-fatal-blow-to-concorde/"
+      ],
+      "cues": [
+        "slow to come back",
+        "getting old",
+        "costly"
       ]
     },
     {
-      "id": "b23",
+      "id": "b24",
       "narration": "In April two thousand and three, Air France and British Airways announced that Concorde would retire. The last commercial flight landed at Heathrow on the twenty-fourth of October.",
       "visual": {
         "template": "timeline",
@@ -466,10 +537,16 @@
       "sources": [
         "https://www.heritageconcorde.com/concorde-retirement-2003",
         "https://www.history.com/this-day-in-history/october-24/the-concorde-makes-its-final-flight"
+      ],
+      "cues": [
+        "In April",
+        "In April",
+        "In April",
+        "would retire"
       ]
     },
     {
-      "id": "b24",
+      "id": "b25",
       "narration": "Concorde did not disappear because it was too fast. It disappeared because speed alone could not pay for a tiny, ageing fleet that burned so much fuel for every passenger.",
       "visual": {
         "template": "kinetic",
@@ -486,11 +563,30 @@
       "sources": [
         "https://www.pbs.org/wgbh/nova/teachers/activities/3203_concorde.html",
         "https://www.heritageconcorde.com/concorde-retirement-2003"
+      ],
+      "cues": [
+        "speed alone",
+        "could not pay"
       ]
     },
     {
-      "id": "b25",
-      "narration": "Since then, no airliner has carried passengers faster than sound. But in twenty twenty-six, American regulators proposed lifting their old ban on supersonic flight over land. The question Concorde left behind is open again.",
+      "id": "b26",
+      "narration": "Since that last flight, no airliner has carried passengers faster than the speed of sound.",
+      "visual": {
+        "template": "fact",
+        "props": {
+          "kicker": "Since 24 October 2003",
+          "text": "No airliner has carried passengers faster than the speed of sound."
+        }
+      },
+      "sources": [
+        "https://www.heritageconcorde.com/concorde-retirement-2003",
+        "https://www.history.com/this-day-in-history/october-24/the-concorde-makes-its-final-flight"
+      ]
+    },
+    {
+      "id": "b27",
+      "narration": "But in twenty twenty-six, American regulators proposed lifting their old ban on supersonic flight over land. The question Concorde left behind is open again.",
       "visual": {
         "template": "title",
         "props": {

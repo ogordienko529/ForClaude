@@ -72,6 +72,7 @@ export const Captions: React.FC<{captions: Caption[]}> = ({captions}) => {
           lineHeight: 1.3,
           textAlign: 'center',
           textShadow: '0 2px 6px rgba(0,0,0,0.5)',
+          textWrap: 'balance',
           borderBottom: `3px solid ${p.accent}`,
         }}
       >

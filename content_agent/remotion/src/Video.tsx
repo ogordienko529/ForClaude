@@ -53,9 +53,9 @@ export const Video: React.FC<TimelineData> = (t) => {
             <Sequence key={s.id} from={s.from} durationInFrames={s.durationInFrames} name={`${s.id} ${s.template}`}>
               <SceneShell duration={s.durationInFrames}>
                 {C ? (
-                  <C props={s.props} duration={s.durationInFrames} speech={s.speechOffset} />
+                  <C props={s.props} duration={s.durationInFrames} speech={s.speechOffset} cues={s.cues || []} />
                 ) : (
-                  <Missing props={s.props} duration={s.durationInFrames} speech={0} name={s.template} />
+                  <Missing props={s.props} duration={s.durationInFrames} speech={0} cues={[]} name={s.template} />
                 )}
               </SceneShell>
             </Sequence>

@@ -14,6 +14,7 @@ touches that beat.
     {"id": "b01",
      "narration": "In 1976, you could cross the Atlantic in three and a half hours.",
      "visual": {"template": "map_route", "props": {...}},
+     "cues": ["Atlantic"],            # optional: phrases that time the reveals (item i appears on cue i)
      "sources": ["https://..."]}
   ]
 }
@@ -172,6 +173,13 @@ def validate(sb: Storyboard, max_words_per_beat: int = 45, min_words_per_beat: i
             if key not in spec["required"] and key not in spec["optional"]:
                 issues.append(Issue("warning", bid, f"{tname}: unknown prop {key!r} is ignored"))
         issues += _check_limits(bid, tname, props, spec["limits"])
+        cues = beat.get("cues", [])
+        if not isinstance(cues, list) or not all(isinstance(c, str) for c in cues):
+            issues.append(Issue("error", bid, "cues must be a list of phrases from the narration"))
+        else:
+            for c in cues:
+                if c.lower() not in narration.lower():
+                    issues.append(Issue("warning", bid, f"cue {c!r} does not occur in the narration"))
 
         prev_templates.append(tname)
         if len(prev_templates) >= 3 and len(set(prev_templates[-3:])) == 1:
