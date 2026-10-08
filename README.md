@@ -4,6 +4,8 @@ Find YouTube niches where **new or small channels** can realistically get **10,0
 
 It runs as a **CLI** (`python -m niche_core …`) and as an **MCP server** for Claude Code / Claude Desktop. It uses only the official YouTube Data API v3, with a local SQLite cache and quota tracking so you stay inside the free 10,000 units/day.
 
+The repo also contains two local, free production tools: `sleep_voice` (natural sleep narration, [section 7](#7-sleep-narration-sleep_voice)) and `content_agent`, a video maker that Claude Code drives from topic to finished, self-reviewed video ([section 8](#8-local-video-maker-content_agent)).
+
 ---
 
 ## 1. Get a YouTube API key (free, ~5 minutes)
@@ -250,7 +252,59 @@ documentaries).
 synthetic" label. Monetization reviews do reject mass-produced, repetitive channels, though, so
 original, researched scripts matter more than the voice.
 
-## 8. Project layout
+## 8. Local video maker: `content_agent`
+
+Makes a narrated, animated explainer video **on your own computer for $0**: no paid APIs, no
+uploads. Claude Code is the writer, editor and reviewer (it follows the playbook in
+`.claude/skills/make-video/SKILL.md`). The `content_agent` CLI does the mechanical work:
+
+| Step | Tool (all local, free) |
+|---|---|
+| Research, script, storyboard | Claude Code + web search, sources kept in `research.md` |
+| Narration | Kokoro via `sleep_voice` (documentary pacing, cached per scene) |
+| Music | procedural ambient pads generated with numpy: no licence or Content ID risk |
+| Mix | ffmpeg: voice clean-up, music ducked under the voice, −14 LUFS |
+| Picture | Remotion (React) templates rendered in headless Chromium |
+| Self-review | ffmpeg checks + contact sheets that Claude Code looks at, fixes by scene id |
+
+```bash
+pip install -e ".[agent]"     # + ffmpeg and Node.js 18+ (the renderer installs its npm packages on first run)
+python -m content_agent new concorde --title "Why Concorde Stopped Flying"
+python -m content_agent templates            # what each visual template needs
+# write content_projects/concorde/storyboard.json (or ask Claude Code: "make a video about ...")
+python -m content_agent validate concorde
+python -m content_agent make concorde        # voice -> music -> mix -> timeline -> render -> QA
+```
+
+The result is `content_projects/<name>/out/video.mp4`. The review material is in `review/`:
+`qa.md` (technical findings with scene ids and timecodes), `overview.png` and `sheet_*.png`
+(three frames of every scene), and `transcript.txt`.
+
+**The storyboard is the single source of the video.** Each beat has narration, a visual template
+with its props, and sources. Everything else is derived from it, so a fix touches one beat:
+`still <name> <scene>` previews one frame and `render <name> --scene <id>` renders one scene.
+An example is in `examples/content/concorde/`.
+
+**Visual templates:** `title`, `kinetic` (animated text), `map_route` (great-circle route with a
+plane or ship), `map_point` (zoom to a place), `timeline`, `stat` (counter), `comparison`, `bars`,
+`fact` (sourced quote or fact card), `list`. There are three palettes (midnight, parchment and slate)
+and music moods calm, tense and uplifting. The map is Natural Earth (public domain) and the fonts
+are Inter and Playfair Display (OFL), all bundled, so rendering works offline.
+
+**Checks:** before rendering, the storyboard is checked for unknown templates, missing props, text
+too long for the screen, missing sources and repetitive visuals. After rendering, the video is
+checked for loudness and true peak, silences, black or frozen frames, scenes that are too long or
+too short, and caption reading speed. Claude Code then reviews the contact sheets against a
+7-point rubric (hook, visual–narration match, readability, variety, accuracy, polish, audio) and
+fixes until no serious finding is left.
+
+**Speed** on a 4-core machine: narration about 25 s per minute of video, and rendering about
+a few times real time (measured on the demo below).
+
+**Licences:** Remotion is free for individuals and companies with up to 3 employees (a company
+licence is needed above that). Kokoro is Apache-2.0.
+
+## 9. Project layout
 
 ```
 niche_core/          core library (all logic) + CLI (__main__.py)
@@ -265,6 +319,9 @@ niche_core/          core library (all logic) + CLI (__main__.py)
   service.py         the 7 operations + purge
 niche_mcp/server.py  thin MCP wrapper
 sleep_voice/         sleep narration: text normalisation, Kokoro TTS, pacing, mastering, SRT/chapters
+content_agent/       local video maker: storyboard checks, voice/music/mix, timeline, QA, CLI
+  remotion/          React video templates (maps, timelines, stats, text) rendered by Remotion
+.claude/skills/      make-video playbook that Claude Code follows
 tests/               fixture-based tests (no network)
 config.example.toml  every tunable, documented
 ```

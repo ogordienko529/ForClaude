@@ -18,14 +18,17 @@ dependencies = [
 dev = ["pytest>=8"]
 # Sleep narration (python -m sleep_voice). Also needs ffmpeg on PATH.
 voice = ["kokoro-onnx>=0.4", "soundfile>=0.12", "numpy>=1.24"]
+# Local video maker (python -m content_agent). Also needs ffmpeg and Node.js 18+ on PATH.
+agent = ["kokoro-onnx>=0.4", "soundfile>=0.12", "numpy>=1.24", "pillow>=10"]
 
 [project.scripts]
 niche = "niche_core.__main__:main"
 niche-mcp = "niche_mcp.server:main"
 sleep-voice = "sleep_voice.__main__:main"
+content-agent = "content_agent.__main__:main"
 
 [tool.setuptools.packages.find]
-include = ["niche_core*", "niche_mcp*", "sleep_voice*"]
+include = ["niche_core*", "niche_mcp*", "sleep_voice*", "content_agent*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

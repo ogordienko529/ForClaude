@@ -1,0 +1,16 @@
+{
+  "title": "Template gallery",
+  "fps": 30, "width": 1920, "height": 1080, "durationInFrames": 600,
+  "palette": "midnight", "format": "explainer", "audio": "", "showCaptions": true,
+  "scenes": [
+    {"id": "s1", "template": "title", "from": 0, "durationInFrames": 120, "speechOffset": 10,
+     "props": {"kicker": "Aviation history", "title": "Why Concorde Stopped Flying", "subtitle": "Twenty-seven years at twice the speed of sound"}},
+    {"id": "s2", "template": "map_route", "from": 120, "durationInFrames": 150, "speechOffset": 10,
+     "props": {"from": {"name": "London", "lat": 51.47, "lon": -0.45}, "to": {"name": "New York", "lat": 40.64, "lon": -73.78}, "label": "3 h 30 min"}},
+    {"id": "s3", "template": "stat", "from": 270, "durationInFrames": 120, "speechOffset": 10,
+     "props": {"value": 2.04, "prefix": "Mach", "label": "Cruising speed"}},
+    {"id": "s4", "template": "timeline", "from": 390, "durationInFrames": 210, "speechOffset": 10,
+     "props": {"events": [{"year": "1969", "label": "First flight"}, {"year": "1976", "label": "Passenger service"}, {"year": "2000", "label": "Paris crash"}, {"year": "2003", "label": "Retired"}], "highlight": 3}}
+  ],
+  "captions": [{"from": 130, "to": 260, "text": "London to New York in about three and a half hours."}]
+}
