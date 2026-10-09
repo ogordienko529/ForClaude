@@ -327,6 +327,34 @@ open-source voxel game) by `examples/gameplay_sim/record.py`, because Minecraft 
 server container. The script uses real keyboard and mouse input on a virtual display, and needs
 `apt install minetest xvfb xdotool` and `pip install python-xlib`.
 
+### Mod reviews from a silent recording (voice-over, 16:9)
+
+The third mode is for people who would rather not narrate themselves. You record gameplay
+without talking, and Claude Code (following `.claude/skills/review-video/SKILL.md`) does the rest:
+1. Finds which mods are in the recording, with `mods` reading `latest.log` or the mods folder.
+2. Looks them up on their official pages.
+3. Logs what happens in the footage and writes the script.
+4. Voices it.
+5. Edits the footage to the narration.
+
+Footage beats use the `footage` template (a clip with a slow push-in, a lower-third label, a badge
+and optional brightness for dark caves), alongside cards such as `verdict` (score, pros, cons),
+`comparison` and `list`.
+
+```bash
+python -m content_agent new my-review --format review
+python -m content_agent footage my-review raw.mp4
+python -m content_agent mods my-review ~/.minecraft/logs/latest.log
+python -m content_agent make my-review          # + out/description.md with chapters and credits
+python -m content_agent thumbnail my-review     # out/thumbnail.png
+```
+
+Voice: `"voice_engine": "kokoro"` (free, local) or `"elevenlabs"`, with `"voice"` set to your
+ElevenLabs voice_id and the key in the `ELEVENLABS_API_KEY` environment variable. `build` stops if
+a footage beat needs more recording than exists, and names the beat and the fix. The demo
+(`examples/gameplay_sim/review_storyboard.json`) is a 1:53 review of the Luanti Nether mod, made
+from a 73 s silent recording (`record.py --session nether`).
+
 ## 9. Project layout
 
 ```
@@ -345,8 +373,9 @@ sleep_voice/         sleep narration: text normalisation, Kokoro TTS, pacing, ma
 content_agent/       local video maker: storyboard checks, voice/music/mix, timeline, QA, CLI
   gameplay.py        fast gameplay edits: footage analysis, edit.json, soundtrack, timeline
   sound.py           procedural beat music (drop, tape-stop) and sound effects
+  mods.py            mod lists from latest.log (Fabric/Forge/NeoForge), mods folders, Luanti worlds
   remotion/          React video templates (maps, timelines, stats, text) rendered by Remotion
-.claude/skills/      make-video and edit-gameplay playbooks that Claude Code follows
+.claude/skills/      make-video, edit-gameplay and review-video playbooks that Claude Code follows
 tests/               fixture-based tests (no network)
 config.example.toml  every tunable, documented
 ```

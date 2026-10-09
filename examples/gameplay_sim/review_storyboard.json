@@ -1,0 +1,326 @@
+{
+  "title": "Luanti Nether Mod Review",
+  "format": "review",
+  "voice": "am_michael",
+  "voice_engine": "kokoro",
+  "music": "hype",
+  "palette": "slate",
+  "captions": true,
+  "thumbnail": {
+    "src": "footage/raw_nether.mp4",
+    "t": 65.0,
+    "title": "This mod hides a *whole world*",
+    "tag": "Mod review"
+  },
+  "credits": [
+    {
+      "name": "Nether mod for Luanti 3.5",
+      "author": "PilzAdam and contributors",
+      "license": "WTFPL code, CC media",
+      "url": "https://github.com/PilzAdam/nether"
+    }
+  ],
+  "beats": [
+    {
+      "id": "b01",
+      "narration": "This mod hides an entire second world inside Luanti, and it starts five thousand blocks under your feet.",
+      "visual": {
+        "template": "footage",
+        "props": {
+          "src": "footage/raw_nether.mp4",
+          "in": 63.5,
+          "zoom": 1.05,
+          "zoom_to": 1.18,
+          "focus": [
+            0.5,
+            0.45
+          ],
+          "speed": 0.76
+        }
+      },
+      "sources": [
+        "nether mod 3.5 (Luanti): init.lua, portal definition",
+        "nether mod 3.5: settingtypes.txt"
+      ],
+      "chapter": "Intro"
+    },
+    {
+      "id": "b02",
+      "narration": "Today we're testing the Nether mod: how to get there, what's waiting inside, and whether it's worth installing.",
+      "visual": {
+        "template": "title",
+        "props": {
+          "title": "Nether Mod Review",
+          "kicker": "Luanti mod review",
+          "subtitle": "Portals, lava seas and fast travel"
+        }
+      }
+    },
+    {
+      "id": "b03",
+      "narration": "Getting there starts with a portal. You need fourteen blocks of obsidian, built into a frame four blocks wide and five blocks tall, standing upright like a doorway.",
+      "visual": {
+        "template": "footage",
+        "props": {
+          "src": "footage/raw_nether.mp4",
+          "in": 10.5,
+          "speed": 1.2,
+          "label": "Nether Portal",
+          "sublabel": "14 obsidian, 4 x 5 frame"
+        }
+      },
+      "sources": [
+        "nether mod 3.5 (Luanti): init.lua, portal definition",
+        "nether mod 3.5: settingtypes.txt"
+      ],
+      "chapter": "Building the portal"
+    },
+    {
+      "id": "b04",
+      "narration": "Then you light it by right-clicking the frame with a mese crystal fragment, and the inside fills with a swirling purple wormhole.",
+      "visual": {
+        "template": "footage",
+        "props": {
+          "src": "footage/raw_nether.mp4",
+          "in": 23.0,
+          "zoom": 1.0,
+          "zoom_to": 1.25,
+          "focus": [
+            0.5,
+            0.42
+          ],
+          "label": "Light it",
+          "sublabel": "Right-click with a mese crystal fragment"
+        }
+      },
+      "sources": [
+        "nether mod 3.5 (Luanti): init.lua, portal definition",
+        "nether mod 3.5: settingtypes.txt"
+      ]
+    },
+    {
+      "id": "b05",
+      "narration": "Step inside, wait a few seconds, and the mod pulls you deep underground.",
+      "visual": {
+        "template": "footage",
+        "props": {
+          "src": "footage/raw_nether.mp4",
+          "in": 31.0,
+          "zoom": 1.0,
+          "zoom_to": 1.1
+        }
+      },
+      "sources": [
+        "nether mod 3.5 (Luanti): init.lua, portal definition",
+        "nether mod 3.5: settingtypes.txt"
+      ]
+    },
+    {
+      "id": "b06",
+      "narration": "By default, the Nether begins five thousand blocks below the surface and goes all the way down to minus eleven thousand.",
+      "visual": {
+        "template": "stat",
+        "props": {
+          "value": 5000,
+          "label": "blocks below the surface",
+          "note": "where the Nether begins (default setting)"
+        }
+      },
+      "sources": [
+        "nether mod 3.5 (Luanti): init.lua, portal definition",
+        "nether mod 3.5: settingtypes.txt"
+      ],
+      "chapter": "Inside the Nether"
+    },
+    {
+      "id": "b07",
+      "narration": "The first thing you notice is the dark.",
+      "visual": {
+        "template": "footage",
+        "props": {
+          "src": "footage/raw_nether.mp4",
+          "in": 52.6,
+          "label": "Netherrack and glowstone",
+          "speed": 0.7,
+          "brightness": 1.9
+        }
+      },
+      "sources": [
+        "nether mod 3.5: nodes.lua (Lava Crust: walkable, damage_per_second = 2)"
+      ]
+    },
+    {
+      "id": "b07b",
+      "narration": "These caves are carved out of netherrack, and lit only by glowstone and lava.",
+      "visual": {
+        "template": "kinetic",
+        "props": {
+          "lines": [
+            "Netherrack caves,",
+            "lit by glowstone and lava"
+          ],
+          "emphasis": [
+            "glowstone",
+            "lava"
+          ]
+        }
+      },
+      "cues": [
+        "carved out of netherrack",
+        "lit only by"
+      ],
+      "sources": [
+        "nether mod 3.5: nodes.lua (Lava Crust: walkable, damage_per_second = 2)"
+      ]
+    },
+    {
+      "id": "b08",
+      "narration": "Then the tunnels open up into huge lava seas, covered by a glowing crust. Break it, and there's real lava underneath.",
+      "visual": {
+        "template": "footage",
+        "props": {
+          "src": "footage/raw_nether.mp4",
+          "in": 58.6,
+          "zoom": 1.0,
+          "zoom_to": 1.12,
+          "label": "Lava Crust",
+          "speed": 0.6
+        }
+      },
+      "sources": [
+        "nether mod 3.5: nodes.lua (Lava Crust: walkable, damage_per_second = 2)"
+      ],
+      "cues": [
+        "lava seas"
+      ]
+    },
+    {
+      "id": "b09",
+      "narration": "You can walk on that crust, but it hurts you every second you stand on it.",
+      "visual": {
+        "template": "kinetic",
+        "props": {
+          "lines": [
+            "You can walk on it.",
+            "But it burns."
+          ],
+          "emphasis": [
+            "burns"
+          ]
+        }
+      },
+      "sources": [
+        "nether mod 3.5: nodes.lua (Lava Crust: walkable, damage_per_second = 2)"
+      ],
+      "cues": [
+        "walk on that crust",
+        "hurts you"
+      ]
+    },
+    {
+      "id": "b10",
+      "narration": "Which is exactly how I ended up taking a lava bath.",
+      "visual": {
+        "template": "footage",
+        "props": {
+          "src": "footage/raw_nether.mp4",
+          "in": 69.0,
+          "badge": "CREATIVE MODE"
+        }
+      }
+    },
+    {
+      "id": "b11",
+      "narration": "The best feature is fast travel. Every block you walk in the Nether counts as eight on the surface, so a second portal can shortcut huge distances.",
+      "visual": {
+        "template": "comparison",
+        "props": {
+          "title": "Fast travel",
+          "unit": "blocks",
+          "left": {
+            "label": "Walk in the Nether",
+            "value": 10
+          },
+          "right": {
+            "label": "Distance on the surface",
+            "value": 80
+          }
+        }
+      },
+      "sources": [
+        "nether mod 3.5 (Luanti): init.lua, portal definition",
+        "nether mod 3.5: settingtypes.txt"
+      ],
+      "cues": [
+        "Every block",
+        "eight on the surface"
+      ],
+      "chapter": "Fast travel"
+    },
+    {
+      "id": "b12",
+      "narration": "There's more to find: nether brick and basalt for building, crystal geodes, a full set of nether tools, and a staff of light that turns netherrack into glowstone.",
+      "visual": {
+        "template": "list",
+        "props": {
+          "title": "Also in the mod",
+          "items": [
+            "Nether brick and basalt",
+            "Crystal geodes",
+            "Nether tools",
+            "Staff of Light"
+          ]
+        }
+      },
+      "sources": [
+        "nether mod 3.5: tools.lua, nodes.lua"
+      ],
+      "cues": [
+        "nether brick",
+        "crystal geodes",
+        "nether tools",
+        "staff of light"
+      ]
+    },
+    {
+      "id": "b13",
+      "narration": "So, is it worth it? I'd give it eight out of ten: a real new dimension, fast travel, great building blocks, and it's free. The downsides: it's very dark, and on slower computers the first trip loads slowly.",
+      "visual": {
+        "template": "verdict",
+        "props": {
+          "score": 8,
+          "pros": [
+            "A whole new dimension",
+            "Fast travel, x8",
+            "Free and open source"
+          ],
+          "cons": [
+            "Very dark without lights",
+            "Slow first load"
+          ]
+        }
+      },
+      "cues": [
+        "eight out of ten",
+        "new dimension",
+        "fast travel",
+        "free",
+        "very dark",
+        "first trip"
+      ],
+      "chapter": "Verdict"
+    },
+    {
+      "id": "b14",
+      "narration": "Would you build a portal? Tell me in the comments. The mod link is in the description.",
+      "visual": {
+        "template": "title",
+        "props": {
+          "title": "Would you go in?",
+          "kicker": "Nether mod 3.5",
+          "subtitle": "Link in the description"
+        }
+      }
+    }
+  ]
+}

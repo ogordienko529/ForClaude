@@ -119,7 +119,8 @@ def cmd_footage(a) -> None:
         print("  events: " + ", ".join(f"{e['kind']}@{e['t']}s" for e in r["events"][:20]))
         print("  idle: " + ", ".join(f"{i['start']}-{i['end']}s" for i in r["idle"]))
         print("  look at: " + ", ".join(r["sheets"]))
-    print(f"edit list: {project / 'edit.json'}")
+    if (project / "edit.json").exists():
+        print(f"edit list: {project / 'edit.json'}")
 
 
 def cmd_validate(a) -> int:
@@ -144,13 +145,15 @@ def cmd_validate(a) -> int:
 
 
 def cmd_voice(a) -> None:
-    from .audio import synthesize_voice
+    from .audio import make_voice_engine, synthesize_voice
 
     project = project_dir(a.project)
     sb = _load(project)
-    t0 = _step("voice")
-    timing = synthesize_voice(sb.beats, project / "audio" / "voice.wav", voice=sb.data.get("voice", "am_michael"),
-                              fmt=sb.data.get("format", "explainer"),
+    fmt = sb.data.get("format", "explainer")
+    engine_name = sb.data.get("voice_engine", "kokoro")
+    t0 = _step(f"voice ({engine_name})")
+    engine = make_voice_engine(engine_name, sb.data.get("voice") or None, fmt, sb.data.get("voice_options"))
+    timing = synthesize_voice(sb.beats, project / "audio" / "voice.wav", fmt=fmt, engine=engine,
                               log=lambda m: print(m, file=sys.stderr))
     (project / "audio" / "voice_timing.json").write_text(json.dumps(timing, indent=2) + "\n", encoding="utf-8")
     _done(t0, f"({timing['duration']:.1f}s of narration)")
@@ -170,7 +173,12 @@ def cmd_music(a) -> None:
         return
     timing = json.loads((project / "audio" / "voice_timing.json").read_text())
     t0 = _step(f"music ({mood})")
-    music = ambient_music(timing["duration"] + 1.0, mood=mood, seed=a.seed)
+    if mood in ("hype", "phonk"):  # a beat under the voice (ducked in the mix), for reviews and gaming videos
+        from .sound import beat_music
+
+        music = beat_music(timing["duration"] + 1.0, bpm=100 if mood == "hype" else 120, style=mood, seed=a.seed) * 0.6
+    else:
+        music = ambient_music(timing["duration"] + 1.0, mood=mood, seed=a.seed)
     sf.write(out, music, 48_000, subtype="PCM_16")
     _done(t0)
 
@@ -207,8 +215,106 @@ def cmd_build(a) -> None:
         sys.exit("voice timings do not match the storyboard beats: run `voice` (and music/mix) again")
     audio = "audio/mix.wav" if (project / "audio" / "mix.wav").exists() else "audio/voice.wav"
     tl = build_timeline(sb.data, timing, audio, fmt=sb.data.get("format", "explainer"))
+    problems = _check_footage(project, tl)
+    if problems:
+        sys.exit("footage does not cover these scenes:\n" + "\n".join(problems))
     write_timeline(tl, project / "timeline.json")
-    print(f"timeline: {len(tl['scenes'])} scenes, {tl['durationInFrames'] / tl['fps']:.1f}s", file=sys.stderr)
+    desc = _write_description(project, sb, tl)
+    print(f"timeline: {len(tl['scenes'])} scenes, {tl['durationInFrames'] / tl['fps']:.1f}s; description: {desc}",
+          file=sys.stderr)
+
+
+def _check_footage(project: Path, tl: dict) -> list[str]:
+    """Every footage scene needs enough recording after its `in` point (scene length x speed)."""
+    from .gameplay import probe
+
+    lengths: dict[str, float] = {}
+    out = []
+    for s in tl["scenes"]:
+        if s["template"] != "footage":
+            continue
+        src = s["props"]["src"]
+        if not (project / src).exists():
+            out.append(f"  {s['id']}: {src} not found")
+            continue
+        lengths.setdefault(src, probe(project / src)["duration"])
+        need = s["durationInFrames"] / tl["fps"] * float(s["props"].get("speed", 1))
+        start = float(s["props"]["in"])
+        if start + need > lengths[src] + 0.05:
+            out.append(f"  {s['id']}: needs {need:.1f}s of {src} from {start}s but it ends at {lengths[src]:.1f}s "
+                       f"(start earlier or raise speed to {need / max(lengths[src] - start, 0.1):.2f})")
+    return out
+
+
+def _tc(seconds: float) -> str:
+    m, s = divmod(int(seconds), 60)
+    return f"{m}:{s:02d}"
+
+
+def _write_description(project: Path, sb: Storyboard, tl: dict) -> Path:
+    """YouTube description: chapters from beats with "chapter", credits and sources."""
+    lines = [sb.title, ""]
+    chapters = [(s["from"] / tl["fps"], s["chapter"]) for s in tl["scenes"] if s.get("chapter")]
+    if chapters:
+        lines.append("Chapters:")
+        lines += [f"{_tc(0 if i == 0 else t)} {name}" for i, (t, name) in enumerate(chapters)]
+        lines.append("")
+    credits = sb.data.get("credits", [])
+    if credits:
+        lines.append("Shown in this video:")
+        for c in credits:
+            extra = ", ".join(x for x in (c.get("author"), c.get("license")) if x)
+            lines.append(f"- {c['name']}" + (f" ({extra})" if extra else "") + (f": {c['url']}" if c.get("url") else ""))
+        lines.append("")
+    sources = sorted({u for b in sb.beats for u in b.get("sources", []) if u.startswith("http")})
+    if sources:
+        lines.append("Sources:")
+        lines += [f"- {u}" for u in sources]
+        lines.append("")
+    if sb.data.get("music", "calm") != "none":
+        lines.append("Music: original, generated for this video.")
+    out = project / "out" / "description.md"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return out
+
+
+def cmd_thumbnail(a) -> None:
+    """storyboard "thumbnail": {"src": "footage/x.mp4", "t": 61.5, "title": "This mod is *insane*", "tag": "Mod review"}"""
+    import subprocess
+
+    from .render import still
+
+    project = project_dir(a.project)
+    sb = _load(project)
+    th = sb.data.get("thumbnail")
+    if not th:
+        sys.exit('add "thumbnail": {"src", "t", "title", "tag"} to the storyboard')
+    frame = project / "build" / "thumb_src.png"
+    frame.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", str(th.get("t", 0)), "-i", str(project / th["src"]),
+                    "-frames:v", "1", "-vf",
+                    # drop the bottom 12% (game HUD / hotbar), then fill 1280x720
+                    "crop=iw:ih*0.88:0:0,scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720",
+                    str(frame)], check=True)
+    props = project / "build" / "thumbnail.json"
+    props.write_text(json.dumps({"image": "build/thumb_src.png", "title": th["title"], "tag": th.get("tag", "")}))
+    out = project / "out" / "thumbnail.png"
+    still(project, props, 0, out, comp="Thumbnail")
+    print(out)
+
+
+def cmd_mods(a) -> None:
+    from .mods import load_mods
+
+    project = project_dir(a.project)
+    mods = load_mods(Path(a.source))
+    (project / "mods.json").parent.mkdir(parents=True, exist_ok=True)
+    (project / "mods.json").write_text(json.dumps(mods, indent=2) + "\n")
+    for m in mods:
+        if not m["platform"]:
+            print(f"{m['id']:28s} {m['version']:20s} {m['loader']}")
+    print(f"-> {project / 'mods.json'} (look each one up on its official page before writing about it)")
 
 
 def _scene(project: Path, scene_id: str) -> tuple[dict, dict]:
@@ -284,7 +390,7 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("new", help="create a project with a storyboard skeleton")
     p.add_argument("name")
     p.add_argument("--title")
-    p.add_argument("--format", default="explainer", choices=["explainer", "shorts"])
+    p.add_argument("--format", default="explainer", choices=["explainer", "shorts", "review"])
     p.add_argument("--force", action="store_true")
     p.set_defaults(fn=cmd_new)
 
@@ -292,6 +398,15 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("project")
     p.add_argument("videos", nargs="+")
     p.set_defaults(fn=cmd_footage)
+
+    p = sub.add_parser("mods", help="list the mods in a recording from latest.log, a mods folder or a Luanti world")
+    p.add_argument("project")
+    p.add_argument("source")
+    p.set_defaults(fn=cmd_mods)
+
+    p = sub.add_parser("thumbnail", help="render out/thumbnail.png from the storyboard's thumbnail settings")
+    p.add_argument("project")
+    p.set_defaults(fn=cmd_thumbnail)
 
     p = sub.add_parser("templates", help="list visual templates and their props")
     p.add_argument("--json", action="store_true")

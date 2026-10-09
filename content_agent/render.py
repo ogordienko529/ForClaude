@@ -62,10 +62,10 @@ def render(project: Path, timeline_path: Path, out: Path, frames: str | None = N
     return out
 
 
-def still(project: Path, timeline_path: Path, frame: int, out: Path) -> Path:
-    """Render a single frame (fast preview for checking one scene)."""
+def still(project: Path, timeline_path: Path, frame: int, out: Path, comp: str | None = None) -> Path:
+    """Render a single frame (fast preview for checking one scene, or a thumbnail with comp="Thumbnail")."""
     ensure_node_modules()
-    cmd = [shutil.which("npx") or "npx", "remotion", "still", "src/index.ts", composition(timeline_path), str(out.resolve()),
+    cmd = [shutil.which("npx") or "npx", "remotion", "still", "src/index.ts", comp or composition(timeline_path), str(out.resolve()),
            f"--props={timeline_path.resolve()}", f"--public-dir={project.resolve()}", f"--frame={frame}",
            "--log=error"]
     browser = find_browser()

@@ -1,6 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {AbsoluteFill, Audio, continueRender, delayRender, Sequence, staticFile} from 'remotion';
 import {Bars, Comparison, Stat, Timeline} from './templates/data';
+import {Footage, Verdict} from './templates/footage';
 import {MapPoint, MapRoute} from './templates/maps';
 import {FactCard, Kinetic, ListCard, TitleCard} from './templates/text';
 import {PALETTES, PaletteContext} from './theme';
@@ -18,6 +19,8 @@ export const TEMPLATES: Record<string, React.FC<SceneProps>> = {
   timeline: Timeline,
   map_route: MapRoute,
   map_point: MapPoint,
+  footage: Footage,
+  verdict: Verdict,
 };
 
 const useFonts = () => {
@@ -61,7 +64,8 @@ export const Video: React.FC<TimelineData> = (t) => {
             </Sequence>
           );
         })}
-        {t.showCaptions && <Captions captions={t.captions} />}
+        {/* gameplay footage has a hotbar at the bottom: reviews lift the captions above it */}
+        {t.showCaptions && <Captions captions={t.captions} lift={t.format === 'review' ? 0.13 : 0.06} />}
         {t.audio ? <Audio src={staticFile(t.audio)} /> : null}
       </AbsoluteFill>
     </PaletteContext.Provider>

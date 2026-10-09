@@ -110,20 +110,95 @@ class Driver:
             self.look(yaw=sway * math.sin(i * 1.3), pitch=1.5 * math.cos(i * 0.9), seconds=0.5)
         self._key(key, False)
 
-    def aim(self, seconds: float = 1.0, keys: tuple[str, ...] = ()) -> None:
-        """Turn smoothly to face the house (the director mod computes the angles)."""
-        self.command("aim")
+    def aim(self, seconds: float = 1.0, keys: tuple[str, ...] = (), target: str = "house") -> float:
+        """Turn smoothly to face the house or the portal (the director mod computes the angles)."""
+        self.command(f"aim {target}")
         time.sleep(0.25)
         lines = [l for l in self.log_file.read_text(errors="ignore").splitlines() if "[director] aim " in l]
         if not lines:
-            return
+            return 0.0
         parts = dict(kv.split("=") for kv in lines[-1].split("aim ", 1)[1].split())
         # game yaw grows to the left; the mouse turns right for positive x
         self.look(yaw=-float(parts["dyaw"]), pitch=float(parts["dpitch"]), seconds=seconds, keys=keys)
+        return float(parts.get("dist", 0))
+
+    def position(self) -> tuple[float, float, float] | None:
+        """Player position, read back from the director's report in the game log."""
+        self.command("report")
+        time.sleep(0.3)
+        lines = [l for l in self.log_file.read_text(errors="ignore").splitlines() if "[director] report " in l]
+        if not lines:
+            return None
+        x, y, z = lines[-1].split("report ", 1)[1].split()[:3]
+        return float(x), float(y), float(z)
+
+    def wait_until(self, test, timeout: float, poll: float = 1.0) -> bool:
+        end = time.time() + timeout
+        while time.time() < end:
+            pos = self.position()
+            if pos and test(pos):
+                return True
+            time.sleep(poll)
+        return False
 
     def idle(self, seconds: float) -> None:
         self.look(yaw=4, pitch=-2, seconds=seconds / 2)
         self.look(yaw=-5, pitch=2, seconds=seconds / 2)
+
+
+def session_nether(dr: Driver) -> None:
+    """About 2.5 min of a silent mod showcase: build and light a Nether portal, go through, explore.
+    Includes things an editor must cut: an inventory screen, standing still, waiting in the portal."""
+    dr.idle(3.0)                                     # nothing happens
+    dr.tap("i")                                      # open the inventory (menu screen) ...
+    time.sleep(3.0)
+    dr.tap("Escape")                                 # ... and close it
+    time.sleep(0.8)
+    dr.walk(3.0, sway=4)
+    dr.tap("2")                                      # obsidian
+    dr.command("portal")                             # 14 blocks at 2.5 per second
+    time.sleep(0.4)
+    dr.aim(1.0, target="portal")
+    for _ in range(3):
+        dr.look(yaw=-10, pitch=-4, seconds=1.4)
+        dr.aim(1.4, target="portal")
+    dr.look(pitch=-3, seconds=1.0, keys=("s",))      # step back to see the frame
+    dr.tap("3")                                      # mese crystal fragment
+    dr.aim(1.0, target="portal_base")
+    dr.button(3, True)                               # right-click the frame: light it
+    time.sleep(0.15)
+    dr.button(3, False)
+    time.sleep(0.6)
+    dr.command("light")                              # in case the click missed the frame
+    dr.aim(1.2, target="portal")
+    time.sleep(2.5)                                  # admire the swirl
+    dr.look(yaw=8, seconds=1.0)
+    dist = dr.aim(1.0, target="portal")
+    dr.walk(max(dist - 1.3, 0.5) / 4.0, sway=0.5)    # walk up to the portal (4 blocks/s) ...
+    dr.command("enter")                              # ... and stand inside it
+    # the Nether is generated on arrival, which takes a while without a GPU (an editor cuts this wait)
+    if not dr.wait_until(lambda p: p[1] < -1000, timeout=90):
+        print("warning: no teleport to the Nether")
+    time.sleep(2.0)                                  # arrived: the Nether loads around us
+    dr.command("glow")                               # light the cave like a player placing lights
+    dr.walk(1.2, sway=2)                             # step out of the arrival portal
+    dr.idle(2.0)
+    dr.look(yaw=-70, seconds=2.5)
+    dr.look(yaw=140, pitch=-15, seconds=3.5)         # look around: ceiling, glowstone
+    dr.look(yaw=-60, pitch=25, seconds=2.0)
+    dr.tap("4")                                      # nether pickaxe
+    dr.walk(4.0, sway=8)
+    dr.tap("space")
+    dr.walk(3.0, sway=6)
+    dr.look(pitch=35, seconds=1.0)                   # mine some netherrack
+    dr.button(1, True)
+    time.sleep(2.0)
+    dr.button(1, False)
+    dr.look(pitch=-35, seconds=1.0)
+    dr.command("glow")
+    dr.walk(3.0, sway=10)
+    dr.look(yaw=90, pitch=-10, seconds=2.5)
+    dr.idle(3.0)
 
 
 def session(dr: Driver) -> None:
@@ -178,14 +253,20 @@ def main() -> None:
     ap.add_argument("-o", "--out", default="raw_gameplay.mp4")
     ap.add_argument("--display", default=":95")
     ap.add_argument("--calibrate", action="store_true", help="turn 90 degrees and report the measured yaw")
+    ap.add_argument("--keep", action="store_true", help="keep the temporary world and game log")
+    ap.add_argument("--session", choices=["tnt", "nether"], default="tnt",
+                    help="tnt: build a house and blow it up (Shorts demo); nether: mod showcase (review demo)")
     a = ap.parse_args()
 
     work = Path(tempfile.mkdtemp(prefix="luanti_"))
     world = work / "world"
     (world / "worldmods").mkdir(parents=True)
     shutil.copytree(HERE / "director", world / "worldmods" / "director")
+    if a.session == "nether":
+        shutil.copytree("/usr/share/games/minetest/mods/nether", world / "worldmods" / "nether")
     (world / "world.mt").write_text("gameid = minetest_game\nbackend = sqlite3\ncreative_mode = true\nenable_damage = false\n")
-    (work / "game.conf").write_text(CONFIG)
+    # the Nether is lit only by glowstone and lava: a brighter gamma keeps the footage readable
+    (work / "game.conf").write_text(CONFIG + ("display_gamma = 1.8\n" if a.session == "nether" else ""))
     cmd_file = world / "director_cmd.txt"
 
     env = dict(os.environ, DISPLAY=a.display, LP_NUM_THREADS=str(os.cpu_count() or 4))
@@ -205,7 +286,7 @@ def main() -> None:
         subprocess.run(["xdotool", "windowfocus", "--sync", wid], env=env)
         subprocess.run(["xdotool", "mousemove", "--window", wid, str(W // 2), str(H // 2)], env=env)
         dr.tap("F2")  # hide the chat log, as most recorders do
-        for c in ("day", "give", "clear 22"):
+        for c in ("day", "give_nether" if a.session == "nether" else "give", "clear 22"):
             dr.command(c)
         time.sleep(4)
         if a.calibrate:
@@ -220,14 +301,17 @@ def main() -> None:
         rec = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "x11grab", "-framerate", "30", "-video_size",
                                 f"{W}x{H}", "-i", a.display, "-c:v", "libx264", "-preset", "veryfast", "-crf", "16",
                                 "-pix_fmt", "yuv420p", a.out], env=env, stdin=subprocess.PIPE)
-        session(dr)
+        session_nether(dr) if a.session == "nether" else session(dr)
     finally:
         if rec:
             rec.communicate(b"q", timeout=30)
         game.terminate()
         game.wait(timeout=20)
         xvfb.terminate()
-        shutil.rmtree(work, ignore_errors=True)
+        if a.keep:
+            print(f"world and log kept in {work}")
+        else:
+            shutil.rmtree(work, ignore_errors=True)
     print(a.out)
 
 

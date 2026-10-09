@@ -39,20 +39,36 @@ FORMAT_PACING = {
     "explainer": VoicePacing(),
     "shorts": VoicePacing(speed=1.02, sentence_pause=0.22, beat_pause=0.25, lead_in=0.2, tail=0.8),
     "sleep": VoicePacing(speed=0.86, sentence_pause=0.9, beat_pause=2.0, lead_in=2.0, tail=6.0, target_level_db=-23),
+    # mod reviews / gameplay commentary: livelier than a documentary
+    "review": VoicePacing(speed=1.0, sentence_pause=0.28, beat_pause=0.35, jitter=0.1, lead_in=0.4, tail=1.4),
 }
+
+# Delivery notes for engines that take them (OpenAI); ElevenLabs uses voice_options instead.
+REVIEW_INSTRUCTIONS = ("Voice: an upbeat, friendly gaming YouTuber. Tone: curious and enthusiastic but natural, "
+                       "not shouting. Pacing: brisk, with short pauses between ideas.")
 
 
 def _beat_text(beat: dict) -> str:
     return normalize(beat["narration"])
 
 
+def make_voice_engine(name: str = "kokoro", voice: str | None = None, fmt: str = "explainer", options: dict | None = None):
+    """Kokoro is free and local; ElevenLabs / OpenAI need ELEVENLABS_API_KEY / OPENAI_API_KEY in the environment."""
+    from sleep_voice.engine import make_engine
+
+    opts = dict(options or {})
+    if name == "openai" and fmt == "review":
+        opts.setdefault("instructions", REVIEW_INSTRUCTIONS)
+    if name == "elevenlabs" and fmt == "review":
+        opts.setdefault("stability", 0.45)  # livelier than the sleep default
+    return make_engine(name, voice, **opts)
+
+
 def synthesize_voice(beats: list[dict], out_wav: Path, voice: str = "am_michael", fmt: str = "explainer",
                      engine=None, cache_dir: Path | None = CACHE_DIR, seed: int = 3, log=print) -> dict:
     """Returns {"duration": s, "beats": [{id, start, end, sentences: [{start, end, text}]}]}."""
     if engine is None:
-        from sleep_voice.engine import make_engine
-
-        engine = make_engine("kokoro", voice)
+        engine = make_voice_engine("kokoro", voice, fmt)
     p = FORMAT_PACING.get(fmt, VoicePacing())
     rng = random.Random(seed)
     sr = engine.sample_rate
@@ -193,7 +209,7 @@ def require_ffmpeg() -> str:
     return exe
 
 
-LOUDNESS = {"explainer": -14.0, "shorts": -14.0, "sleep": -20.0, "gameplay": -14.0}
+LOUDNESS = {"explainer": -14.0, "shorts": -14.0, "sleep": -20.0, "gameplay": -14.0, "review": -14.0}
 
 
 def mix(voice_wav: Path, music_wav: Path | None, out_wav: Path, fmt: str = "explainer",

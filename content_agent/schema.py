@@ -7,7 +7,9 @@ touches that beat.
 {
   "title": "Why Concorde Stopped Flying",
   "format": "explainer",              # format pack: pacing, loudness and QA thresholds
-  "voice": "am_michael",              # sleep_voice / Kokoro voice or blend
+  "voice": "am_michael",              # Kokoro voice (or blend), or an ElevenLabs voice_id / OpenAI voice
+  "voice_engine": "kokoro",           # kokoro (free, local) | elevenlabs | openai | chatterbox
+  "voice_options": {},                # engine options, e.g. {"stability": 0.45, "style": 0.3} for ElevenLabs
   "music": "calm",                    # procedural music mood: calm | tense | uplifting | none
   "palette": "midnight",              # renderer colour theme
   "beats": [
@@ -15,6 +17,7 @@ touches that beat.
      "narration": "In 1976, you could cross the Atlantic in three and a half hours.",
      "visual": {"template": "map_route", "props": {...}},
      "cues": ["Atlantic"],            # optional: phrases that time the reveals (item i appears on cue i)
+     "chapter": "The supersonic dream",  # optional: starts a YouTube chapter here
      "sources": ["https://..."]}
   ]
 }
@@ -82,10 +85,26 @@ TEMPLATES: dict[str, dict[str, Any]] = {
         "limits": {"items": 5, "item": 48, "title": 50},
         "doc": "Title plus 2-5 bullet items revealed one by one.",
     },
+    "footage": {
+        "required": {"src": str, "in": (int, float)},
+        "optional": {"speed": (int, float), "zoom": (int, float), "zoom_to": (int, float), "focus": list,
+                     "label": str, "sublabel": str, "badge": str, "brightness": (int, float)},
+        "limits": {"label": 40, "sublabel": 60},
+        "doc": "A clip of your recording (src relative to the project, from `in` seconds, at `speed`), slow push-in "
+               "from zoom to zoom_to around focus [x, y]; optional lower-third label/sublabel and a corner badge.",
+    },
+    "verdict": {
+        "required": {"score": (int, float)}, "optional": {"out_of": (int, float), "pros": list, "cons": list, "title": str},
+        "limits": {"items": 4, "item": 40, "title": 40},
+        "doc": "Review verdict: big score (e.g. 8.5 / 10) with pros and cons revealed on narration cues.",
+    },
 }
 
+VOICE_ENGINES = ("kokoro", "elevenlabs", "openai", "chatterbox")
+FORMATS = ("explainer", "shorts", "review")
+
 PALETTES = ("midnight", "parchment", "slate")
-MUSIC_MOODS = ("calm", "tense", "uplifting", "none")
+MUSIC_MOODS = ("calm", "tense", "uplifting", "hype", "phonk", "none")  # hype/phonk: beat music (sound.py)
 
 
 @dataclass
@@ -136,6 +155,16 @@ def validate(sb: Storyboard, max_words_per_beat: int = 45, min_words_per_beat: i
         issues.append(Issue("error", None, f"palette must be one of {PALETTES}"))
     if d.get("music", "calm") not in MUSIC_MOODS:
         issues.append(Issue("error", None, f"music must be one of {MUSIC_MOODS}"))
+    if d.get("format", "explainer") not in FORMATS:
+        issues.append(Issue("error", None, f"format must be one of {FORMATS}"))
+    engine = d.get("voice_engine", "kokoro")
+    if engine not in VOICE_ENGINES:
+        issues.append(Issue("error", None, f"voice_engine must be one of {VOICE_ENGINES}"))
+    elif engine == "elevenlabs" and not str(d.get("voice", "")).strip():
+        issues.append(Issue("error", None, "voice_engine elevenlabs needs `voice` set to an ElevenLabs voice_id"))
+    chapters = [b for b in d["beats"] if b.get("chapter")]
+    if chapters and (chapters[0] is not d["beats"][0] or len(chapters) < 3):
+        issues.append(Issue("warning", None, "YouTube chapters need the first beat to start a chapter and at least 3 chapters"))
 
     seen_ids: set[str] = set()
     prev_templates: list[str] = []
@@ -182,7 +211,8 @@ def validate(sb: Storyboard, max_words_per_beat: int = 45, min_words_per_beat: i
                     issues.append(Issue("warning", bid, f"cue {c!r} does not occur in the narration"))
 
         prev_templates.append(tname)
-        if len(prev_templates) >= 3 and len(set(prev_templates[-3:])) == 1:
+        # different clips of a recording are different visuals, so footage may run in a row
+        if len(prev_templates) >= 3 and len(set(prev_templates[-3:])) == 1 and tname != "footage":
             issues.append(Issue("warning", bid, f"three {tname!r} scenes in a row: vary the visuals"))
     sb.issues = issues
     return issues
@@ -236,6 +266,20 @@ def _check_limits(bid: str, tname: str, props: dict, limits: dict) -> list[Issue
             s = props.get(side) or {}
             if "label" not in s or not isinstance(s.get("value"), (int, float)):
                 out.append(Issue("error", bid, f"comparison: {side} needs label and numeric value"))
+    if tname == "verdict":
+        for key in ("pros", "cons"):
+            items = props.get(key) or []
+            if len(items) > limits["items"]:
+                warn(f"use at most {limits['items']} {key}")
+            for it in items:
+                if _too_long(it, limits["item"]):
+                    warn(f"{key} item longer than {limits['item']} characters")
+    if tname == "footage":
+        f = props.get("focus", [0.5, 0.5])
+        if not (isinstance(f, list) and len(f) == 2 and all(isinstance(v, (int, float)) and 0 <= v <= 1 for v in f)):
+            out.append(Issue("error", bid, "footage: focus must be [x, y] fractions 0-1"))
+        if not 0.1 <= float(props.get("speed", 1)) <= 16:
+            out.append(Issue("error", bid, "footage: speed must be 0.1-16"))
     if tname in ("map_route", "map_point"):
         for key in ("from", "to") if tname == "map_route" else ("place",):
             p = props.get(key) or {}

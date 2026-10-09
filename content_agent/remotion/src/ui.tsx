@@ -48,7 +48,7 @@ export const SceneShell: React.FC<{duration: number; children: React.ReactNode}>
   return <AbsoluteFill style={{opacity, transform: `scale(${scale})`}}>{children}</AbsoluteFill>;
 };
 
-export const Captions: React.FC<{captions: Caption[]}> = ({captions}) => {
+export const Captions: React.FC<{captions: Caption[]; lift?: number}> = ({captions, lift = 0.06}) => {
   const frame = useCurrentFrame();
   const p = usePalette();
   const {height} = useVideoConfig();
@@ -57,7 +57,7 @@ export const Captions: React.FC<{captions: Caption[]}> = ({captions}) => {
   const local = frame - cap.from;
   const opacity = interpolate(local, [0, 5], [0, 1], {extrapolateRight: 'clamp'});
   return (
-    <AbsoluteFill style={{justifyContent: 'flex-end', alignItems: 'center', paddingBottom: height * 0.06}}>
+    <AbsoluteFill style={{justifyContent: 'flex-end', alignItems: 'center', paddingBottom: height * lift}}>
       <div
         style={{
           opacity,

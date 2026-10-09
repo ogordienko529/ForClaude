@@ -12,8 +12,8 @@ import re
 from pathlib import Path
 
 FPS = 30
-SIZES = {"explainer": (1920, 1080), "sleep": (1920, 1080), "shorts": (1080, 1920)}
-CAPTION_CHARS = {"explainer": 80, "sleep": 80, "shorts": 36}
+SIZES = {"explainer": (1920, 1080), "review": (1920, 1080), "sleep": (1920, 1080), "shorts": (1080, 1920)}
+CAPTION_CHARS = {"explainer": 80, "review": 80, "sleep": 80, "shorts": 36}
 
 
 def chunk_text(text: str, limit: int) -> list[str]:
@@ -121,6 +121,7 @@ def build_timeline(storyboard: dict, voice_timing: dict, audio_rel: str, fmt: st
             # when the narration of this beat actually starts, relative to the scene (for reveal timing)
             "speechOffset": max(round(t["start"] * FPS) - f0, 0),
             "cues": cue_offsets(beat.get("cues", []), t["sentences"], f0),
+            **({"chapter": beat["chapter"]} if beat.get("chapter") else {}),
         })
     caps = []
     if captions:

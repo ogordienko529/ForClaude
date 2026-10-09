@@ -1,6 +1,7 @@
 import React from 'react';
 import {Composition} from 'remotion';
 import {Gameplay} from './gameplay/Gameplay';
+import {Thumbnail} from './Thumbnail';
 import type {GameplayTimeline} from './gameplay/Gameplay';
 import gameplaySample from './gameplay/sample-gameplay.json';
 import sample from './sample-timeline.json';
@@ -35,6 +36,15 @@ export const RemotionRoot: React.FC = () => (
       width={1080}
       height={1920}
       calculateMetadata={fromProps}
+    />
+    <Composition
+      id="Thumbnail"
+      component={Thumbnail as any}
+      defaultProps={{image: '', title: 'Sample *title*', tag: 'Review'}}
+      durationInFrames={1}
+      fps={30}
+      width={1280}
+      height={720}
     />
   </>
 );

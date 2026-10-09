@@ -21,6 +21,7 @@ from .audio import LOUDNESS, require_ffmpeg
 
 THRESHOLDS = {
     "explainer": {"max_scene_s": 14.0, "min_scene_s": 1.8, "freeze_s": 3.5, "silence_s": 1.6, "cps": 20},
+    "review": {"max_scene_s": 12.0, "min_scene_s": 1.5, "freeze_s": 4.0, "silence_s": 1.4, "cps": 20},
     "shorts": {"max_scene_s": 5.0, "min_scene_s": 0.8, "freeze_s": 2.0, "silence_s": 0.8, "cps": 22},
     "sleep": {"max_scene_s": 60.0, "min_scene_s": 6.0, "freeze_s": 30.0, "silence_s": 9.0, "cps": 16},
     # fast gameplay edits: something must change every ~2 s, quick cuts are fine

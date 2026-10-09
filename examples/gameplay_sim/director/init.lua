@@ -3,7 +3,9 @@
 local cmd_file = minetest.get_worldpath() .. "/director_cmd.txt"
 local done = 0          -- number of command lines already executed
 local queue = {}        -- pending {pos, node} placements for the progressive build
+local build_rate = 10   -- blocks per second for the progressive build
 local house = nil       -- footprint of the last house: {x0, z0, y, size}
+local portal = nil      -- the last portal frame: {base = pos (bottom middle), axis = "x"|"z"}
 
 local function player()
 	return minetest.get_connected_players()[1]
@@ -59,10 +61,76 @@ function commands.clear(radius)
 	end
 end
 
+-- An obsidian Nether portal frame (4 wide, 5 high, 14 blocks) placed block by block in front of the player.
+function commands.portal()
+	local p = player()
+	local c = forward(p, 6)
+	local y = ground_y(c.x, c.z, c.y) + 1
+	local yaw = p:get_look_horizontal()
+	-- the frame faces the player: it runs across the look direction
+	local along_x = math.abs(math.cos(yaw)) > math.abs(math.sin(yaw))
+	local function at(i, h)
+		if along_x then return {x = c.x - 1 + i, y = y + h, z = c.z} end
+		return {x = c.x, y = y + h, z = c.z - 1 + i}
+	end
+	portal = {base = at(1, 0), axis = along_x and "x" or "z"}
+	build_rate = 2.5
+	for i = 0, 3 do table.insert(queue, {at(i, 0), {name = "default:obsidian"}}) end
+	for h = 1, 4 do
+		table.insert(queue, {at(0, h), {name = "default:obsidian"}})
+		table.insert(queue, {at(3, h), {name = "default:obsidian"}})
+	end
+	for i = 1, 2 do table.insert(queue, {at(i, 4), {name = "default:obsidian"}}) end
+end
+
+-- Light the portal the way a player does: right-click the frame with a mese crystal fragment.
+function commands.light()
+	if not portal then return end
+	local item = minetest.registered_items["default:mese_crystal_fragment"]
+	local pt = {type = "node", under = portal.base, above = vector.add(portal.base, {x = 0, y = 1, z = 0})}
+	item.on_place(ItemStack("default:mese_crystal_fragment"), player(), pt)
+end
+
+-- Step into the middle of the lit portal (the last metre of the walk, so the player stands inside it).
+function commands.enter()
+	if not portal then return end
+	local p = player()
+	local target = vector.add(portal.base, {x = portal.axis == "x" and 0.5 or 0, y = 1, z = portal.axis == "z" and 0.5 or 0})
+	p:set_pos(target)
+end
+
+-- Light up the surroundings the way a player places torches: glowstone on nearby walls and ceiling.
+function commands.glow(radius)
+	radius = tonumber(radius) or 9
+	local pos = vector.round(player():get_pos())
+	local placed = 0
+	for _ = 1, 400 do
+		local q = vector.add(pos, {x = math.random(-radius, radius), y = math.random(-2, 6), z = math.random(-radius, radius)})
+		local n = minetest.get_node(q).name
+		if (n == "nether:rack" or n == "nether:rack_deep" or n == "nether:basalt") and
+				minetest.find_node_near(q, 1, {"air"}) and vector.distance(q, pos) > 2.5 then
+			minetest.set_node(q, {name = "nether:glowstone"})
+			placed = placed + 1
+			if placed >= 26 then break end
+		end
+	end
+	minetest.log("action", "[director] glow placed " .. placed)
+end
+
+function commands.give_nether()
+	local inv = player():get_inventory()
+	inv:set_list("main", {})
+	for _, item in ipairs({"default:pick_diamond", "default:obsidian 99", "default:mese_crystal_fragment 99",
+			"nether:pick_nether", "nether:rack 99", "nether:glowstone 99", "default:torch 99", "nether:brick 99"}) do
+		inv:add_item("main", item)
+	end
+end
+
 -- Queue a small house 7 blocks in front of the player; blocks appear one by one like a fast builder.
 function commands.build()
 	local p = player()
 	local c = forward(p, 8)
+	build_rate = 10
 	local size = 7
 	local x0, z0 = c.x - 3, c.z - 3
 	local y = ground_y(c.x, c.z, c.y)
@@ -129,27 +197,35 @@ function commands.report()
 		math.deg(p:get_look_horizontal()), math.deg(p:get_look_vertical())))
 end
 
--- How far to turn to look at the house centre (the input driver turns smoothly by this much).
-function commands.aim()
-	if not house then return end
+-- How far to turn to look at the house centre or the portal (the input driver turns smoothly by this much).
+function commands.aim(what)
+	local target
+	if what == "portal" or what == "portal_base" then
+		if not portal then return end
+		target = vector.add(portal.base, {x = portal.axis == "x" and 0.5 or 0, y = what == "portal" and 2 or 0,
+			z = portal.axis == "z" and 0.5 or 0})
+	else
+		if not house then return end
+		target = {x = house.x0 + house.size / 2 - 0.5, y = house.y + 2.5, z = house.z0 + house.size / 2 - 0.5}
+	end
 	local p = player()
 	local eye = vector.add(p:get_pos(), {x = 0, y = 1.5, z = 0})
-	local target = {x = house.x0 + house.size / 2 - 0.5, y = house.y + 2.5, z = house.z0 + house.size / 2 - 0.5}
 	local d = vector.subtract(target, eye)
 	local yaw = math.atan2(-d.x, d.z)
 	local pitch = -math.atan2(d.y, math.sqrt(d.x * d.x + d.z * d.z))
 	local dyaw = math.deg(yaw - p:get_look_horizontal())
 	dyaw = (dyaw + 180) % 360 - 180
 	local dpitch = math.deg(pitch - p:get_look_vertical())
-	minetest.log("action", string.format("[director] aim dyaw=%.2f dpitch=%.2f", dyaw, dpitch))
+	minetest.log("action", string.format("[director] aim dyaw=%.2f dpitch=%.2f dist=%.2f", dyaw, dpitch,
+		math.sqrt(d.x * d.x + d.z * d.z)))
 end
 
 local acc, build_acc = 0, 0
 minetest.register_globalstep(function(dtime)
 	-- progressive build: about ten blocks a second, like a fast builder
 	build_acc = build_acc + dtime
-	while build_acc >= 0.1 do
-		build_acc = build_acc - 0.1
+	while build_acc >= 1 / build_rate do
+		build_acc = build_acc - 1 / build_rate
 		local item = table.remove(queue, 1)
 		if not item then build_acc = 0 break end
 		minetest.set_node(item[1], item[2])

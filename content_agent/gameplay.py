@@ -162,7 +162,7 @@ def import_footage(project: Path, videos: list[Path]) -> dict:
         a["sheets"] = [str(s) for s in sheets]
         (project / "footage" / f"{dest.stem}.analysis.json").write_text(json.dumps(a, indent=1) + "\n")
         report[f"footage/{dest.name}"] = a
-    if not (project / "edit.json").exists():
+    if not (project / "edit.json").exists() and not (project / "storyboard.json").exists():
         first = next(iter(report))
         skeleton = {"title": "", "framing": "crop", "music": {"style": "phonk", "bpm": 140, "drop": None},
                     "sfx_on_text": "pop", "progress_bar": True,
