@@ -397,6 +397,77 @@ def cmd_make(a) -> int:
     return 0
 
 
+def cmd_mcp(a) -> None:
+    from .mcp_server import main as serve
+
+    serve()
+
+
+def cmd_doctor(a) -> int:
+    from .doctor import report, run_checks
+
+    checks = run_checks()
+    print(report(checks))
+    return 1 if any(c["required"] and not c["ok"] for c in checks) else 0
+
+
+def cmd_setup(a) -> int:
+    """One-time setup: renderer packages, voice model, MCP registration for interactive Claude Code."""
+    import shutil
+    import subprocess
+
+    from .agent import PARENT_SESSION_VARS
+    from .doctor import REPO
+    from .render import ensure_node_modules
+    from .status import projects_root
+
+    t0 = _step("renderer packages (npm install)")
+    try:
+        ensure_node_modules()
+        _done(t0)
+    except (RuntimeError, OSError, subprocess.CalledProcessError) as exc:
+        print(f"   skipped: {exc}", file=sys.stderr)
+    t0 = _step("Kokoro voice model")
+    try:
+        from sleep_voice.engine import ensure_models
+
+        ensure_models()
+        _done(t0)
+    except Exception as exc:  # network or disk problems: report and keep going
+        print(f"   skipped: {exc}", file=sys.stderr)
+    claude = shutil.which("claude")
+    if a.no_register or not claude:
+        if not claude:
+            print("\nClaude Code not found: MCP registration skipped", file=sys.stderr)
+    else:
+        scope = "user" if a.everywhere else "local"
+        t0 = _step(f"register the content-agent MCP server in Claude Code ({scope} scope)")
+        env = {k: v for k, v in os.environ.items() if k not in PARENT_SESSION_VARS}
+        subprocess.run([claude, "mcp", "remove", "content-agent", "-s", scope], cwd=REPO, capture_output=True, env=env)
+        # the name goes before -e: -e takes several values and would swallow it
+        r = subprocess.run([claude, "mcp", "add", "content-agent", "--scope", scope, "--transport", "stdio",
+                            "-e", f"CONTENT_AGENT_HOME={projects_root()}", "--",
+                            sys.executable, "-m", "content_agent", "mcp"], cwd=REPO, capture_output=True, text=True,
+                           env=env)
+        print("   " + (r.stdout or r.stderr).strip().replace("\n", "\n   "), file=sys.stderr)
+        if r.returncode:
+            print("   registration failed: the agent command still works, only plain `claude` lacks the tools",
+                  file=sys.stderr)
+    print()
+    return cmd_doctor(a)
+
+
+def cmd_agent(a) -> int:
+    from .agent import run
+
+    task = " ".join(a.task).strip()
+    if not task and not a.resume and not a.session and not a.interactive:
+        sys.exit('say what to make, e.g.: content-agent agent "a 20 s Short from this" --files clip.mp4')
+    return run(task, a.files, a.project, plan=a.plan, resume=a.resume, session=a.session,
+               interactive=a.interactive, max_turns=a.max_turns, model=a.model, use_api_key=a.use_api_key,
+               dry_run=a.dry_run)
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="content_agent", description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -462,6 +533,31 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("scene")
     p.add_argument("--at", type=float, default=0.6, help="position inside the scene, 0-1")
     p.set_defaults(fn=cmd_still)
+
+    p = sub.add_parser("agent", help="run the content-maker agent: it makes the whole video by itself")
+    p.add_argument("task", nargs="*", help="what to make, in any language")
+    p.add_argument("--files", "-f", nargs="+", default=[], help="footage, latest.log, a shooting script...")
+    p.add_argument("--project", "-p", help="project slug (default: the agent picks one)")
+    p.add_argument("--plan", action="store_true", help="stop after the script for your approval")
+    p.add_argument("--resume", "-r", action="store_true", help="continue the last run (the task is your answer)")
+    p.add_argument("--session", help="continue this session id instead of the last one")
+    p.add_argument("--interactive", "-i", action="store_true", help="chat with the agent in Claude Code")
+    p.add_argument("--max-turns", type=int, default=250)
+    p.add_argument("--model", help="Claude model alias or id (default: your Claude Code default)")
+    p.add_argument("--use-api-key", action="store_true", help="bill ANTHROPIC_API_KEY instead of the subscription")
+    p.add_argument("--dry-run", action="store_true", help="print the claude command and exit")
+    p.set_defaults(fn=cmd_agent)
+
+    p = sub.add_parser("mcp", help="run the MCP server (stdio) with the agent's tools")
+    p.set_defaults(fn=cmd_mcp)
+
+    p = sub.add_parser("doctor", help="check this machine for everything the agent needs")
+    p.set_defaults(fn=cmd_doctor)
+
+    p = sub.add_parser("setup", help="one-time setup: npm packages, voice model, MCP registration, checks")
+    p.add_argument("--everywhere", action="store_true", help="register the MCP tools for every folder (user scope)")
+    p.add_argument("--no-register", action="store_true", help="do not register the MCP server in Claude Code")
+    p.set_defaults(fn=cmd_setup)
 
     a = ap.parse_args(argv)
     rc = a.fn(a)

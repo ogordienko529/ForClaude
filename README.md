@@ -267,6 +267,56 @@ uploads. Claude Code is the writer, editor and reviewer (it follows the playbook
 | Picture | Remotion (React) templates rendered in headless Chromium |
 | Self-review | ffmpeg checks + contact sheets that Claude Code looks at, fixes by scene id |
 
+### The agent: one command from input to finished video
+
+`content-agent agent` runs **content-maker**, an autonomous producer built on Claude Code in
+headless mode. You give it a topic, a recording or a shooting script. It does the whole job and
+answers with a report:
+- picks the mode (explainer, gameplay Short or mod review) and reads that playbook;
+- imports and watches the footage, finds the mods, researches with sources;
+- writes the script, validates it, voices and renders the video;
+- looks at the QA contact sheets, fixes scenes and re-renders;
+- writes the thumbnail and description for reviews.
+
+```bash
+pip install -e ".[agent]"                 # + ffmpeg, Node.js 18+ and Claude Code (logged in once)
+python -m content_agent setup             # npm packages, voice model, MCP tools for Claude Code, checks
+python -m content_agent doctor            # what is missing on this machine, with the fix command
+
+python -m content_agent agent "Make a 20 s Short from this, no voice" --files D:\rec\tnt.mp4
+python -m content_agent agent "Mod review following the script" --files clips\*.mp4 scenario.md latest.log --project war_mod
+python -m content_agent agent "Why did Concorde stop flying?" --plan    # stop after the script for approval
+python -m content_agent agent --resume "OK, render it"                  # answer it / continue the last run
+python -m content_agent agent -i --project war_mod                      # chat with it in Claude Code instead
+```
+
+How it works:
+- **Tools.** The agent's tools come from an MCP server (`python -m content_agent mcp`):
+  - project state;
+  - footage import and analysis;
+  - mod detection;
+  - validation;
+  - pipeline steps as background jobs: renders do not block it, and it polls their progress;
+  - frame previews and the QA report.
+- **Prompt.** Its director prompt is `.claude/agents/content-maker.md`.
+- **Logs.** The run prints readable progress. The full log goes to `content_projects/.agent/runs/`.
+- **Cost.** It runs on your **Claude subscription**. `ANTHROPIC_API_KEY` is removed from its
+  environment unless you pass `--use-api-key`, because with a key present headless runs bill the
+  API.
+- **Permissions.** Nobody approves anything mid-run, so it can only:
+  - edit files inside the projects folder;
+  - read files;
+  - search the web;
+  - use its own tools and `ffprobe`.
+
+  Any other shell command is denied.
+- **Questions.** When it is blocked (missing footage, an ElevenLabs voice without a key), it ends
+  with a "Потрібно від тебе:" list. Your answer goes back in with `--resume`.
+- **Interactive use.** After `setup`, plain `claude` in the repo folder has the same tools.
+  Typing `@content-maker` delegates the job to the agent.
+
+By hand, step by step:
+
 ```bash
 pip install -e ".[agent]"     # + ffmpeg and Node.js 18+ (the renderer installs its npm packages on first run)
 python -m content_agent new concorde --title "Why Concorde Stopped Flying"
@@ -391,8 +441,12 @@ content_agent/       local video maker: storyboard checks, voice/music/mix, time
   gameplay.py        fast gameplay edits: footage analysis, edit.json, soundtrack, timeline
   sound.py           procedural beat music (drop, tape-stop) and sound effects
   mods.py            mod lists from latest.log (Fabric/Forge/NeoForge), mods folders, Luanti worlds
+  agent.py           `agent` command: Claude Code headless run, progress printer, resume
+  mcp_server.py      the agent's MCP tools; jobs.py runs long steps in the background
+  status.py          project state and next step; doctor.py checks the machine
   remotion/          React video templates (maps, timelines, stats, text, footage, styles) rendered by Remotion
 .claude/skills/      make-video, edit-gameplay and review-video playbooks that Claude Code follows
+.claude/agents/      content-maker: the autonomous producer's director prompt
 tests/               fixture-based tests (no network)
 config.example.toml  every tunable, documented
 ```

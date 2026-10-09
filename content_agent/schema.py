@@ -6,19 +6,24 @@ touches that beat.
 
 {
   "title": "Why Concorde Stopped Flying",
-  "format": "explainer",              # format pack: pacing, loudness and QA thresholds
+  "format": "explainer",              # explainer | review (16:9) | shorts (9:16): pacing, loudness, QA thresholds
   "voice": "am_michael",              # Kokoro voice (or blend), or an ElevenLabs voice_id / OpenAI voice
   "voice_engine": "kokoro",           # kokoro (free, local) | elevenlabs | openai | chatterbox
   "voice_options": {},                # engine options, e.g. {"stability": 0.45, "style": 0.3} for ElevenLabs
-  "music": "calm",                    # procedural music mood: calm | tense | uplifting | none
+  "music": "calm",                    # procedural music: calm | tense | uplifting | hype | phonk | none
   "palette": "midnight",              # colour theme for the default style (other styles bring their own colours)
   "style": "cosmos",                  # cosmos | paper | blocky | neon | clean | comic (see `content_agent styles`)
+  "captions": true,                   # burned-in captions from the narration
+  "credits": [{"name": "Superb Warfare", "author": "...", "license": "...", "url": "https://..."}],
+                                      # reviews: every mod/creator shown, goes into out/description.md
+  "thumbnail": {"src": "footage/x.mp4", "t": 61.5, "title": "This mod is *insane*", "tag": "Mod review"},
   "beats": [
     {"id": "b01",
      "narration": "In 1976, you could cross the Atlantic in three and a half hours.",
      "visual": {"template": "map_route", "props": {...}},
      "cues": ["Atlantic"],            # optional: phrases that time the reveals (item i appears on cue i)
-     "chapter": "The supersonic dream",  # optional: starts a YouTube chapter here
+     "chapter": "The supersonic dream",  # optional: starts a YouTube chapter here (reviews: >= 3, first beat)
+     "transition": "wipe",            # optional: this beat's transition in (default: the style's)
      "sources": ["https://..."]}
   ]
 }

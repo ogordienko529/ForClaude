@@ -13,6 +13,17 @@ questions ("не запитуй, а роби").
 | `sleep_voice` | long, calm sleep narration (Kokoro TTS, free) | `python -m sleep_voice …` | README section 7 |
 | `content_agent` | video maker: narrated explainers, fast gameplay Shorts, mod reviews | `python -m content_agent …` | README section 8, `docs/CONTENT_AGENT.md`, `docs/GAMEPLAY_EDITING.md` |
 
+**content-maker** is the autonomous producer on top of `content_agent`:
+- **Director prompt:** `.claude/agents/content-maker.md`.
+- **Tools:** the MCP server `python -m content_agent mcp` (project state, footage import, mod
+  detection, validation, pipeline steps as background jobs, frame previews, QA report, doctor).
+- **Run it unattended:** `python -m content_agent agent "<task>" --files ...`. Continue with
+  `--resume "<answer>"`, stop for plan approval with `--plan`, chat with `-i`.
+- **Hand over a whole video:** when the user asks for one, delegate it to the `content-maker`
+  subagent (or run the command above).
+- **Machine checks:** `python -m content_agent doctor`. One-time setup:
+  `python -m content_agent setup`.
+
 Playbooks in `.claude/skills/` (follow them when the request matches):
 - `make-video`: topic → narrated animated explainer.
 - `edit-gameplay`: raw gameplay → fast vertical Short, no voice.
@@ -29,6 +40,7 @@ Needs Python 3.11+, ffmpeg and Node.js 18+ on PATH.
 python -m venv .venv
 # Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
 pip install -e ".[dev,agent]"
+python -m content_agent setup  # renderer packages, Kokoro model, MCP registration, then doctor
 pytest -q                      # offline, should be all green
 ```
 
