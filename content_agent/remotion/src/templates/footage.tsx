@@ -1,6 +1,7 @@
 import React from 'react';
 import {AbsoluteFill, Easing, interpolate, OffthreadVideo, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
 import {firstCue, revealAt, rise} from '../anim';
+import {StyledLabel} from '../styles';
 import {FONTS, usePalette} from '../theme';
 import type {SceneProps} from '../types';
 
@@ -18,8 +19,6 @@ export const Footage: React.FC<SceneProps> = ({props, duration, speech}) => {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
-  const labelIn = rise(frame, fps, Math.max(speech, 6));
-  const labelOut = interpolate(frame, [duration - 14, duration - 4], [1, 0], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
   return (
     <AbsoluteFill style={{backgroundColor: '#000', overflow: 'hidden'}}>
       <AbsoluteFill
@@ -38,30 +37,7 @@ export const Footage: React.FC<SceneProps> = ({props, duration, speech}) => {
           style={{width: '100%', height: '100%', objectFit: 'cover'}}
         />
       </AbsoluteFill>
-      {props.label ? (
-        <div
-          style={{
-            position: 'absolute',
-            left: 80 * u,
-            bottom: 345 * u, // above two-line captions and the game hotbar
-            display: 'flex',
-            alignItems: 'stretch',
-            opacity: labelIn * labelOut,
-            transform: `translateX(${(1 - labelIn) * -40 * u}px)`,
-            background: 'rgba(8,10,18,0.78)',
-            borderRadius: 12 * u,
-            overflow: 'hidden',
-          }}
-        >
-          <div style={{width: 9 * u, background: p.accent}} />
-          <div style={{padding: `${16 * u}px ${28 * u}px`}}>
-            <div style={{fontFamily: FONTS.sans, fontWeight: 800, fontSize: 44 * u, color: '#fff', lineHeight: 1.1}}>{props.label}</div>
-            {props.sublabel ? (
-              <div style={{fontFamily: FONTS.sans, fontWeight: 600, fontSize: 28 * u, color: '#c9cfdb', marginTop: 6 * u}}>{props.sublabel}</div>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
+      {props.label ? <StyledLabel label={props.label} sublabel={props.sublabel} duration={duration} start={Math.max(speech, 6)} /> : null}
       {props.badge ? (
         <div
           style={{

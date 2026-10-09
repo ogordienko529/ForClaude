@@ -1,5 +1,9 @@
+import '@fontsource/archivo-black/400.css';
+import '@fontsource/bangers/400.css';
 import '@fontsource/montserrat/800.css';
 import '@fontsource/montserrat/900.css';
+import '@fontsource/orbitron/800.css';
+import '@fontsource/pixelify-sans/700.css';
 import React, {useEffect, useState} from 'react';
 import {
   AbsoluteFill,
@@ -10,6 +14,7 @@ import {
   Img,
   interpolate,
   OffthreadVideo,
+  random,
   Sequence,
   spring,
   staticFile,
@@ -31,6 +36,7 @@ export type Clip = {
   focus: [number, number];
   fx: string[];
   framing?: 'crop' | 'fit';
+  transition?: string | null; // cut | zoomblur | pixel | flash | glitch | whip (default: the style's)
 };
 export type Txt = {text: string; style: string; from: number; to: number; target?: [number, number] | null};
 export type Badge = {text: string; from: number; to: number};
@@ -45,24 +51,51 @@ export type GameplayTimeline = {
   srcWidth: number;
   srcHeight: number;
   progressBar: boolean;
+  style?: string; // meme | boxed | pixel | comic | neon | clean
   clips: Clip[];
   texts: Txt[];
   badges: Badge[];
 };
 
-const FONT = '"Montserrat", sans-serif';
-const YELLOW = '#ffd21f';
+type ShortStyle = {font: string; weight: number; accent: string; accent2: string; cut: string; loads: string[]};
+
+/** Text and cut styles for Shorts. One per video keeps it consistent; vary between videos or series. */
+export const SHORT_STYLES: Record<string, ShortStyle> = {
+  meme: {font: '"Montserrat", sans-serif', weight: 900, accent: '#ffd21f', accent2: '#ffffff', cut: 'cut', loads: ['900 80px Montserrat']},
+  boxed: {font: '"Archivo Black", sans-serif', weight: 400, accent: '#ffd21f', accent2: '#ff4d6d', cut: 'zoomblur', loads: ['400 80px "Archivo Black"']},
+  pixel: {font: '"Pixelify Sans", monospace', weight: 700, accent: '#ffff55', accent2: '#55ff55', cut: 'pixel', loads: ['700 80px "Pixelify Sans"']},
+  comic: {font: 'Bangers, Impact, sans-serif', weight: 400, accent: '#e8242b', accent2: '#ffd84a', cut: 'flash', loads: ['400 80px Bangers']},
+  neon: {font: 'Orbitron, sans-serif', weight: 800, accent: '#ff3dbb', accent2: '#2de2e6', cut: 'glitch', loads: ['800 80px Orbitron']},
+  clean: {font: '"Archivo Black", sans-serif', weight: 400, accent: '#ff5a1f', accent2: '#111111', cut: 'whip', loads: ['400 80px "Archivo Black"']},
+};
+const ShortStyleCtx = React.createContext<ShortStyle>(SHORT_STYLES.meme);
+const useShortStyle = () => React.useContext(ShortStyleCtx);
 // Shorts UI covers the bottom ~20% and a column of buttons on the right: keep text inside this box.
 const SAFE = {left: 0.09, right: 0.88, top: 0.1, bottom: 0.72};
 const ease = Easing.bezier(0.33, 0, 0.2, 1);
 
-const useFont = () => {
-  const [handle] = useState(() => delayRender('Loading Montserrat'));
+const useFont = (loads: string[]) => {
+  const [handle] = useState(() => delayRender('Loading fonts'));
   useEffect(() => {
-    Promise.all([document.fonts.load('900 80px Montserrat'), document.fonts.load('800 40px Montserrat')])
+    Promise.all(loads.map((f) => document.fonts.load(f)))
       .catch(() => undefined)
       .then(() => continueRender(handle));
-  }, [handle]);
+  }, [handle, loads]);
+};
+
+/** The first frames after a cut, in the style of the video. */
+const cutEffect = (kind: string, frame: number) => {
+  const k = Math.max(0, 1 - frame / 6); // 1 at the cut -> 0 after 6 frames
+  if (k <= 0 || kind === 'cut') return {transform: '', filter: '', flash: 0, blocks: 0};
+  switch (kind) {
+    case 'zoomblur': return {transform: `scale(${1 + 0.18 * k})`, filter: `blur(${10 * k}px)`, flash: 0, blocks: 0};
+    case 'flash': return {transform: '', filter: '', flash: 0.85 * k, blocks: 0};
+    case 'glitch': return {transform: `translateX(${(random(`g${frame}`) - 0.5) * 60 * k}px)`,
+      filter: `drop-shadow(${10 * k}px 0 rgba(255,40,140,0.9)) drop-shadow(${-10 * k}px 0 rgba(40,230,255,0.9))`, flash: 0, blocks: 0};
+    case 'whip': return {transform: `translateX(${35 * k}%)`, filter: `blur(${12 * k}px)`, flash: 0, blocks: 0};
+    case 'pixel': return {transform: '', filter: '', flash: 0, blocks: k};
+    default: return {transform: '', filter: '', flash: 0, blocks: 0};
+  }
 };
 
 /** One clip: the source framed for 9:16, with zoom, punch-in, shake, flash and black-and-white. */
@@ -102,11 +135,13 @@ const ClipView: React.FC<{clip: Clip; t: GameplayTimeline}> = ({clip, t}) => {
   }
   const bw = clip.fx.includes('bw');
   const media: React.CSSProperties = {position: 'absolute', left, top, width: sw, height: sh, maxWidth: 'none'};
-  const flash = clip.fx.includes('flash')
+  const ss = useShortStyle();
+  const cut = cutEffect(clip.from === 0 || clip.kind === 'still' ? 'cut' : clip.transition || ss.cut, frame);
+  const flash = Math.max(clip.fx.includes('flash')
     ? interpolate(frame, [0, 2, 10], [0.95, 0.8, 0], {extrapolateRight: 'clamp'})
-    : 0;
+    : 0, cut.flash);
   return (
-    <AbsoluteFill style={{backgroundColor: '#000', overflow: 'hidden'}}>
+    <AbsoluteFill style={{backgroundColor: '#000', overflow: 'hidden', transform: cut.transform || undefined, filter: cut.filter || undefined}}>
       {fit && clip.kind === 'video' ? (
         <OffthreadVideo
           src={staticFile(clip.src)}
@@ -132,12 +167,20 @@ const ClipView: React.FC<{clip: Clip; t: GameplayTimeline}> = ({clip, t}) => {
       </AbsoluteFill>
       {bw ? <AbsoluteFill style={{background: 'radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(0,0,0,0.6) 100%)'}} /> : null}
       {flash > 0 ? <AbsoluteFill style={{backgroundColor: '#fff', opacity: flash}} /> : null}
+      {cut.blocks > 0
+        ? Array.from({length: 12 * 21}, (_, i) =>
+            random(`b${i}`) < cut.blocks ? (
+              <div key={i} style={{position: 'absolute', left: `${(i % 12) * (100 / 12)}%`, top: `${Math.floor(i / 12) * (100 / 21)}%`,
+                width: `${100 / 12 + 0.2}%`, height: `${100 / 21 + 0.2}%`, background: '#000'}} />
+            ) : null,
+          )
+        : null}
     </AbsoluteFill>
   );
 };
 
 /** "*word*" -> highlighted word. */
-const Words: React.FC<{text: string; color?: string}> = ({text, color = YELLOW}) => (
+const Words: React.FC<{text: string; color: string}> = ({text, color}) => (
   <>
     {text.split(/(\*[^*]+\*)/).filter(Boolean).map((part, i) =>
       part.startsWith('*') ? (
@@ -156,9 +199,22 @@ const STYLE: Record<string, {size: number; y: number; tilt: number}> = {
   label: {size: 66, y: 0.3, tilt: 0},
 };
 
-const TextView: React.FC<{txt: Txt}> = ({txt}) => {
+const parts = (text: string) => {
+  const words = text.split(/(\*[^*]+\*)/).filter(Boolean).flatMap((part) =>
+    part.startsWith('*') ? part.slice(1, -1).split(' ').map((w) => ({w, hi: true})) : part.trim().split(/\s+/).filter(Boolean).map((w) => ({w, hi: false})),
+  );
+  // punctuation stays with the word before it ("TNT?" not "TNT" + "?")
+  return words.reduce<{w: string; hi: boolean}[]>((acc, x) => {
+    if (acc.length && /^[^\p{L}\p{N}]+$/u.test(x.w)) acc[acc.length - 1] = {...acc[acc.length - 1], w: acc[acc.length - 1].w + x.w};
+    else acc.push(x);
+    return acc;
+  }, []);
+};
+
+const TextView: React.FC<{txt: Txt; kind: string}> = ({txt, kind}) => {
   const frame = useCurrentFrame();
   const {width: W, height: H, fps} = useVideoConfig();
+  const ss = useShortStyle();
   const st = STYLE[txt.style] || STYLE.caption;
   const pop = spring({frame, fps, config: {damping: 9, stiffness: 240, mass: 0.6}});
   const scale = interpolate(pop, [0, 1], [0.55, 1]);
@@ -166,6 +222,7 @@ const TextView: React.FC<{txt: Txt}> = ({txt}) => {
   const boxW = (SAFE.right - SAFE.left) * W;
   let y = st.y * H;
   let arrow: React.ReactNode = null;
+  const arrowColor = kind === 'clean' ? ss.accent : kind === 'neon' ? ss.accent2 : ss.accent;
   if (txt.style === 'label' && txt.target) {
     const tx = txt.target[0] * W;
     const ty = txt.target[1] * H;
@@ -176,52 +233,120 @@ const TextView: React.FC<{txt: Txt}> = ({txt}) => {
     const ex = x0 + (tx - x0) * grow;
     const ey = y0 + (ty - 40 - y0) * grow;
     const ang = Math.atan2(ey - y0, ex - x0);
-    const head = (s: number) => `${ex + 34 * Math.cos(ang + Math.PI - s)},${ey + 34 * Math.sin(ang + Math.PI - s)}`;
+    const head = (a: number) => `${ex + 34 * Math.cos(ang + Math.PI - a)},${ey + 34 * Math.sin(ang + Math.PI - a)}`;
+    const pixelCap = kind === 'pixel' ? 'butt' : 'round';
     arrow = (
       <svg width={W} height={H} style={{position: 'absolute', left: 0, top: 0}}>
-        <g stroke="#000" strokeWidth={22} strokeLinecap="round" fill="none">
+        <g stroke="#000" strokeWidth={22} strokeLinecap={pixelCap} fill="none">
           <line x1={x0} y1={y0} x2={ex} y2={ey} />
           {grow > 0.9 ? <polyline points={`${head(0.5)} ${ex},${ey} ${head(-0.5)}`} strokeLinejoin="round" /> : null}
         </g>
-        <g stroke={YELLOW} strokeWidth={11} strokeLinecap="round" fill="none">
+        <g stroke={arrowColor} strokeWidth={11} strokeLinecap={pixelCap} fill="none">
           <line x1={x0} y1={y0} x2={ex} y2={ey} />
           {grow > 0.9 ? <polyline points={`${head(0.5)} ${ex},${ey} ${head(-0.5)}`} strokeLinejoin="round" /> : null}
         </g>
       </svg>
     );
   }
+  const big = txt.style === 'big';
+  const size = st.size * (({comic: 1.12, neon: 0.86, boxed: 0.82, clean: 0.92, pixel: 1.12} as Record<string, number>)[kind] ?? 1);
+  const box: React.CSSProperties = {
+    position: 'absolute', left: SAFE.left * W, width: boxW, top: y, textAlign: 'center', lineHeight: 1.08,
+    transform: `translate(${jitter}px, -50%) rotate(${st.tilt}deg) scale(${scale})`, fontFamily: ss.font, fontWeight: ss.weight,
+    fontSize: size, textTransform: 'uppercase', textWrap: 'balance',
+  };
+  let body: React.ReactNode;
+  switch (kind) {
+    case 'boxed':
+      // every word on its own box, popping in one after another
+      body = (
+        <div style={box}>
+          {parts(txt.text).map((x, i) => {
+            const pw = spring({frame: frame - i * 2, fps, config: {damping: 10, stiffness: 260, mass: 0.5}});
+            return (
+              <span key={i} style={{display: 'inline-block', margin: '0.06em 0.08em', padding: '0.06em 0.22em', borderRadius: '0.12em',
+                background: x.hi ? ss.accent : big ? ss.accent2 : '#fff', color: '#111', transform: `scale(${pw}) rotate(${i % 2 ? 2 : -2}deg)`,
+                boxShadow: '0 0.08em 0 rgba(0,0,0,0.4)'}}>
+                {x.w}
+              </span>
+            );
+          })}
+        </div>
+      );
+      break;
+    case 'pixel': {
+      const inner = (
+        <span style={{color: big ? ss.accent2 : '#fff', textShadow: '0.09em 0.09em 0 #3f3f3f', textTransform: 'none'}}>
+          <Words text={txt.text} color={ss.accent} />
+        </span>
+      );
+      body = (
+        <div style={box}>
+          {txt.style === 'caption' || txt.style === 'label' ? (
+            <span style={{display: 'inline-block', padding: '0.18em 0.4em', background: 'rgba(16,0,16,0.92)', border: '0.06em solid #100010',
+              boxShadow: 'inset 0 0 0 0.05em #2d0a6b'}}>{inner}</span>
+          ) : inner}
+        </div>
+      );
+      break;
+    }
+    case 'comic':
+      body = big ? (
+        <div style={{...box, color: ss.accent2, WebkitTextStroke: `${Math.round(size * 0.07)}px #111`, paintOrder: 'stroke fill',
+          textShadow: `0.06em 0.06em 0 ${ss.accent}`, letterSpacing: '0.03em', transform: `${box.transform} rotate(-4deg)`}}>
+          <Words text={txt.text} color={ss.accent} />
+        </div>
+      ) : (
+        <div style={box}>
+          <span style={{display: 'inline-block', position: 'relative', background: '#fff', color: '#111', border: '0.06em solid #111',
+            borderRadius: '0.35em', padding: '0.12em 0.4em', boxShadow: '0.09em 0.09em 0 #111', letterSpacing: '0.03em'}}>
+            <Words text={txt.text} color={ss.accent} />
+          </span>
+        </div>
+      );
+      break;
+    case 'neon':
+      body = (
+        <div style={{...box, color: '#fff', textShadow: `0 0 0.12em ${ss.accent}, 0 0 0.35em ${ss.accent}, 0 0.05em 0.1em #000`, letterSpacing: '0.04em'}}>
+          <span style={{color: '#fff'}}>
+            {parts(txt.text).map((x, i) => (
+              <span key={i} style={x.hi ? {color: ss.accent2, textShadow: `0 0 0.12em ${ss.accent2}, 0 0 0.35em ${ss.accent2}`} : undefined}>{x.w} </span>
+            ))}
+          </span>
+        </div>
+      );
+      break;
+    case 'clean':
+      body = (
+        <div style={box}>
+          <span style={{display: 'inline-block', background: big ? ss.accent : '#fff', color: big ? '#fff' : '#111', borderRadius: '0.28em',
+            padding: '0.14em 0.45em', boxShadow: '0 0.1em 0.3em rgba(0,0,0,0.25)', textTransform: 'none'}}>
+            <Words text={txt.text} color={big ? '#111' : ss.accent} />
+          </span>
+        </div>
+      );
+      break;
+    default:
+      body = (
+        <div style={{...box, color: '#fff', WebkitTextStroke: `${Math.round(size * 0.16)}px #000`, paintOrder: 'stroke fill',
+          textShadow: '0 8px 0 rgba(0,0,0,0.55)', letterSpacing: '-0.01em', lineHeight: 1.05}}>
+          <Words text={txt.text} color={ss.accent} />
+        </div>
+      );
+  }
   return (
     <AbsoluteFill>
       {arrow}
-      <div
-        style={{
-          position: 'absolute',
-          left: SAFE.left * W,
-          width: boxW,
-          top: y,
-          transform: `translate(${jitter}px, -50%) rotate(${st.tilt}deg) scale(${scale})`,
-          textAlign: 'center',
-          fontFamily: FONT,
-          fontWeight: 900,
-          fontSize: st.size,
-          lineHeight: 1.05,
-          color: '#fff',
-          textTransform: 'uppercase',
-          WebkitTextStroke: `${Math.round(st.size * 0.16)}px #000`,
-          paintOrder: 'stroke fill',
-          textShadow: '0 8px 0 rgba(0,0,0,0.55)',
-          letterSpacing: '-0.01em',
-          textWrap: 'balance',
-        }}
-      >
-        <Words text={txt.text} />
-      </div>
+      {body}
     </AbsoluteFill>
   );
 };
 
 const BadgeView: React.FC<{badge: Badge}> = ({badge}) => {
   const frame = useCurrentFrame();
+  const ss = useShortStyle();
+  const YELLOW = ss.accent;
+  const FONT = ss.font;
   const {width: W, height: H, fps} = useVideoConfig();
   const s = spring({frame, fps, config: {damping: 12, stiffness: 200}});
   const blink = 0.75 + 0.25 * Math.sin(frame / 3);
@@ -241,7 +366,7 @@ const BadgeView: React.FC<{badge: Badge}> = ({badge}) => {
         background: 'rgba(0,0,0,0.62)',
         border: `4px solid ${YELLOW}`,
         fontFamily: FONT,
-        fontWeight: 900,
+        fontWeight: ss.weight,
         fontSize: 54,
         color: YELLOW,
       }}
@@ -256,9 +381,12 @@ const BadgeView: React.FC<{badge: Badge}> = ({badge}) => {
 };
 
 export const Gameplay: React.FC<GameplayTimeline> = (t) => {
-  useFont();
+  const kind = t.style && SHORT_STYLES[t.style] ? t.style : 'meme';
+  const ss = SHORT_STYLES[kind];
+  useFont(ss.loads);
   const frame = useCurrentFrame();
   return (
+    <ShortStyleCtx.Provider value={ss}>
     <AbsoluteFill style={{backgroundColor: '#000'}}>
       {t.clips.map((c) => (
         <Sequence key={c.id} from={c.from} durationInFrames={c.durationInFrames} name={c.id}>
@@ -272,13 +400,14 @@ export const Gameplay: React.FC<GameplayTimeline> = (t) => {
       ))}
       {t.texts.map((x, i) => (
         <Sequence key={`t${i}`} from={x.from} durationInFrames={Math.max(x.to - x.from, 1)}>
-          <TextView txt={x} />
+          <TextView txt={x} kind={kind} />
         </Sequence>
       ))}
       {t.progressBar ? (
-        <div style={{position: 'absolute', left: 0, top: 0, height: 12, width: `${(100 * frame) / t.durationInFrames}%`, background: YELLOW}} />
+        <div style={{position: 'absolute', left: 0, top: 0, height: 12, width: `${(100 * frame) / t.durationInFrames}%`, background: ss.accent}} />
       ) : null}
       {t.audio ? <Audio src={staticFile(t.audio)} /> : null}
     </AbsoluteFill>
+    </ShortStyleCtx.Provider>
   );
 };

@@ -13,6 +13,7 @@ Workflow (driven by Claude Code, see .claude/skills/edit-gameplay/SKILL.md):
 edit.json:
 {
   "title": "I built a house... then TNT",
+  "style": "meme",                      # text + cut style: meme | boxed | pixel | comic | neon | clean
   "framing": "crop",                    # crop: fill 9:16 around `focus`; fit: whole frame on a blurred copy
                                         # (a segment can override it, e.g. "fit" for wide shots and timelapses)
   "music": {"style": "phonk", "bpm": 140, "drop": "s05", "volume_db": -4},
@@ -25,6 +26,7 @@ edit.json:
      "text": {"text": "POV: your *house*", "style": "hook|caption|big|label", "at": 0, "dur": null,
               "target": [0.5, 0.6]},     # label arrow target (fraction of the output frame)
      "badge": "x8",
+     "transition": "flash",            # optional: this cut's transition (default: the style's)
      "sfx": [{"name": "boom", "at": 0.0}],
      "freeze": {"dur": 0.8, "text": "WAIT...", "zoom": 1.12, "bw": true, "music_stop": true}}
   ]
@@ -49,6 +51,16 @@ OUT_W, OUT_H = 1080, 1920
 TEXT_STYLES = ("hook", "caption", "big", "label")
 FX = ("shake", "flash", "bw")
 MUSIC_STYLES = ("phonk", "hype", "none")
+# Text + cut styles for Shorts (remotion/src/gameplay/Gameplay.tsx SHORT_STYLES)
+SHORT_STYLES = {
+    "meme": "white uppercase with a thick black outline, yellow key word, hard cuts (default)",
+    "boxed": "every word on its own coloured box, popping in one by one, zoom-blur cuts",
+    "pixel": "pixel font with a hard shadow, in-game tooltip boxes, pixel-dissolve cuts",
+    "comic": "speech bubbles and comic-book reaction words, white flash cuts",
+    "neon": "glowing Orbitron text, cyan key word, glitch cuts",
+    "clean": "white rounded boxes with dark text, orange key word, whip-pan cuts",
+}
+CUTS = ("cut", "zoomblur", "pixel", "flash", "glitch", "whip")
 
 
 # ---------------------------------------------------------------- footage analysis
@@ -224,6 +236,8 @@ def validate_edit(edit: Edit, durations: dict[str, float] | None = None) -> list
     ids = [s.get("id") for s in segs]
     if music.get("drop") and music["drop"] not in ids:
         issues.append(Issue("error", None, f"music.drop {music['drop']!r} is not a segment id"))
+    if edit.data.get("style", "meme") not in SHORT_STYLES:
+        issues.append(Issue("error", None, f"style must be one of {tuple(SHORT_STYLES)}"))
     if edit.data.get("framing", "crop") not in ("crop", "fit"):
         issues.append(Issue("error", None, "framing must be crop or fit"))
     durations = durations or {}
@@ -254,6 +268,8 @@ def validate_edit(edit: Edit, durations: dict[str, float] | None = None) -> list
         for key in ("zoom", "zoom_to"):
             if key in s and not 1 <= float(s[key]) <= 4:
                 issues.append(Issue("error", sid, f"{key} must be 1-4"))
+        if s.get("transition") and s["transition"] not in CUTS:
+            issues.append(Issue("error", sid, f"transition must be one of {CUTS}"))
         if s.get("framing", "crop") not in ("crop", "fit"):
             issues.append(Issue("error", sid, "framing must be crop or fit"))
         f = s.get("focus", [0.5, 0.5])
@@ -318,7 +334,7 @@ def build(edit: Edit) -> tuple[dict, dict]:
         if (d.get("music") or {}).get("drop") == sid:
             drop_at = f0 / FPS
         common = {"focus": s.get("focus", [0.5, 0.5]), "fx": s.get("fx", []),
-                  "framing": s.get("framing", d.get("framing", "crop"))}
+                  "framing": s.get("framing", d.get("framing", "crop")), "transition": s.get("transition")}
         clips.append({"id": sid, "kind": "video", "src": s["src"], "from": f0, "durationInFrames": max(f1 - f0, 1),
                       "startFrom": round(float(s.get("in", 0)) * FPS), "playbackRate": speed,
                       "zoom": float(s.get("zoom", 1)), "zoomTo": float(s.get("zoom_to", s.get("zoom", 1))),
@@ -366,7 +382,8 @@ def build(edit: Edit) -> tuple[dict, dict]:
         "kind": "gameplay", "title": d.get("title", ""), "fps": FPS, "width": OUT_W, "height": OUT_H,
         "durationInFrames": total, "format": "gameplay", "audio": "audio/mix.wav",
         "framing": d.get("framing", "crop"), "srcWidth": src_info["width"], "srcHeight": src_info["height"],
-        "progressBar": bool(d.get("progress_bar", True)), "clips": clips, "texts": texts, "badges": badges,
+        "progressBar": bool(d.get("progress_bar", True)), "style": d.get("style", "meme"),
+        "clips": clips, "texts": texts, "badges": badges,
         "scenes": scenes, "showCaptions": False,
         # QA reads these as the on-screen text and checks reading speed
         "captions": [{"from": x["from"], "to": x["to"], "text": x["text"].replace("*", "")} for x in texts],

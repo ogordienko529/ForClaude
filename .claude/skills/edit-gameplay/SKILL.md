@@ -54,6 +54,16 @@ boring parts (cut, or speed them up), and one frame that explains the video at a
 - Effects: `punch` for an instant zoom-in on a cut, `zoom`->`zoom_to` for push-ins/pull-outs,
   `fx: ["shake", "flash"]` only on impacts, `"bw"` for freeze/"flashback" moments.
 
+## Style
+
+`"style"` in edit.json sets the text look and the cut transition. Options are `meme` (outlined
+uppercase, default), `boxed` (words on coloured boxes), `pixel` (pixel font and tooltip boxes),
+`comic` (speech bubbles), `neon` (glow) and `clean` (white boxes). `python -m content_agent styles`
+describes them. Match the video's mood, and rotate styles between videos and series so the channel
+does not look templated (repetitive Shorts are what YouTube demonetises). A segment can override its
+cut with `"transition"` (cut, zoomblur, pixel, flash, glitch, whip). Use that for the payoff or a
+twist only.
+
 ## 4. Review and fix (at least one full round)
 
 After `make`, read `review/qa.md` (pacing, hook, loudness), then open `review/overview.png` and

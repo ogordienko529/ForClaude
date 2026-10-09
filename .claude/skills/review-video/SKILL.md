@@ -56,6 +56,23 @@ Beats: 15-30 words. Footage beats use `{"template": "footage", "props": {"src", 
 and keep speed between 0.6 and 2 (slower looks choppy, faster hides what you explain). Use
 `chapter` on the first beat of each section (at least 3; the first beat starts one).
 
+## Visual style
+
+`"style"` in the storyboard changes the whole look at once: fonts, colours, background, captions,
+on-screen labels, scene transitions and motion. Run `python -m content_agent styles` to list them:
+`cosmos` (dark stars, default), `paper` (documentary, typewriter captions), `blocky` (game look,
+pixel font, tooltip captions, achievement toasts), `neon` (synthwave, karaoke captions, glitch
+cuts), `clean` (bright minimal, big word-by-word captions) and `comic` (halftone, speech bubbles).
+
+- Pick the style that suits the topic and audience: history or lore -> `paper` or `cosmos`; games
+  and mods -> `blocky`; tech and sci-fi -> `neon`; tutorials and facts -> `clean`; funny -> `comic`.
+- Keep one style for a series (viewers recognise it) and use a different style for each series, so
+  the channel does not look mass-produced.
+- A beat can override its entry with `"transition"` (fadePush, wipe, pixel, glitch, slide, zoomBurst,
+  cut). Use it for emphasis, for example a glitch on a twist, not on every beat.
+- Look at the contact sheets with the style's eyes: on `clean` and `comic` the background is bright,
+  so dark footage needs labels, and the theme colours come from the style rather than `palette`.
+
 ## 4. Voice
 
 `voice_engine`: `kokoro` (free, local, default; `voice` like `am_michael`) or `elevenlabs`

@@ -88,6 +88,20 @@ def cmd_new(a) -> None:
     print(project)
 
 
+def cmd_styles(a) -> None:
+    from .gameplay import CUTS, SHORT_STYLES
+    from .schema import STYLES, TRANSITIONS
+
+    print('Long-form styles (storyboard "style"):')
+    for k, v in STYLES.items():
+        print(f"  {k:8s} {v}")
+    print(f"  per-beat override: \"transition\": {' | '.join(TRANSITIONS)}")
+    print('\nShorts text styles (edit.json "style"):')
+    for k, v in SHORT_STYLES.items():
+        print(f"  {k:8s} {v}")
+    print(f"  per-segment override: \"transition\": {' | '.join(CUTS)}")
+
+
 def cmd_templates(a) -> None:
     if a.json:
         out = {k: {"required": {p: _tname(t) for p, t in v["required"].items()},
@@ -407,6 +421,9 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("thumbnail", help="render out/thumbnail.png from the storyboard's thumbnail settings")
     p.add_argument("project")
     p.set_defaults(fn=cmd_thumbnail)
+
+    p = sub.add_parser("styles", help="list the visual styles (long-form and Shorts)")
+    p.set_defaults(fn=cmd_styles)
 
     p = sub.add_parser("templates", help="list visual templates and their props")
     p.add_argument("--json", action="store_true")

@@ -2,6 +2,16 @@ import '@fontsource/inter/400.css';
 import '@fontsource/inter/600.css';
 import '@fontsource/inter/800.css';
 import '@fontsource/playfair-display/700.css';
+import '@fontsource/archivo-black/400.css';
+import '@fontsource/bangers/400.css';
+import '@fontsource/dm-serif-display/400.css';
+import '@fontsource/orbitron/800.css';
+import '@fontsource/pixelify-sans/400.css';
+import '@fontsource/pixelify-sans/600.css';
+import '@fontsource/pixelify-sans/700.css';
+import '@fontsource/space-grotesk/500.css';
+import '@fontsource/space-grotesk/700.css';
+import '@fontsource/special-elite/400.css';
 import {createContext, useContext} from 'react';
 
 export type Palette = {
@@ -32,9 +42,12 @@ export const PALETTES: Record<string, Palette> = {
   },
 };
 
+// The active style sets these CSS variables (styles.tsx), so every template follows the style's fonts.
 export const FONTS = {
-  serif: '"Playfair Display", Georgia, serif',
-  sans: 'Inter, "Helvetica Neue", Arial, sans-serif',
+  serif: 'var(--font-display, "Playfair Display", Georgia, serif)',
+  sans: 'var(--font-body, Inter, "Helvetica Neue", Arial, sans-serif)',
+  caption: 'var(--font-caption, Inter, Arial, sans-serif)',
+  impact: 'var(--font-impact, Inter, Arial, sans-serif)',
 };
 
 export const PaletteContext = createContext<Palette>(PALETTES.midnight);

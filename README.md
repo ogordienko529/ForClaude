@@ -355,6 +355,23 @@ a footage beat needs more recording than exists, and names the beat and the fix.
 (`examples/gameplay_sim/review_storyboard.json`) is a 1:53 review of the Luanti Nether mod, made
 from a 73 s silent recording (`record.py --session nether`).
 
+### Visual styles
+
+A video does not have to look like the last one. One field switches the whole look:
+
+| Long-form `"style"` | Look | Captions | Labels on footage | Transitions |
+|---|---|---|---|---|
+| `cosmos` (default) | dark sky with drifting stars | pill | accent bar | fade + push-in |
+| `paper` | documentary on textured paper | typewriter | paper card with an ink underline | wipe |
+| `blocky` | voxel grid, pixel font | in-game tooltip | achievement-style toast | pixel dissolve |
+| `neon` | synthwave grid and sun | karaoke, glowing word by word | neon frame | glitch |
+| `clean` | bright minimal | 2-3 big words, spoken word highlighted | white tag | slide |
+| `comic` | halftone and rays | speech bubble | speech-bubble callout | zoom burst |
+
+Shorts (`edit.json` `"style"`) have six text styles: `meme`, `boxed`, `pixel`, `comic`, `neon` and
+`clean`. Each comes with its own cut transition. Any beat or segment can override its transition.
+Run `python -m content_agent styles` to see the list.
+
 ## 9. Project layout
 
 ```
@@ -374,7 +391,7 @@ content_agent/       local video maker: storyboard checks, voice/music/mix, time
   gameplay.py        fast gameplay edits: footage analysis, edit.json, soundtrack, timeline
   sound.py           procedural beat music (drop, tape-stop) and sound effects
   mods.py            mod lists from latest.log (Fabric/Forge/NeoForge), mods folders, Luanti worlds
-  remotion/          React video templates (maps, timelines, stats, text) rendered by Remotion
+  remotion/          React video templates (maps, timelines, stats, text, footage, styles) rendered by Remotion
 .claude/skills/      make-video, edit-gameplay and review-video playbooks that Claude Code follows
 tests/               fixture-based tests (no network)
 config.example.toml  every tunable, documented

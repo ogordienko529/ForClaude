@@ -6,6 +6,7 @@ export type Scene = {
   durationInFrames: number;
   speechOffset: number;
   cues?: (number | null)[];
+  transition?: string; // overrides the style's scene transition
 };
 
 export type Caption = {from: number; to: number; text: string};
@@ -20,6 +21,7 @@ export type Timeline = {
   format: string;
   audio: string;
   showCaptions: boolean;
+  style?: string; // cosmos | paper | blocky | neon | clean | comic (styles.tsx)
   scenes: Scene[];
   captions: Caption[];
 };

@@ -102,7 +102,7 @@ export const Kinetic: React.FC<SceneProps> = ({props, speech, duration, cues}) =
                   marginRight: '0.26em',
                   opacity: r,
                   transform: `translateY(${(1 - r) * 30 * u}px) scale(${isEm ? 1 + 0.06 * r : 1})`,
-                  fontFamily: FONTS.sans,
+                  fontFamily: FONTS.impact,
                   fontWeight: 800,
                   fontSize: size,
                   color: isEm ? p.accent : p.text,

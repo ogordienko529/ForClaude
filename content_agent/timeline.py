@@ -122,6 +122,7 @@ def build_timeline(storyboard: dict, voice_timing: dict, audio_rel: str, fmt: st
             "speechOffset": max(round(t["start"] * FPS) - f0, 0),
             "cues": cue_offsets(beat.get("cues", []), t["sentences"], f0),
             **({"chapter": beat["chapter"]} if beat.get("chapter") else {}),
+            **({"transition": beat["transition"]} if beat.get("transition") else {}),
         })
     caps = []
     if captions:
@@ -137,6 +138,7 @@ def build_timeline(storyboard: dict, voice_timing: dict, audio_rel: str, fmt: st
         "height": height,
         "durationInFrames": round(total * FPS),
         "palette": storyboard.get("palette", "midnight"),
+        **({"style": storyboard["style"]} if storyboard.get("style") else {}),
         "format": fmt,
         "audio": audio_rel,
         "showCaptions": bool(storyboard.get("captions", True)),

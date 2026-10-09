@@ -11,7 +11,8 @@ touches that beat.
   "voice_engine": "kokoro",           # kokoro (free, local) | elevenlabs | openai | chatterbox
   "voice_options": {},                # engine options, e.g. {"stability": 0.45, "style": 0.3} for ElevenLabs
   "music": "calm",                    # procedural music mood: calm | tense | uplifting | none
-  "palette": "midnight",              # renderer colour theme
+  "palette": "midnight",              # colour theme for the default style (other styles bring their own colours)
+  "style": "cosmos",                  # cosmos | paper | blocky | neon | clean | comic (see `content_agent styles`)
   "beats": [
     {"id": "b01",
      "narration": "In 1976, you could cross the Atlantic in three and a half hours.",
@@ -101,6 +102,17 @@ TEMPLATES: dict[str, dict[str, Any]] = {
 }
 
 VOICE_ENGINES = ("kokoro", "elevenlabs", "openai", "chatterbox")
+
+# Visual styles (content_agent/remotion/src/styles.tsx): fonts, colours, background, captions, labels, transitions.
+STYLES = {
+    "cosmos": "dark night sky with drifting stars, serif titles, caption pill, accent-bar labels, soft fades (default)",
+    "paper": "documentary on textured paper, typewriter captions, paper-card labels with an ink underline, wipes",
+    "blocky": "game look: voxel grid, pixel font, in-game tooltip captions, achievement-style toasts, pixel dissolves",
+    "neon": "synthwave grid and sun, Orbitron, karaoke captions that glow word by word, neon frame labels, glitch cuts",
+    "clean": "bright minimal, heavy sans, 2-3 big words at a time with the spoken word highlighted, white tags, slides",
+    "comic": "halftone and rays, Bangers, speech-bubble captions and labels, zoom-burst transitions",
+}
+TRANSITIONS = ("fadePush", "wipe", "pixel", "glitch", "slide", "zoomBurst", "cut")
 FORMATS = ("explainer", "shorts", "review")
 
 PALETTES = ("midnight", "parchment", "slate")
@@ -157,6 +169,8 @@ def validate(sb: Storyboard, max_words_per_beat: int = 45, min_words_per_beat: i
         issues.append(Issue("error", None, f"music must be one of {MUSIC_MOODS}"))
     if d.get("format", "explainer") not in FORMATS:
         issues.append(Issue("error", None, f"format must be one of {FORMATS}"))
+    if d.get("style", "cosmos") not in STYLES:
+        issues.append(Issue("error", None, f"style must be one of {tuple(STYLES)}"))
     engine = d.get("voice_engine", "kokoro")
     if engine not in VOICE_ENGINES:
         issues.append(Issue("error", None, f"voice_engine must be one of {VOICE_ENGINES}"))
@@ -202,6 +216,8 @@ def validate(sb: Storyboard, max_words_per_beat: int = 45, min_words_per_beat: i
             if key not in spec["required"] and key not in spec["optional"]:
                 issues.append(Issue("warning", bid, f"{tname}: unknown prop {key!r} is ignored"))
         issues += _check_limits(bid, tname, props, spec["limits"])
+        if beat.get("transition") and beat["transition"] not in TRANSITIONS:
+            issues.append(Issue("error", bid, f"transition must be one of {TRANSITIONS}"))
         cues = beat.get("cues", [])
         if not isinstance(cues, list) or not all(isinstance(c, str) for c in cues):
             issues.append(Issue("error", bid, "cues must be a list of phrases from the narration"))
