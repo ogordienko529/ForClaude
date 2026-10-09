@@ -4,7 +4,7 @@ Find YouTube niches where **new or small channels** can realistically get **10,0
 
 It runs as a **CLI** (`python -m niche_core …`) and as an **MCP server** for Claude Code / Claude Desktop. It uses only the official YouTube Data API v3, with a local SQLite cache and quota tracking so you stay inside the free 10,000 units/day.
 
-The repo also contains two local, free production tools: `sleep_voice` (natural sleep narration, [section 7](#7-sleep-narration-sleep_voice)) and `content_agent`, a video maker that Claude Code drives from topic to finished, self-reviewed video ([section 8](#8-local-video-maker-content_agent)).
+The repo also contains two local, free production tools: `sleep_voice` (natural sleep narration, [section 7](#7-sleep-narration-sleep_voice)) and `content_agent`, a video maker that Claude Code drives from topic to finished, self-reviewed video, and that also cuts raw gameplay into fast vertical Shorts ([section 8](#8-local-video-maker-content_agent)).
 
 ---
 
@@ -306,6 +306,27 @@ fixes until no serious finding is left.
 **Licences:** Remotion is free for individuals and companies with up to 3 employees (a company
 licence is needed above that). Kokoro is Apache-2.0.
 
+### Fast gameplay edits (no voice-over, 9:16)
+
+The second mode turns a raw gameplay recording (Minecraft and similar) into a fast vertical Short.
+Claude Code follows `.claude/skills/edit-gameplay/SKILL.md`: it looks at footage sheets, finds the
+payoff to the exact frame and writes `edit.json`, a list of segments measured in beats, with speed,
+crop or fit framing, punch-ins and push-ins, shake, flash, black-and-white freeze frames, meme text
+and SFX. The build step generates a phonk/hype beat whose drop lands on the payoff (with a
+tape-stop on the freeze frame), mixes the SFX to -14 LUFS, and renders 1080x1920.
+
+```bash
+python -m content_agent footage mc_tnt raw_gameplay.mp4    # analyse: motion, bursts, idle parts + footage sheets
+python -m content_agent make mc_tnt                        # validate -> soundtrack -> render -> QA (pacing, hook)
+```
+
+QA adds fast-edit rules: text on screen within 0.5 s, nothing static for more than 2.2 s, and a
+total length of 10-60 s. The niche data, the editing playbook and the demo are in
+[`docs/GAMEPLAY_EDITING.md`](docs/GAMEPLAY_EDITING.md). The demo footage was recorded in Luanti (an
+open-source voxel game) by `examples/gameplay_sim/record.py`, because Minecraft cannot run in a
+server container. The script uses real keyboard and mouse input on a virtual display, and needs
+`apt install minetest xvfb xdotool` and `pip install python-xlib`.
+
 ## 9. Project layout
 
 ```
@@ -322,8 +343,10 @@ niche_core/          core library (all logic) + CLI (__main__.py)
 niche_mcp/server.py  thin MCP wrapper
 sleep_voice/         sleep narration: text normalisation, Kokoro TTS, pacing, mastering, SRT/chapters
 content_agent/       local video maker: storyboard checks, voice/music/mix, timeline, QA, CLI
+  gameplay.py        fast gameplay edits: footage analysis, edit.json, soundtrack, timeline
+  sound.py           procedural beat music (drop, tape-stop) and sound effects
   remotion/          React video templates (maps, timelines, stats, text) rendered by Remotion
-.claude/skills/      make-video playbook that Claude Code follows
+.claude/skills/      make-video and edit-gameplay playbooks that Claude Code follows
 tests/               fixture-based tests (no network)
 config.example.toml  every tunable, documented
 ```

@@ -23,6 +23,9 @@ THRESHOLDS = {
     "explainer": {"max_scene_s": 14.0, "min_scene_s": 1.8, "freeze_s": 3.5, "silence_s": 1.6, "cps": 20},
     "shorts": {"max_scene_s": 5.0, "min_scene_s": 0.8, "freeze_s": 2.0, "silence_s": 0.8, "cps": 22},
     "sleep": {"max_scene_s": 60.0, "min_scene_s": 6.0, "freeze_s": 30.0, "silence_s": 9.0, "cps": 16},
+    # fast gameplay edits: something must change every ~2 s, quick cuts are fine
+    "gameplay": {"max_scene_s": 4.0, "min_scene_s": 0.3, "freeze_s": 1.5, "silence_s": 0.6, "cps": 18,
+                 "max_gap_s": 2.2, "hook_s": 0.5, "min_total_s": 10.0, "max_total_s": 60.0},
 }
 
 RUBRIC = """Review rubric (score each 1-5 and list concrete fixes with scene ids):
@@ -35,6 +38,18 @@ RUBRIC = """Review rubric (score each 1-5 and list concrete fixes with scene ids
 7. Audio: narration clear, music never competes with it, no abrupt jumps.
 Write findings to review/review.json as
 [{"scene": "b03", "severity": "high|medium|low", "category": "...", "problem": "...", "fix": "..."}]."""
+
+
+RUBRIC_GAMEPLAY = """Review rubric for fast gameplay edits (score each 1-5, list fixes with segment ids):
+1. Hook: is the subject visible in the very first frame, with text that makes you stay?
+2. Clarity: in every segment, can you tell what is happening at phone size?
+3. Pacing: something new every 1-2 s; no dead air; speed-ups on boring parts, slow-mo on the payoff.
+4. Payoff: is the big moment set up (tension, freeze, silence) and hit hard (boom, shake, drop)?
+5. Text: short, big, readable, inside the safe zone, never covering the action.
+6. Sound: cuts and hits land on the beat; SFX support the moment instead of cluttering it.
+7. Loop: does the end lead back into the start so the replay feels natural?
+Write findings to review/review.json as
+[{"scene": "s03", "severity": "high|medium|low", "category": "...", "problem": "...", "fix": "..."}]."""
 
 
 @dataclass
@@ -146,6 +161,37 @@ def technical_checks(video: Path, timeline: dict) -> tuple[list[Finding], dict]:
     return findings, info
 
 
+def pacing_checks(timeline: dict) -> list[Finding]:
+    """Fast-edit rules: a hook on screen at once, something new every ~2 s, sensible total length."""
+    th = THRESHOLDS["gameplay"]
+    fps = timeline["fps"]
+    total = timeline["durationInFrames"] / fps
+    out: list[Finding] = []
+    events = {0}
+    for c in timeline.get("clips", []):
+        events.add(c["from"])
+        if abs(c.get("zoomTo", 1) - c.get("zoom", 1)) > 0.05:  # a moving zoom counts as change
+            events.update(range(c["from"], c["from"] + c["durationInFrames"], round(fps)))
+    for x in timeline.get("texts", []) + timeline.get("badges", []):
+        events.add(x["from"])
+    ev = sorted(e for e in events if e <= timeline["durationInFrames"]) + [timeline["durationInFrames"]]
+    for a, b in zip(ev, ev[1:]):
+        if (b - a) / fps > th["max_gap_s"]:
+            out.append(Finding("pacing", "medium", f"{(b - a) / fps:.1f}s without a cut, zoom or text: viewers swipe",
+                               _scene_at(a / fps, timeline["scenes"], fps), a / fps, b / fps))
+    texts = timeline.get("texts", [])
+    if not any(x["from"] / fps <= th["hook_s"] for x in texts):
+        out.append(Finding("hook", "high", f"no text on screen in the first {th['hook_s']}s"))
+    if total < th["min_total_s"] or total > th["max_total_s"]:
+        out.append(Finding("length", "medium", f"{total:.1f}s; fast edits work best at "
+                                               f"{th['min_total_s']:.0f}-{th['max_total_s']:.0f}s"))
+    for x in texts:
+        if len(x["text"].replace("*", "").split()) > 6:
+            out.append(Finding("text_length", "low", f"'{x['text'][:40]}' has more than 6 words",
+                               _scene_at(x["from"] / fps, timeline["scenes"], fps), x["from"] / fps))
+    return out
+
+
 # ---------------------------------------------------------------- contact sheets
 def _font(size: int) -> ImageFont.ImageFont:
     for path in ("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "/System/Library/Fonts/Helvetica.ttc",
@@ -166,6 +212,7 @@ def _grab(video: Path, t: float, out: Path, width: int = 480) -> Path:
 def contact_sheets(video: Path, timeline: dict, outdir: Path, per_sheet: int = 6) -> list[Path]:
     """Three frames per scene (early / middle / late) with scene id and timecodes burned in."""
     fps = timeline["fps"]
+    thumb = 480 if timeline["width"] >= timeline["height"] else 220
     frames_dir = outdir / "frames"
     frames_dir.mkdir(parents=True, exist_ok=True)
     rows = []
@@ -174,13 +221,13 @@ def contact_sheets(video: Path, timeline: dict, outdir: Path, per_sheet: int = 6
         shots = []
         for k, frac in enumerate((0.15, 0.55, 0.92)):
             t = t0 + dur * frac
-            shots.append((t, _grab(video, t, frames_dir / f"{s['id']}_{k}.png")))
+            shots.append((t, _grab(video, t, frames_dir / f"{s['id']}_{k}.png", width=thumb)))
         rows.append((s, shots))
     sheets = []
     font, small = _font(22), _font(18)
     for n in range(0, len(rows), per_sheet):
         chunk = rows[n : n + per_sheet]
-        w, h = 480, Image.open(chunk[0][1][0][1]).height
+        w, h = thumb, Image.open(chunk[0][1][0][1]).height
         label_w = 190
         sheet = Image.new("RGB", (label_w + 3 * (w + 8), len(chunk) * (h + 8) + 8), (18, 18, 22))
         draw = ImageDraw.Draw(sheet)
@@ -206,10 +253,11 @@ def overview(video: Path, timeline: dict, outdir: Path, cols: int = 6) -> Path:
     """One mid-scene frame per scene in a grid: the whole video at a glance."""
     fps = timeline["fps"]
     imgs = []
+    tw = 320 if timeline["width"] >= timeline["height"] else 180
     for s in timeline["scenes"]:
         t = (s["from"] + s["durationInFrames"] * 0.6) / fps
-        imgs.append((s["id"], _grab(video, t, outdir / "frames" / f"ov_{s['id']}.png", width=320)))
-    w, h = 320, Image.open(imgs[0][1]).height
+        imgs.append((s["id"], _grab(video, t, outdir / "frames" / f"ov_{s['id']}.png", width=tw)))
+    w, h = tw, Image.open(imgs[0][1]).height
     rows = (len(imgs) + cols - 1) // cols
     sheet = Image.new("RGB", (cols * (w + 6) + 6, rows * (h + 6) + 6), (18, 18, 22))
     draw = ImageDraw.Draw(sheet)
@@ -233,6 +281,10 @@ def run_qa(project: Path, video: Path, timeline: dict, storyboard_issues: list |
     review = project / "review"
     review.mkdir(parents=True, exist_ok=True)
     findings, info = technical_checks(video, timeline)
+    rubric = RUBRIC
+    if timeline.get("kind") == "gameplay":
+        findings += pacing_checks(timeline)
+        rubric = RUBRIC_GAMEPLAY
     sheets = contact_sheets(video, timeline, review)
     ov = overview(video, timeline, review)
     fps = timeline["fps"]
@@ -246,7 +298,7 @@ def run_qa(project: Path, video: Path, timeline: dict, storyboard_issues: list |
         "sheets": [str(p) for p in sheets],
         "overview": str(ov),
         "transcript": str(review / "transcript.txt"),
-        "rubric": RUBRIC,
+        "rubric": rubric,
     }
     (review / "qa.json").write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     lines = [f"# QA: {timeline.get('title', '')}", "",
@@ -260,6 +312,6 @@ def run_qa(project: Path, video: Path, timeline: dict, storyboard_issues: list |
             lines.append(f"| {f.severity} | {f.scene or '-'}{when} | {f.check} | {f.message} |")
     else:
         lines.append("No technical issues found.")
-    lines += ["", "Contact sheets: " + ", ".join(p.name for p in sheets), f"Overview: {ov.name}", "", RUBRIC]
+    lines += ["", "Contact sheets: " + ", ".join(p.name for p in sheets), f"Overview: {ov.name}", "", rubric]
     (review / "qa.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return report

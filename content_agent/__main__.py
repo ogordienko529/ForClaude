@@ -6,6 +6,11 @@
     python -m content_agent still concorde b07     # preview one scene as a PNG
     python -m content_agent render concorde --scene b07   # re-render one scene as a clip for checking
 
+Gameplay edits (no voice-over, 9:16):
+    python -m content_agent footage mc_tnt raw_gameplay.mp4   # import + analyse + footage sheets
+    # write content_projects/mc_tnt/edit.json (the agent picks moments, zooms, texts, SFX)
+    python -m content_agent make mc_tnt                       # validate -> soundtrack -> build -> render -> qa
+
 Everything runs on this machine: Kokoro for the voice, numpy for the music, ffmpeg for the mix,
 Remotion + headless Chromium for the picture. No paid APIs.
 """
@@ -39,7 +44,18 @@ SKELETON = {
 
 def project_dir(name: str) -> Path:
     p = Path(name)
-    return p if (p / "storyboard.json").exists() or p.is_absolute() else ROOT / name
+    return p if (p / "storyboard.json").exists() or (p / "edit.json").exists() or p.is_absolute() else ROOT / name
+
+
+def _gameplay(project: Path) -> bool:
+    return (project / "edit.json").exists() and not (project / "storyboard.json").exists()
+
+
+def _edit_issues(project: Path):
+    from .gameplay import Edit, validate_edit
+
+    edit = Edit.load(project)
+    return edit, validate_edit(edit)
 
 
 def _load(project: Path) -> Storyboard:
@@ -90,8 +106,33 @@ def _tname(t) -> str:
     return "/".join(x.__name__ for x in t) if isinstance(t, tuple) else t.__name__
 
 
+def cmd_footage(a) -> None:
+    from .gameplay import import_footage
+
+    project = project_dir(a.project)
+    t0 = _step("footage")
+    report = import_footage(project, [Path(v) for v in a.videos])
+    _done(t0)
+    for src, r in report.items():
+        print(f"{src}: {r['duration']:.1f}s {r['width']}x{r['height']} @{r['fps']:.0f}fps"
+              f"{' with audio' if r['has_audio'] else ' (no audio)'}")
+        print("  events: " + ", ".join(f"{e['kind']}@{e['t']}s" for e in r["events"][:20]))
+        print("  idle: " + ", ".join(f"{i['start']}-{i['end']}s" for i in r["idle"]))
+        print("  look at: " + ", ".join(r["sheets"]))
+    print(f"edit list: {project / 'edit.json'}")
+
+
 def cmd_validate(a) -> int:
-    sb = _load(project_dir(a.project))
+    project = project_dir(a.project)
+    if _gameplay(project):
+        edit, issues = _edit_issues(project)
+        print(f"{edit.data.get('title', '')}: {len(edit.segments)} segments")
+        for i in issues:
+            print(i)
+        errors = [i for i in issues if i.level == "error"]
+        print("OK" if not errors else f"{len(errors)} error(s): fix edit.json before rendering")
+        return 1 if errors else 0
+    sb = _load(project)
     issues = validate(sb)
     words = sum(len(b.get("narration", "").split()) for b in sb.beats)
     print(f"{sb.title}: {len(sb.beats)} beats, {words} words (~{words / 160:.1f} min at a documentary pace)")
@@ -150,6 +191,16 @@ def cmd_build(a) -> None:
     from .timeline import build_timeline, write_timeline
 
     project = project_dir(a.project)
+    if _gameplay(project):
+        from .gameplay import Edit, build, render_soundtrack
+
+        t0 = _step("build (timeline + soundtrack)")
+        tl, plan = build(Edit.load(project))
+        info = render_soundtrack(project, plan, project / "audio" / "mix.wav")
+        write_timeline(tl, project / "timeline.json")
+        _done(t0, f"({len(tl['clips'])} clips, {tl['durationInFrames'] / tl['fps']:.1f}s, {len(plan['sfx'])} sfx, "
+                  f"-> {info['target_lufs']:.0f} LUFS)")
+        return
     sb = _load(project)
     timing = json.loads((project / "audio" / "voice_timing.json").read_text())
     if [b["id"] for b in timing["beats"]] != [b["id"] for b in sb.beats]:
@@ -199,11 +250,12 @@ def cmd_qa(a) -> None:
     from .qa import run_qa
 
     project = project_dir(a.project)
-    sb = _load(project)
+    warnings = [i for i in (_edit_issues(project)[1] if _gameplay(project) else validate(_load(project)))
+                if i.level == "warning"]
     video = project / "out" / "video.mp4"
     t0 = _step("qa")
     tl = json.loads((project / "timeline.json").read_text())
-    report = run_qa(project, video, tl, [i for i in validate(sb) if i.level == "warning"])
+    report = run_qa(project, video, tl, warnings)
     _done(t0)
     print((project / "review" / "qa.md").read_text())
     print(f"Look at: {report['overview']} and {', '.join(report['sheets'])}")
@@ -214,9 +266,10 @@ def cmd_make(a) -> int:
         return 1
     ns = argparse.Namespace(**{**vars(a), "mood": None, "seed": 7, "music_db": -19.0, "scene": None})
     t0 = time.time()
-    cmd_voice(ns)
-    cmd_music(ns)
-    cmd_mix(ns)
+    if not _gameplay(project_dir(a.project)):
+        cmd_voice(ns)
+        cmd_music(ns)
+        cmd_mix(ns)
     cmd_build(ns)
     cmd_render(ns)
     cmd_qa(ns)
@@ -235,13 +288,18 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--force", action="store_true")
     p.set_defaults(fn=cmd_new)
 
+    p = sub.add_parser("footage", help="import gameplay recordings: analyse and draw footage sheets")
+    p.add_argument("project")
+    p.add_argument("videos", nargs="+")
+    p.set_defaults(fn=cmd_footage)
+
     p = sub.add_parser("templates", help="list visual templates and their props")
     p.add_argument("--json", action="store_true")
     p.set_defaults(fn=cmd_templates)
 
-    for name, fn, hlp in [("validate", cmd_validate, "check the storyboard (no rendering)"),
+    for name, fn, hlp in [("validate", cmd_validate, "check the storyboard or edit list (no rendering)"),
                           ("voice", cmd_voice, "narrate every beat (cached per beat)"),
-                          ("build", cmd_build, "storyboard + voice timings -> timeline.json"),
+                          ("build", cmd_build, "-> timeline.json (gameplay: also the soundtrack)"),
                           ("qa", cmd_qa, "technical checks + contact sheets for review"),
                           ("make", cmd_make, "run the whole pipeline")]:
         p = sub.add_parser(name, help=hlp)

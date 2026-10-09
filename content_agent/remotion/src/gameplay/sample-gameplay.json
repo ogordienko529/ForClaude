@@ -1,0 +1,5 @@
+{
+  "kind": "gameplay", "fps": 30, "width": 1080, "height": 1920, "durationInFrames": 30, "audio": "",
+  "framing": "crop", "srcWidth": 1280, "srcHeight": 720, "progressBar": true,
+  "clips": [], "texts": [{"text": "Sample *text*", "style": "hook", "from": 0, "to": 30}], "badges": []
+}

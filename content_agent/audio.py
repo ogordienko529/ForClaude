@@ -193,7 +193,7 @@ def require_ffmpeg() -> str:
     return exe
 
 
-LOUDNESS = {"explainer": -14.0, "shorts": -14.0, "sleep": -20.0}
+LOUDNESS = {"explainer": -14.0, "shorts": -14.0, "sleep": -20.0, "gameplay": -14.0}
 
 
 def mix(voice_wav: Path, music_wav: Path | None, out_wav: Path, fmt: str = "explainer",
@@ -228,6 +228,30 @@ def mix(voice_wav: Path, music_wav: Path | None, out_wav: Path, fmt: str = "expl
     out_wav.parent.mkdir(parents=True, exist_ok=True)
     run = subprocess.run([ffmpeg, "-hide_banner", "-nostats", "-y", *inputs, "-filter_complex",
                           f"{graph};[st]{ln}{measured}[o]", "-map", "[o]",
+                          "-ar", "48000", "-c:a", "pcm_s16le", str(out_wav)], capture_output=True, text=True)
+    if run.returncode:
+        raise RuntimeError(run.stderr[-800:])
+    return {"target_lufs": target, "input_lufs": float(st["input_i"])}
+
+
+def loudnorm_file(in_wav: Path, out_wav: Path, target: float = -14.0, true_peak: float = -1.5) -> dict:
+    """Two-pass loudness normalisation of any wav to a stereo 48 kHz file (mono is upmixed first,
+    because copying mono to two channels raises loudness by 3 LU)."""
+    import re
+
+    ffmpeg = require_ffmpeg()
+    channels = sf.info(str(in_wav)).channels
+    pre = "aresample=48000" + (",pan=stereo|c0=c0|c1=c0" if channels == 1 else "")
+    ln = f"loudnorm=I={target}:TP={true_peak}:LRA=11"
+    probe = subprocess.run([ffmpeg, "-hide_banner", "-nostats", "-i", str(in_wav), "-af",
+                            f"{pre},{ln}:print_format=json", "-f", "null", "-"], capture_output=True, text=True)
+    if probe.returncode:
+        raise RuntimeError(probe.stderr[-800:])
+    st = json.loads(re.findall(r"\{[^{}]*\"input_i\"[^{}]*\}", probe.stderr)[-1])
+    measured = (f":measured_I={st['input_i']}:measured_TP={st['input_tp']}:measured_LRA={st['input_lra']}"
+                f":measured_thresh={st['input_thresh']}:offset={st['target_offset']}:linear=true")
+    out_wav.parent.mkdir(parents=True, exist_ok=True)
+    run = subprocess.run([ffmpeg, "-hide_banner", "-nostats", "-y", "-i", str(in_wav), "-af", f"{pre},{ln}{measured}",
                           "-ar", "48000", "-c:a", "pcm_s16le", str(out_wav)], capture_output=True, text=True)
     if run.returncode:
         raise RuntimeError(run.stderr[-800:])

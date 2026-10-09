@@ -1,0 +1,228 @@
+{
+  "title": "Rate my house 1-10",
+  "framing": "crop",
+  "music": {
+    "style": "phonk",
+    "bpm": 140,
+    "drop": "s08",
+    "volume_db": -4
+  },
+  "sfx_on_text": "pop",
+  "progress_bar": true,
+  "segments": [
+    {
+      "id": "s01",
+      "src": "footage/raw_gameplay.mp4",
+      "in": 58.55,
+      "beats": 4,
+      "speed": 0.5,
+      "zoom": 1.05,
+      "zoom_to": 1.35,
+      "focus": [
+        0.47,
+        0.5
+      ],
+      "text": {
+        "text": "Rate my *house* 1-10",
+        "style": "hook"
+      }
+    },
+    {
+      "id": "s02",
+      "src": "footage/raw_gameplay.mp4",
+      "in": 4.5,
+      "beats": 5,
+      "speed": 4,
+      "focus": [
+        0.5,
+        0.5
+      ],
+      "badge": "x4",
+      "sfx": [
+        "whoosh"
+      ],
+      "text": {
+        "text": "Found the *perfect* spot",
+        "style": "caption"
+      }
+    },
+    {
+      "id": "s03",
+      "src": "footage/raw_gameplay.mp4",
+      "in": 15.0,
+      "beats": 3,
+      "speed": 2,
+      "zoom": 1.2,
+      "focus": [
+        0.5,
+        0.6
+      ],
+      "punch": true,
+      "badge": "x2",
+      "text": {
+        "text": "Dug the *foundation*",
+        "style": "caption"
+      }
+    },
+    {
+      "id": "s04",
+      "src": "footage/raw_gameplay.mp4",
+      "in": 27.5,
+      "beats": 6,
+      "speed": 8,
+      "zoom": 1.25,
+      "zoom_to": 1.4,
+      "focus": [
+        0.45,
+        0.5
+      ],
+      "badge": "x8",
+      "sfx": [
+        "whoosh"
+      ],
+      "text": {
+        "text": "Built it *myself*",
+        "style": "caption"
+      },
+      "framing": "fit"
+    },
+    {
+      "id": "s05",
+      "src": "footage/raw_gameplay.mp4",
+      "in": 49.6,
+      "beats": 3,
+      "speed": 1,
+      "zoom": 1.3,
+      "focus": [
+        0.4,
+        0.45
+      ],
+      "punch": true,
+      "sfx": [
+        "ding"
+      ],
+      "text": {
+        "text": "Finally *done*",
+        "style": "caption"
+      }
+    },
+    {
+      "id": "s06",
+      "src": "footage/raw_gameplay.mp4",
+      "in": 60.0,
+      "beats": 3,
+      "speed": 1,
+      "zoom": 1.0,
+      "focus": [
+        0.74,
+        0.55
+      ],
+      "punch": true,
+      "text": {
+        "text": "What if I add *TNT*?",
+        "style": "caption"
+      }
+    },
+    {
+      "id": "s07",
+      "src": "footage/raw_gameplay.mp4",
+      "in": 63.0,
+      "beats": 4,
+      "speed": 1,
+      "zoom": 1.1,
+      "zoom_to": 1.4,
+      "focus": [
+        0.5,
+        0.45
+      ],
+      "sfx": [
+        "riser"
+      ],
+      "freeze": {
+        "dur": 0.857,
+        "text": "Wait...",
+        "bw": true,
+        "music_stop": true
+      }
+    },
+    {
+      "id": "s08",
+      "src": "footage/raw_gameplay.mp4",
+      "in": 65.05,
+      "beats": 4,
+      "speed": 0.5,
+      "zoom": 1.25,
+      "zoom_to": 1.1,
+      "focus": [
+        0.5,
+        0.45
+      ],
+      "fx": [
+        "shake",
+        "flash"
+      ],
+      "sfx": [
+        "boom"
+      ]
+    },
+    {
+      "id": "s09",
+      "src": "footage/raw_gameplay.mp4",
+      "in": 66.0,
+      "beats": 4,
+      "speed": 1,
+      "zoom": 1.35,
+      "zoom_to": 1.1,
+      "focus": [
+        0.5,
+        0.45
+      ],
+      "text": {
+        "text": "NOOO",
+        "style": "big"
+      },
+      "sfx": [
+        "hit"
+      ]
+    },
+    {
+      "id": "s10",
+      "src": "footage/raw_gameplay.mp4",
+      "in": 69.3,
+      "beats": 5,
+      "speed": 1,
+      "focus": [
+        0.5,
+        0.5
+      ],
+      "sfx": [
+        {
+          "name": "whoosh",
+          "at": 1.6
+        }
+      ],
+      "text": {
+        "text": "It got *worse*",
+        "style": "caption",
+        "at": 0.9
+      }
+    },
+    {
+      "id": "s11",
+      "src": "footage/raw_gameplay.mp4",
+      "in": 73.5,
+      "beats": 4,
+      "speed": 1,
+      "zoom": 1.15,
+      "focus": [
+        0.5,
+        0.4
+      ],
+      "punch": true,
+      "text": {
+        "text": "Rate it now *1-10*",
+        "style": "hook"
+      }
+    }
+  ]
+}
