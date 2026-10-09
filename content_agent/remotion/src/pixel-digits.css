@@ -1,0 +1,20 @@
+/* Pixelify Sans draws 2 and 5 so stylised that "2" reads as "8" at video size: in the pixel
+   styles the digits come from Silkscreen, a pixel font with plain numerals. */
+@font-face {
+  font-family: 'Pixel Digits';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('../node_modules/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff2') format('woff2');
+  unicode-range: U+0030-0039;
+  size-adjust: 90%; /* match Pixelify cap height */
+}
+@font-face {
+  font-family: 'Pixel Digits';
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+  src: url('../node_modules/@fontsource/silkscreen/files/silkscreen-latin-700-normal.woff2') format('woff2');
+  unicode-range: U+0030-0039;
+  size-adjust: 90%; /* match Pixelify cap height */
+}

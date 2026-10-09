@@ -4,6 +4,7 @@ import '@fontsource/montserrat/800.css';
 import '@fontsource/montserrat/900.css';
 import '@fontsource/orbitron/800.css';
 import '@fontsource/pixelify-sans/700.css';
+import '../pixel-digits.css';
 import React, {useEffect, useState} from 'react';
 import {
   AbsoluteFill,
@@ -63,7 +64,8 @@ type ShortStyle = {font: string; weight: number; accent: string; accent2: string
 export const SHORT_STYLES: Record<string, ShortStyle> = {
   meme: {font: '"Montserrat", sans-serif', weight: 900, accent: '#ffd21f', accent2: '#ffffff', cut: 'cut', loads: ['900 80px Montserrat']},
   boxed: {font: '"Archivo Black", sans-serif', weight: 400, accent: '#ffd21f', accent2: '#ff4d6d', cut: 'zoomblur', loads: ['400 80px "Archivo Black"']},
-  pixel: {font: '"Pixelify Sans", monospace', weight: 700, accent: '#ffff55', accent2: '#55ff55', cut: 'pixel', loads: ['700 80px "Pixelify Sans"']},
+  pixel: {font: '"Pixel Digits", "Pixelify Sans", monospace', weight: 700, accent: '#ffff55', accent2: '#55ff55', cut: 'pixel',
+    loads: ['700 80px "Pixelify Sans"', '700 80px "Pixel Digits"']},
   comic: {font: 'Bangers, Impact, sans-serif', weight: 400, accent: '#e8242b', accent2: '#ffd84a', cut: 'flash', loads: ['400 80px Bangers']},
   neon: {font: 'Orbitron, sans-serif', weight: 800, accent: '#ff3dbb', accent2: '#2de2e6', cut: 'glitch', loads: ['800 80px Orbitron']},
   clean: {font: '"Archivo Black", sans-serif', weight: 400, accent: '#ff5a1f', accent2: '#111111', cut: 'whip', loads: ['400 80px "Archivo Black"']},
@@ -77,7 +79,8 @@ const ease = Easing.bezier(0.33, 0, 0.2, 1);
 const useFont = (loads: string[]) => {
   const [handle] = useState(() => delayRender('Loading fonts'));
   useEffect(() => {
-    Promise.all(loads.map((f) => document.fonts.load(f)))
+    // the sample text makes unicode-range fonts (Pixel Digits) load too
+    Promise.all(loads.map((f) => document.fonts.load(f, 'Aa0123456789')))
       .catch(() => undefined)
       .then(() => continueRender(handle));
   }, [handle, loads]);

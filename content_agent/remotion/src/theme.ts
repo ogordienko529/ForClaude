@@ -12,6 +12,7 @@ import '@fontsource/pixelify-sans/700.css';
 import '@fontsource/space-grotesk/500.css';
 import '@fontsource/space-grotesk/700.css';
 import '@fontsource/special-elite/400.css';
+import './pixel-digits.css';
 import {createContext, useContext} from 'react';
 
 export type Palette = {

@@ -205,6 +205,7 @@ class Printer:
         self.tools: dict[str, str] = {}
         self.session: str | None = None
         self.result: dict | None = None
+        self.last_text = ""
         self.t0 = time.time()
 
     def p(self, text: str) -> None:
@@ -228,7 +229,8 @@ class Printer:
         elif t == "assistant" and not ev.get("parent_tool_use_id"):
             for b in ev.get("message", {}).get("content", []):
                 if b.get("type") == "text" and b.get("text", "").strip():
-                    self.p(f"[{self.stamp()}] {b['text'].strip()}")
+                    self.last_text = b["text"].strip()
+                    self.p(f"[{self.stamp()}] {self.last_text}")
                 elif b.get("type") == "tool_use":
                     self.tools[b["id"]] = b["name"]
                     label = _args_label(b["name"], b.get("input") or {})
@@ -340,9 +342,11 @@ def run(task: str, files: list[str] | None = None, project: str | None = None, *
         print(err.strip()[-3000:] or f"claude exited with code {rc}", file=sys.stderr)
         return rc or 1
     mins = (res.get("duration_ms") or 0) / 60000
+    final = (res.get("result") or "\n".join(res.get("errors") or []) or res.get("subtype", "")).strip()
     print("\n" + "=" * 70)
-    print(res.get("result") or "\n".join(res.get("errors") or []) or res.get("subtype", ""))
-    print("=" * 70)
+    if final != printer.last_text:  # the final report was usually just printed as the last message
+        print(final)
+        print("=" * 70)
     print(f"{res.get('subtype')} · {res.get('num_turns')} turns · {mins:.1f} min · session {printer.session}")
     if res.get("permission_denials"):
         names = sorted({d.get("tool_name", "?") for d in res["permission_denials"]})

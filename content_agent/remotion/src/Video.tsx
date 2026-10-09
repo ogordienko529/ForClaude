@@ -27,7 +27,8 @@ export const TEMPLATES: Record<string, React.FC<SceneProps>> = {
 const useFonts = (loads: string[]) => {
   const [handle] = useState(() => delayRender('Loading fonts'));
   useEffect(() => {
-    Promise.all(loads.map((f) => document.fonts.load(f)))
+    // the sample text makes unicode-range fonts (Pixel Digits) load too
+    Promise.all(loads.map((f) => document.fonts.load(f, 'Aa0123456789')))
       .catch(() => undefined)
       .then(() => continueRender(handle));
   }, [handle, loads]);

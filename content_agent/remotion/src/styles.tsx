@@ -28,6 +28,9 @@ export type StyleDef = {
 
 const P = PALETTES;
 
+// digits from Silkscreen (pixel-digits.css), letters from Pixelify Sans
+const PIXEL = '"Pixel Digits", "Pixelify Sans", monospace';
+
 export const STYLES: Record<string, StyleDef> = {
   cosmos: {
     name: 'cosmos', palette: P.midnight,
@@ -45,8 +48,9 @@ export const STYLES: Record<string, StyleDef> = {
     name: 'blocky',
     palette: {bg1: '#1d2026', bg2: '#2c3038', text: '#f4f4f4', muted: '#b8bcc6', accent: '#62d13f', accent2: '#f2c94c',
       land: '#3a6b35', landStroke: '#284a25', grid: 'rgba(255,255,255,0.06)', panel: 'rgba(16,0,16,0.82)'},
-    fonts: {display: '"Pixelify Sans", monospace', body: '"Pixelify Sans", monospace', caption: '"Pixelify Sans", monospace', impact: '"Pixelify Sans", monospace'},
-    fontLoads: ['400 40px "Pixelify Sans"', '600 40px "Pixelify Sans"', '700 80px "Pixelify Sans"'],
+    fonts: {display: PIXEL, body: PIXEL, caption: PIXEL, impact: PIXEL},
+    fontLoads: ['400 40px "Pixelify Sans"', '600 40px "Pixelify Sans"', '700 80px "Pixelify Sans"',
+      '400 40px "Pixel Digits"', '700 80px "Pixel Digits"'],
     background: 'voxel', caption: 'tooltip', label: 'toast', transition: 'pixel', radius: 0,
   },
   neon: {

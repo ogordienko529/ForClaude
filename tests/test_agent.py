@@ -245,6 +245,7 @@ def test_printer_turns_stream_json_into_progress(capsys):
     assert "→ Read /p/review/sheet_01.png" in text and "running · render · 40% · 61s" in text
     assert "sub" not in text.splitlines()[-1]
     assert pr.session == "s1" and pr.result["result"] == "Готово"
+    assert pr.last_text == "Беру режим шортса."
 
 
 def test_run_dry_run_and_resume_without_history(home, capsys):
