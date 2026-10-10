@@ -130,3 +130,61 @@ def test_import_footage_creates_sheets_and_edit(project):
     assert (project / "footage" / "raw.analysis.json").exists()
     skeleton = json.loads((project / "edit.json").read_text())
     assert skeleton["segments"][0]["src"] == "footage/raw.mp4"
+
+
+# ---------------------------------------------------------------- retention structure
+def _seg(sid, beats, text=None, **kw):
+    s = {"id": sid, "src": "footage/raw.mp4", "in": 0, "beats": beats, **kw}
+    if text:
+        s["text"] = {"text": text, "style": "hook" if sid == "s01" else "caption"}
+    return s
+
+
+def _redit(tmp_path, segments, drop=None):
+    # 120 bpm: one beat is 0.5 s
+    return Edit({"title": "t", "music": {"style": "phonk", "bpm": 120, "drop": drop}, "segments": segments}, tmp_path)
+
+
+def test_retention_good_structure_has_no_warnings(tmp_path):
+    from content_agent.gameplay import retention_checks
+
+    segs = [_seg("s01", 3, "WAIT FOR *IT*"), _seg("s02", 6, "1 drone vs 50"), _seg("s03", 6), _seg("s04", 6, "ROUND *2*"),
+            _seg("s05", 6), _seg("s06", 6, "LAST ONE"), _seg("s07", 4, "*BOOM*"), _seg("s08", 3, "again?")]
+    assert retention_checks(_redit(tmp_path, segs, drop="s07")) == []
+
+
+def test_retention_flags_long_slow_unstructured_edits(tmp_path):
+    from content_agent.gameplay import retention_checks
+
+    segs = [_seg("s01", 6, "this is my drone and my base today"), *[_seg(f"s{i:02d}", 8) for i in range(2, 12)]]
+    segs[0]["text"]["at"] = 0.8
+    msgs = " | ".join(str(i) for i in retention_checks(_redit(tmp_path, segs)))
+    for needle in ("total: breakout Minecraft Shorts", "hook segment is 3.0s", "hook text appears at 0.8s",
+                   "hook text has 8 words", "no payoff marked", "no re-hook between"):
+        assert needle in msgs, needle
+
+
+def test_retention_payoff_placement_and_tail(tmp_path):
+    from content_agent.gameplay import retention_checks
+
+    early = [_seg("s01", 2, "WATCH"), _seg("s02", 4, "*BOOM*"), *[_seg(f"s{i:02d}", 4) for i in range(3, 9)]]
+    msgs = " | ".join(str(i) for i in retention_checks(_redit(tmp_path, early, drop="s02")))
+    assert "payoff at" in msgs and "still running after the payoff" in msgs
+    too_many = [_seg("s01", 2, "WATCH"), _seg("s02", 4, drop=None)]
+    too_many[1]["text"] = [{"text": "a", "dur": 0.3}, {"text": "b"}, {"text": "c"}]
+    msgs = " | ".join(str(i) for i in retention_checks(_redit(tmp_path, too_many, drop="s02")))
+    assert "3 texts in one segment" in msgs and "shows for 0.3s" in msgs
+
+
+def test_retention_calm_first_shot_from_footage_analysis(tmp_path):
+    from content_agent.gameplay import retention_checks
+
+    (tmp_path / "footage").mkdir()
+    per = [{"t": t, "motion": 1.0 if t < 5 else 9.0} for t in range(20)]
+    (tmp_path / "footage" / "raw.analysis.json").write_text(json.dumps({"per_second": per}))
+    calm = [_seg("s01", 3, "WAIT"), _seg("s02", 6, "BOOM")]
+    msgs = " | ".join(str(i) for i in retention_checks(_redit(tmp_path, calm, drop="s02")))
+    assert "calm first shot" in msgs
+    calm[0]["in"] = 10.0  # open on the action instead
+    msgs = " | ".join(str(i) for i in retention_checks(_redit(tmp_path, calm, drop="s02")))
+    assert "calm first shot" not in msgs

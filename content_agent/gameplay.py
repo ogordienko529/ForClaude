@@ -294,16 +294,116 @@ def validate_edit(edit: Edit, durations: dict[str, float] | None = None) -> list
         if dur > 3.5 and not has_change:
             issues.append(Issue("warning", sid, f"{dur:.1f}s with nothing changing: cut it shorter or add a zoom/text"))
         total += dur + (float(fr.get("dur", 0.8)) if fr else 0)
-    first = segs[0]
-    if edit.seg_duration(first) > 2.5:
-        issues.append(Issue("warning", segs[0].get("id"), "the hook segment is longer than 2.5 s"))
-    if not _texts(first):
-        issues.append(Issue("warning", segs[0].get("id"), "no text on the first segment: a text hook stops the swipe"))
-    if total > 60:
-        issues.append(Issue("warning", None, f"{total:.1f}s total: fast edits work best at 15-45 s"))
-    elif total < 8:
+    if total < 8:
         issues.append(Issue("warning", None, f"only {total:.1f}s total"))
+    try:  # structure advice; a broken edit list already has errors above
+        issues += retention_checks(edit, durations)
+    except (ValueError, TypeError, KeyError, ZeroDivisionError):
+        pass
     return issues
+
+
+# ---------------------------------------------------------------- retention structure
+# hook -> stakes -> escalation (re-hook mid-way) -> payoff in the last third -> quick end that loops.
+# Small-channel breakout Shorts (YouTube API, 60 days to Oct 2026): Minecraft drone Shorts 9-29 s
+# (median ~15 s), gun mods median ~27 s, war mods median ~36 s. Good Shorts keep 70%+ "viewed"
+# (vs swiped away); under 60% the hook is the problem.
+RETENTION = {"max_total_s": 35.0, "hook_seg_s": 2.0, "hook_text_at_s": 0.3, "hook_words": 5,
+             "payoff_min_frac": 0.4, "tail_after_payoff_s": 3.0, "min_text_s": 0.7, "rehook_after_s": 20.0}
+
+
+def _timeline_marks(edit: Edit) -> tuple[list[dict], float]:
+    """Start/end (output seconds) of every segment including freezes."""
+    marks, t = [], 0.0
+    for s in edit.segments:
+        dur = edit.seg_duration(s)
+        fr = float((s.get("freeze") or {}).get("dur", 0.8)) if s.get("freeze") else 0.0
+        marks.append({"seg": s, "start": t, "end": t + dur + fr})
+        t += dur + fr
+    return marks, t
+
+
+def _source_motion(edit: Edit, s: dict, span: float) -> tuple[float, float] | None:
+    """(motion of this source window, median motion of the whole recording) from the footage analysis."""
+    a_path = edit.project / Path(s["src"]).with_suffix(".analysis.json")
+    try:
+        per = json.loads(a_path.read_text(encoding="utf-8"))["per_second"]
+    except (OSError, ValueError, KeyError):
+        return None
+    vals = sorted(x["motion"] for x in per)
+    if not vals:
+        return None
+    t0 = float(s.get("in", 0))
+    win = [x["motion"] for x in per if t0 - 0.5 <= x["t"] <= t0 + span + 0.5]
+    return (sum(win) / len(win) if win else 0.0), vals[len(vals) // 2]
+
+
+def retention_checks(edit: Edit, durations: dict[str, float] | None = None) -> list[Issue]:
+    """Warnings for the structure that keeps viewers: hook, re-hook, payoff placement, ending, length."""
+    r = RETENTION
+    out: list[Issue] = []
+    segs = edit.segments
+    marks, total = _timeline_marks(edit)
+    first = segs[0]
+    fid = first.get("id")
+    if total > r["max_total_s"]:
+        out.append(Issue("warning", None, f"{total:.1f}s total: breakout Minecraft Shorts on small channels run 15-36 s "
+                                          f"(drones ~15 s, guns ~27 s, war mods ~36 s). Keep only the strongest "
+                                          f"20-30 s; length must be earned by escalation"))
+    if edit.seg_duration(first) > r["hook_seg_s"]:
+        out.append(Issue("warning", fid, f"hook segment is {edit.seg_duration(first):.1f}s: cut to the next shot within "
+                                         f"{r['hook_seg_s']:.0f} s"))
+    hook_texts = _texts(first)
+    if not hook_texts:
+        out.append(Issue("warning", fid, "no text on the first segment: a 2-5 word question or claim stops the swipe"))
+    else:
+        t = hook_texts[0]
+        if float(t.get("at", 0)) > r["hook_text_at_s"]:
+            out.append(Issue("warning", fid, f"hook text appears at {t.get('at')}s: show it on the first frame"))
+        words = len(t.get("text", "").replace("*", "").split())
+        if words > r["hook_words"]:
+            out.append(Issue("warning", fid, f"hook text has {words} words: 2-{r['hook_words']} words read in one glance"))
+    span = edit.seg_duration(first) * float(first.get("speed", 1))
+    mm = _source_motion(edit, first, span) if first.get("src") else None
+    calm_fx = first.get("punch") or first.get("fx") or abs(float(first.get("zoom_to", first.get("zoom", 1)))
+                                                            - float(first.get("zoom", 1))) > 0.1
+    if mm and mm[0] < 0.8 * mm[1] and not calm_fx:
+        out.append(Issue("warning", fid, "calm first shot (less motion than the recording's median): open on the action "
+                                         "or the payoff itself and treat the first frame like a thumbnail"))
+    drop = (edit.data.get("music") or {}).get("drop")
+    drop_mark = next((m for m in marks if m["seg"].get("id") == drop), None)
+    if not drop_mark:
+        out.append(Issue("warning", None, "no payoff marked: set music.drop to the segment with the biggest moment"))
+    else:
+        frac = drop_mark["start"] / total if total else 0
+        if frac < r["payoff_min_frac"]:
+            out.append(Issue("warning", drop, f"payoff at {frac:.0%} of the video: build tension first and put it in the "
+                                              f"last third, or open on it as the hook and rebuild to a second payoff"))
+        # the payoff segment itself plus one reaction beat is fine; after that the viewer leaves
+        after = [m for m in marks if m["start"] >= drop_mark["end"] - 1e-6]
+        tail = sum(m["end"] - m["start"] for m in after[1:]) if after else 0.0
+        if tail > r["tail_after_payoff_s"]:
+            out.append(Issue("warning", after[1]["seg"].get("id") if len(after) > 1 else None,
+                             f"{tail:.1f}s still running after the payoff and its reaction: end within "
+                             f"{r['tail_after_payoff_s']:.0f} s, on a frame or line that leads back to the hook"))
+    if total > r["rehook_after_s"]:
+        lo, hi = 0.35 * total, 0.65 * total
+        rehook = any(lo <= m["start"] <= hi and (_texts(m["seg"]) or m["seg"].get("badge") or m["seg"].get("freeze"))
+                     for m in marks)
+        if not rehook:
+            out.append(Issue("warning", None, f"no re-hook between {lo:.0f}s and {hi:.0f}s: add a text, counter, badge or "
+                                              f"freeze mid-video ('wait for it', 'round 2', '3 left') so the middle "
+                                              f"does not sag"))
+    for m in marks:
+        s = m["seg"]
+        texts = _texts(s)
+        if len(texts) > 2:
+            out.append(Issue("warning", s.get("id"), f"{len(texts)} texts in one segment: at most 2, one idea at a time"))
+        for t in texts:
+            if t.get("dur") is not None and float(t["dur"]) < r["min_text_s"]:
+                out.append(Issue("warning", s.get("id"), f"text '{t.get('text', '')[:30]}' shows for {t['dur']}s: "
+                                                         f"give it at least {r['min_text_s']} s to be read"))
+    return out
 
 
 # ---------------------------------------------------------------- build: timeline + soundtrack

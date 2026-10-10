@@ -26,7 +26,7 @@ THRESHOLDS = {
     "sleep": {"max_scene_s": 60.0, "min_scene_s": 6.0, "freeze_s": 30.0, "silence_s": 9.0, "cps": 16},
     # fast gameplay edits: something must change every ~2 s, quick cuts are fine
     "gameplay": {"max_scene_s": 4.0, "min_scene_s": 0.3, "freeze_s": 1.5, "silence_s": 0.6, "cps": 18,
-                 "max_gap_s": 2.2, "hook_s": 0.5, "min_total_s": 10.0, "max_total_s": 60.0},
+                 "max_gap_s": 2.2, "hook_s": 0.5, "min_total_s": 10.0, "max_total_s": 40.0},
 }
 
 RUBRIC = """Review rubric (score each 1-5 and list concrete fixes with scene ids):
@@ -41,14 +41,17 @@ Write findings to review/review.json as
 [{"scene": "b03", "severity": "high|medium|low", "category": "...", "problem": "...", "fix": "..."}]."""
 
 
-RUBRIC_GAMEPLAY = """Review rubric for fast gameplay edits (score each 1-5, list fixes with segment ids):
-1. Hook: is the subject visible in the very first frame, with text that makes you stay?
-2. Clarity: in every segment, can you tell what is happening at phone size?
-3. Pacing: something new every 1-2 s; no dead air; speed-ups on boring parts, slow-mo on the payoff.
-4. Payoff: is the big moment set up (tension, freeze, silence) and hit hard (boom, shake, drop)?
-5. Text: short, big, readable, inside the safe zone, never covering the action.
-6. Sound: cuts and hits land on the beat; SFX support the moment instead of cluttering it.
-7. Loop: does the end lead back into the start so the replay feels natural?
+RUBRIC_GAMEPLAY = """Review rubric for fast gameplay edits (score each 1-5, list fixes with segment ids).
+Goal: 70%+ of viewers stay past the first second (Studio: "viewed vs swiped away") and most watch to the end.
+1. Hook (0-1.5 s): would the first frame work as a thumbnail? Action or the payoff in view, 2-5 words that raise a
+   question or a claim, no intro, no logo, no slow pan.
+2. Stakes (by ~5 s): is it clear what we are waiting for or what is at risk?
+3. Escalation: does every segment raise the stakes, with a pattern break every 2-3 s and a re-hook mid-video?
+4. Payoff: is the biggest moment in the last third, set up (riser, freeze, silence) and hit hard (drop, shake, boom)?
+5. Ending: does it end within 1-3 s of the payoff on a frame or line that leads back into the hook? No outro.
+6. Length: is every second earned? Breakout Minecraft Shorts run 15-36 s; cut anything that does not escalate.
+7. Clarity and text: readable at phone size, 1-6 words, at most 2 texts at once, never a wall of small labels.
+8. Sound: cuts and hits land on the beat; SFX support the moment instead of cluttering it.
 Write findings to review/review.json as
 [{"scene": "s03", "severity": "high|medium|low", "category": "...", "problem": "...", "fix": "..."}]."""
 

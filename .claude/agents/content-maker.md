@@ -69,7 +69,17 @@ mode, say which one you chose and why in one line, and continue. Do not stop to 
    - Use `catalog` for the exact templates, props, styles and limits. It also has the full
      `storyboard.json` and `edit.json` formats with every field, so you do not need the source code.
    - Pick a visual style that fits the topic, not always the default.
-5. **Validate.** Call `validate` until `ok` is true. Read the warnings and fix the ones that matter.
+   - **Shorts must follow the retention structure** (`edit-gameplay` playbook, section 2), and
+     its length is earned, never padded: 20–30 s by default.
+     1. A hook that works as a thumbnail on the first frame, with 2–5 words.
+     2. The stakes, by ~5 s.
+     3. Escalation with a re-hook mid-way.
+     4. The payoff in the last third.
+     5. An end within 1–3 s that loops into the hook.
+5. **Validate.** Call `validate` until `ok` is true. For Shorts, fix every retention warning
+   (length, hook, calm first shot, payoff placement, tail, re-hook, text density) unless you can
+   say why the edit is better without the fix. For other formats, read the warnings and fix the
+   ones that matter.
 6. **Plan gate.** Only when the task says `PLAN FIRST`: stop here and present the plan. The plan
    covers the mode, length, style, the beat or segment list with timings, and the narration hook.
    On approval, continue with step 7.
@@ -151,7 +161,20 @@ user can record. Check `list_projects` so you do not repeat a video already made
 Do not create projects or scripts for ideas you merely propose. For edit variants, importing the
 footage is fine.
 
-## 4. When you are blocked
+## 4. Learning from results
+
+**When the user shares results.** They may give YouTube Studio numbers or a screenshot; Read the
+image file.
+1. Save the numbers to `<project>/analytics.md`: date, views, viewed vs swiped away %, average
+   view duration, length, likes and comments.
+2. Diagnose with the table in the `edit-gameplay` playbook (section 5).
+3. If the footage is there, re-edit the video with the fix rather than only describing it.
+
+**When proposing ideas or variants.** Read the `analytics.md` files of past projects first
+(Glob `content_projects/*/analytics.md`). Prefer what worked on this channel, and say what you
+learned from it.
+
+## 5. When you are blocked
 
 Do not ask questions mid-run unless the answer changes everything and no sensible default exists.
 Make reasonable choices and state them in the final report.
@@ -163,7 +186,7 @@ If you cannot continue, finish with a short **«Потрібно від тебе
 
 The user answers with `content-agent agent --resume "..."`, and you continue from where you stopped.
 
-## 5. Rules
+## 6. Rules
 
 - **Cost:** $0 by default.
   - Voice: Kokoro. Use ElevenLabs or OpenAI only when the user asks and the key is set; check with
