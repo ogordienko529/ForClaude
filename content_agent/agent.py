@@ -3,6 +3,9 @@
     content-agent agent "make a 20 s Short from this" --files D:\\rec\\tnt.mp4
     content-agent agent --resume "use ElevenLabs voice Adam"      # answer / continue the last run
     content-agent agent -i "war mod video" --project war_mod       # chat with the agent instead
+    content-agent ideas "minecraft mods"                           # 4 video ideas backed by data, then stop
+    content-agent agent --options --files D:\\rec\\base.mp4        # edit variants of a recording, then stop
+    content-agent agent --pick 2                                   # make option 2 (or --pick 1,3)
 
 Claude Code runs on the user's subscription (`claude` logged in once). ANTHROPIC_API_KEY is removed
 from its environment unless --use-api-key is given: with a key present, headless runs bill the API.
@@ -18,6 +21,7 @@ import sys
 import time
 from pathlib import Path
 
+from . import options as opts
 from .doctor import AGENT_FILE, PLAYBOOKS, REPO
 from .status import projects_root
 
@@ -62,10 +66,13 @@ def _size(path: Path) -> str:
     return f"{n / 1e9:.1f} GB" if n > 1e9 else f"{n / 1e6:.0f} MB" if n > 1e6 else f"{n / 1e3:.0f} KB"
 
 
-def task_message(task: str, files: list[Path], project: str | None, root: Path, plan: bool) -> str:
+def task_message(task: str, files: list[Path], project: str | None, root: Path, plan: bool,
+                 options: int | None = None) -> str:
     lines = ["TASK FROM THE USER:", task.strip(), ""]
     if project:
         lines.append(f"Project: {project} (folder {root / project})")
+    elif options and not files:
+        lines.append("Project: none yet (the user picks an idea first).")
     else:
         lines.append("Project: choose a short slug (lowercase, underscores) and create it under the projects folder.")
     lines.append(f"Projects folder: {root}")
@@ -75,9 +82,16 @@ def task_message(task: str, files: list[Path], project: str | None, root: Path, 
             kind = "video" if f.suffix.lower() in VIDEO_EXT else "file"
             lines.append(f"- {f} ({kind}, {_size(f)})")
     lines.append("Playbooks: " + ", ".join(f"{k}: {v}" for k, v in PLAYBOOKS.items()))
+    if (root / "channel.md").exists():
+        lines.append(f"Channel profile (niche, audience, what the user can record): {root / 'channel.md'}")
     lines.append("")
-    lines.append("This is an unattended run: nobody can answer questions until it ends. Work autonomously to a "
-                 "finished, self-reviewed video, then give the final report in Ukrainian.")
+    if options:
+        what = "edit variants of the input recording(s)" if files else "video ideas"
+        lines.append(f"OPTIONS FIRST: propose {options} {what} with propose_options, then stop. Do not create a "
+                     "script or render anything yet: the user picks first.")
+    else:
+        lines.append("This is an unattended run: nobody can answer questions until it ends. Work autonomously to a "
+                     "finished, self-reviewed video, then give the final report in Ukrainian.")
     if plan:
         lines.append("PLAN FIRST: stop after the script validates and present the plan for approval.")
     return "\n".join(lines)
@@ -265,7 +279,8 @@ def find_claude() -> str | None:
 
 def run(task: str, files: list[str] | None = None, project: str | None = None, *, plan: bool = False,
         resume: bool = False, session: str | None = None, interactive: bool = False, max_turns: int = 250,
-        model: str | None = None, use_api_key: bool = False, dry_run: bool = False) -> int:
+        model: str | None = None, use_api_key: bool = False, dry_run: bool = False,
+        options: int | None = None, pick: str | None = None, fresh: bool = False) -> int:
     claude = find_claude()
     if not claude and not dry_run:
         print("Claude Code is not installed: https://code.claude.com/docs/en/setup (then run `claude` once to log in)",
@@ -280,18 +295,41 @@ def run(task: str, files: list[str] | None = None, project: str | None = None, *
         return 2
     sd = state_dir(root)
     last = sd / "last_session.txt"
+    started = time.time()
     sid = session
-    if resume and not sid:
-        sid = last.read_text(encoding="utf-8").strip() if last.exists() else None
-        if not sid:
-            print("no previous run to resume", file=sys.stderr)
+    if pick:
+        found = opts.latest(root)
+        if not found:
+            print("no options to pick from yet: run `content-agent ideas` or `content-agent agent --options` first",
+                  file=sys.stderr)
             return 2
-    if sid:
-        message = task.strip() or "Continue where you stopped."
-        if paths:
-            message += "\nNew input files:\n" + "\n".join(f"- {p} ({_size(p)})" for p in paths)
+        _, batch = found
+        try:
+            nums = opts.parse_pick(pick, len(batch["options"]))
+        except ValueError as exc:
+            print(exc, file=sys.stderr)
+            return 2
+        picked = opts.pick_message(batch, nums, task)
+        if batch.get("session") and not fresh:  # same session: it remembers the research and the footage
+            sid, message = batch["session"], picked
+        else:
+            sid = None
+            paths = paths or [Path(f) for f in batch.get("files", []) if Path(f).exists()]
+            message = task_message(picked, paths, project or batch.get("project"), root, plan)
     else:
-        message = task_message(task, paths, project, root, plan)
+        if resume and not sid:
+            sid = last.read_text(encoding="utf-8").strip() if last.exists() else None
+            if not sid:
+                print("no previous run to resume", file=sys.stderr)
+                return 2
+        if sid:
+            message = task.strip() or "Continue where you stopped."
+            if options:
+                message += f"\nOPTIONS FIRST: propose {options} options with propose_options, then stop."
+            if paths:
+                message += "\nNew input files:\n" + "\n".join(f"- {p} ({_size(p)})" for p in paths)
+        else:
+            message = task_message(task, paths, project, root, plan, options)
     cmd = build_command(claude or "claude", message, root, paths, interactive=interactive, resume=sid,
                         max_turns=max_turns, model=model)
     if dry_run:
@@ -353,5 +391,13 @@ def run(task: str, files: list[str] | None = None, project: str | None = None, *
         print(f"denied (not pre-approved): {', '.join(names)}")
     if res.get("subtype") == "error_max_turns":
         print("Turn limit reached. Continue with: content-agent agent --resume")
-    print("Answer or continue: content-agent agent --resume \"...\"")
+    found = opts.latest(root)
+    if found and found[1]["created"] >= started:  # this run proposed options: remember how to continue it
+        path, batch = found
+        opts.update(path, session=printer.session, files=[str(p) for p in paths],
+                    project=batch.get("project") or project)
+        print()
+        print(opts.to_markdown(batch).strip())
+    else:
+        print("Answer or continue: content-agent agent --resume \"...\"")
     return 0 if not res.get("is_error") else 1

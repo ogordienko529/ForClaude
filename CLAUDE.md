@@ -19,6 +19,12 @@ questions ("не запитуй, а роби").
   detection, validation, pipeline steps as background jobs, frame previews, QA report, doctor).
 - **Run it unattended:** `python -m content_agent agent "<task>" --files ...`. Continue with
   `--resume "<answer>"`, stop for plan approval with `--plan`, chat with `-i`.
+- **Options before production:**
+  - `python -m content_agent ideas "<theme>"` proposes video ideas backed by data;
+  - `agent --options --files rec.mp4` proposes edit variants of a recording;
+  - the user picks with `agent --pick N`;
+  - proposals are saved in `content_projects/.agent/options/`;
+  - `content_projects/channel.md` (optional) describes the channel for better ideas.
 - **Hand over a whole video:** when the user asks for one, delegate it to the `content-maker`
   subagent (or run the command above).
 - **Machine checks:** `python -m content_agent doctor`. One-time setup:

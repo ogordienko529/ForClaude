@@ -128,7 +128,8 @@ def test_mcp_tools_listed():
 
     names = {t.name for t in asyncio.run(mcp_server.mcp.list_tools())}
     assert names == {"list_projects", "project_status", "new_project", "import_footage", "detect_mods", "catalog",
-                     "validate", "run_step", "job_status", "cancel_job", "preview_frame", "read_qa", "doctor"}
+                     "validate", "run_step", "job_status", "cancel_job", "preview_frame", "read_qa", "doctor",
+                     "propose_options"}
 
 
 def test_mcp_new_project_validate_and_status(home):
@@ -269,3 +270,106 @@ def test_doctor_reports_missing_tools(monkeypatch):
     checks = {c["name"]: c for c in run_checks()}
     assert not checks["ffmpeg"]["ok"] and checks["ffmpeg"]["fix"]
     assert "required check(s) failed" in report(list(checks.values()))
+
+
+# ---------------------------------------------------------------- options: ideas and edit variants
+def _opt(title, fmt="short"):
+    return {"title": title, "format": fmt, "pitch": "Коротко.", "why": "3 small channels got 100k+ this month",
+            "needs": "nothing", "length": "20 s", "titles": ["A", "B"], "moments": ["65.2 s explosion"]}
+
+
+def test_options_are_checked_saved_and_rendered(home):
+    from content_agent import options as opts
+
+    assert opts.check([_opt("one")])  # fewer than 2
+    bad = _opt("x")
+    del bad["why"]
+    bad["colour"] = "red"
+    errs = " ".join(opts.check([bad, _opt("y", fmt="podcast")]))
+    assert "missing why" in errs and "unknown fields" in errs and "format must be" in errs
+    saved = opts.save(home, "edit_variants", "From the TNT recording.", [_opt("Twist"), _opt("Timelapse", "review")])
+    path, batch = opts.latest(home)
+    assert str(path) == saved["json"] and batch["kind"] == "edit_variants" and batch["session"] is None
+    md = Path(saved["markdown"]).read_text()
+    assert "## 1. Twist · Шортс 9:16 · 20 s" in md and "## 2. Timelapse · огляд 16:9" in md
+    assert "**Моменти із запису:** 65.2 s explosion" in md and "--pick N" in md
+    with pytest.raises(ValueError):
+        opts.save(home, "memes", "", [_opt("a"), _opt("b")])
+
+
+def test_pick_numbers_and_message(home):
+    from content_agent import options as opts
+
+    assert opts.parse_pick("2", 3) == [2] and opts.parse_pick("1, 3,1", 3) == [1, 3]
+    for bad in ("0", "4", "two", ""):
+        with pytest.raises(ValueError):
+            opts.parse_pick(bad, 3)
+    batch = {"kind": "ideas", "context": "niche data", "options": [_opt("A"), _opt("B"), _opt("C")]}
+    msg = opts.pick_message(batch, [1, 3], "make it darker")
+    assert "option 1 «A», 3 «C»" in msg and "one after another" in msg and "make it darker" in msg
+    assert '"title": "B"' not in msg
+
+
+def test_mcp_propose_options(home):
+    from content_agent import mcp_server as m
+
+    r = m.propose_options("ideas", "Based on compare_niches.", [_opt("A", "explainer"), _opt("B")])
+    assert r["count"] == 2 and Path(r["markdown"]).exists() and "stop now" in r["next"]
+    assert "missing" in m.propose_options("ideas", "", [{"title": "A"}, _opt("B")])["error"]
+
+
+def test_task_message_for_options(home, tmp_path):
+    clip = tmp_path / "a.mp4"
+    _touch(clip)
+    ideas = agent.task_message("ideas please", [], None, home, plan=False, options=4)
+    assert "OPTIONS FIRST: propose 4 video ideas" in ideas and "Project: none yet" in ideas
+    assert "unattended run" not in ideas
+    variants = agent.task_message("variants", [clip], None, home, plan=False, options=3)
+    assert "propose 3 edit variants" in variants and "choose a short slug" in variants
+    _touch(home / "channel.md", "Minecraft mods, English, 16+")
+    assert "channel.md" in agent.task_message("x", [], None, home, plan=False)
+
+
+def test_pick_resumes_the_proposing_session_or_starts_fresh(home, tmp_path, capsys):
+    from content_agent import options as opts
+
+    clip = tmp_path / "rec.mp4"
+    _touch(clip)
+    assert agent.run("", pick="1", dry_run=True) == 2  # nothing proposed yet
+    opts.save(home, "edit_variants", "TNT recording", [_opt("Twist"), _opt("Timelapse")], project="tnt")
+    path, _ = opts.latest(home)
+    opts.update(path, session="sess-9", files=[str(clip)])
+    capsys.readouterr()
+    assert agent.run("", pick="2", dry_run=True) == 0
+    out = capsys.readouterr().out
+    assert '"--resume"' in out and '"sess-9"' in out and "option 2 «Timelapse»" in out
+    assert agent.run("vertical please", pick="1", fresh=True, dry_run=True) == 0
+    out = capsys.readouterr().out
+    assert '"--resume"' not in out and "Project: tnt" in out and str(clip) in out and "vertical please" in out
+    assert agent.run("", pick="7", dry_run=True) == 2
+
+
+def test_a_run_that_proposes_options_records_its_session(home, monkeypatch, capsys):
+    """End to end with a stand-in for claude: it streams events and saves options like the agent would."""
+    fake = home.parent / "fake_claude.py"
+    fake.write_text(
+        "import json, sys\n"
+        "from pathlib import Path\n"
+        "sys.stdin.read()\n"
+        "from content_agent import options as opts\n"
+        f"opts.save(Path({str(home)!r}), 'ideas', 'web search', [\n"
+        "  {'title': 'A', 'format': 'explainer', 'pitch': 'p', 'why': 'w', 'needs': 'nothing', 'length': '8 min'},\n"
+        "  {'title': 'B', 'format': 'short', 'pitch': 'p', 'why': 'w', 'needs': 'record 2 min', 'length': '20 s'}])\n"
+        "print(json.dumps({'type': 'system', 'subtype': 'init', 'session_id': 'S1', 'mcp_servers': []}))\n"
+        "print(json.dumps({'type': 'assistant', 'message': {'content': [{'type': 'text', 'text': 'Два варіанти.'}]}}))\n"
+        "print(json.dumps({'type': 'result', 'subtype': 'success', 'session_id': 'S1', 'result': 'Два варіанти.',\n"
+        "                  'num_turns': 2, 'duration_ms': 1000}))\n", encoding="utf-8")
+    monkeypatch.setattr(agent, "find_claude", lambda: sys.executable)
+    monkeypatch.setattr(agent, "build_command", lambda *a, **k: [sys.executable, str(fake)])
+    monkeypatch.setenv("PYTHONPATH", str(Path(__file__).resolve().parent.parent))
+    assert agent.run("ideas", options=2) == 0
+    out = capsys.readouterr().out
+    assert "## 1. A · пояснювальне відео 16:9 · 8 min" in out and "--pick N" in out
+    from content_agent import options as opts
+
+    assert opts.latest(home)[1]["session"] == "S1"

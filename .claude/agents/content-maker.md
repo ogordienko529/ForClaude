@@ -22,6 +22,9 @@ in **English** unless the user says otherwise.
 | Recording of mods, a modpack, a build or a defense, with voice-over | narrated review / showcase (16:9) | `.claude/skills/review-video/SKILL.md` |
 | Recording + shooting script (scenario.md) | review mode, edited to the script's scenes | `.claude/skills/review-video/SKILL.md` |
 
+If the user asks what to make, wants ideas or variants, or the input fits several very different
+videos, propose options first (section 3).
+
 The playbooks are the house rules for structure, pacing, templates, styles and QA. Read the one for
 your mode completely before writing anything.
 
@@ -98,7 +101,57 @@ mode, say which one you chose and why in one line, and continue. Do not stop to 
       - anything still weak;
       - the title options and the thumbnail path.
 
-## 3. When you are blocked
+## 3. Proposing options (ideas and edit variants)
+
+**When.** Propose options instead of producing anything when any of these is true:
+- the task says `OPTIONS FIRST`;
+- the user asks for ideas, what to make or film, or "варіанти";
+- the request is too vague to pick one video.
+
+You present 2–6 options, save them with `propose_options`, and stop. The user picks one with
+`--pick N`, and you continue in the same session.
+
+**Edit variants (a recording is given).**
+1. Run `import_footage` and Read the footage sheets first.
+2. Each option is a **genuinely different** concept, not the same cut in another style. For
+   example:
+   - a twist Short ("rate my house" → TNT);
+   - a satisfying timelapse;
+   - a "how I built / survived" Short;
+   - a narrated review or showcase;
+   - a series of 2–3 Shorts from different moments.
+3. Name the moments each option uses by timecode (`moments`), and give the hook, length, style and
+   title options.
+4. Say plainly when the footage is too thin for an option, and what extra recording would fix it.
+
+**Video ideas (no recording).** Mix two kinds:
+- **(a) can be made right now** from a topic, as an animated explainer that needs no recording;
+- **(b) needs a recording** from the user, with a short shooting list in `needs`: what to record,
+  how long, settings.
+
+Read `channel.md` in the projects folder when it exists: it has the niche, audience and what the
+user can record. Check `list_projects` so you do not repeat a video already made.
+
+**Evidence (never invented).**
+- Ground every `why` in data:
+  - Use the `youtube-niche` tools when they are available. Call `quota_status` first and
+    `dry_run=true` when unsure. Prefer one `compare_niches` over 3–6 candidate niches, or
+    `find_outliers` on the best one. Stay under ~1,500 quota units per proposal.
+  - Without them, use web search for recent breakout videos: views, channel size, date.
+- Name example videos with their numbers and links in `sources`.
+- Label estimates (RPM, views) as estimates.
+
+**Presenting.**
+1. Call `propose_options` once with all options. The `pitch` is in Ukrainian; titles are in English.
+2. End with a short Ukrainian summary:
+   - one line per option;
+   - your recommendation and why;
+   - how to pick.
+
+Do not create projects or scripts for ideas you merely propose. For edit variants, importing the
+footage is fine.
+
+## 4. When you are blocked
 
 Do not ask questions mid-run unless the answer changes everything and no sensible default exists.
 Make reasonable choices and state them in the final report.
@@ -110,7 +163,7 @@ If you cannot continue, finish with a short **«Потрібно від тебе
 
 The user answers with `content-agent agent --resume "..."`, and you continue from where you stopped.
 
-## 4. Rules
+## 5. Rules
 
 - **Cost:** $0 by default.
   - Voice: Kokoro. Use ElevenLabs or OpenAI only when the user asks and the key is set; check with

@@ -461,11 +461,23 @@ def cmd_agent(a) -> int:
     from .agent import run
 
     task = " ".join(a.task).strip()
-    if not task and not a.resume and not a.session and not a.interactive:
-        sys.exit('say what to make, e.g.: content-agent agent "a 20 s Short from this" --files clip.mp4')
+    if not (task or a.resume or a.session or a.interactive or a.pick or a.options):
+        sys.exit('say what to make, e.g.: content-agent agent "a 20 s Short from this" --files clip.mp4\n'
+                 'or ask for ideas: content-agent ideas')
+    if not task and a.options:
+        task = "Propose edit variants for these recordings." if a.files else "Propose video ideas for my channel."
     return run(task, a.files, a.project, plan=a.plan, resume=a.resume, session=a.session,
                interactive=a.interactive, max_turns=a.max_turns, model=a.model, use_api_key=a.use_api_key,
-               dry_run=a.dry_run)
+               dry_run=a.dry_run, options=a.options, pick=a.pick, fresh=a.fresh)
+
+
+def cmd_ideas(a) -> int:
+    from .agent import run
+
+    hint = " ".join(a.hint).strip()
+    task = f"Propose {a.count} video ideas for my channel" + (f", around: {hint}" if hint else "") + "."
+    return run(task, a.files, None, options=a.count, max_turns=a.max_turns, model=a.model,
+               use_api_key=a.use_api_key, dry_run=a.dry_run)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -546,7 +558,21 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--model", help="Claude model alias or id (default: your Claude Code default)")
     p.add_argument("--use-api-key", action="store_true", help="bill ANTHROPIC_API_KEY instead of the subscription")
     p.add_argument("--dry-run", action="store_true", help="print the claude command and exit")
+    p.add_argument("--options", type=int, nargs="?", const=4, metavar="N",
+                   help="propose N options (default 4) and stop: ideas, or edit variants of --files")
+    p.add_argument("--pick", metavar="N[,M]", help="make option N (or several) from the last proposal")
+    p.add_argument("--fresh", action="store_true", help="with --pick: start a new session instead of continuing")
     p.set_defaults(fn=cmd_agent)
+
+    p = sub.add_parser("ideas", help="the agent proposes video ideas backed by niche data; pick one with agent --pick")
+    p.add_argument("hint", nargs="*", help="optional theme, e.g. minecraft mods")
+    p.add_argument("--count", type=int, default=4)
+    p.add_argument("--files", "-f", nargs="+", default=[], help="recordings to build ideas around")
+    p.add_argument("--max-turns", type=int, default=120)
+    p.add_argument("--model")
+    p.add_argument("--use-api-key", action="store_true")
+    p.add_argument("--dry-run", action="store_true")
+    p.set_defaults(fn=cmd_ideas)
 
     p = sub.add_parser("mcp", help="run the MCP server (stdio) with the agent's tools")
     p.set_defaults(fn=cmd_mcp)

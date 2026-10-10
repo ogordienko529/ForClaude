@@ -290,6 +290,23 @@ python -m content_agent agent --resume "OK, render it"                  # answer
 python -m content_agent agent -i --project war_mod                      # chat with it in Claude Code instead
 ```
 
+**Options before production.** The agent can propose instead of produce:
+- **Ideas.** `python -m content_agent ideas "minecraft mods"` gives 4 video ideas, then stops.
+  - Some can be made right away from a topic (animated explainers, no recording needed).
+  - Others need a recording; for those it lists what to film.
+  - Each idea comes with evidence: niche scores and breakout videos from the `youtube-niche` tools
+    when `YOUTUBE_API_KEY` is set, otherwise from web search.
+- **Edit variants.** `python -m content_agent agent --options --files D:\rec\base.mp4` watches the
+  recording and proposes genuinely different cuts. Each one names its moments by timecode, hook,
+  length and style.
+- **Picking.** `python -m content_agent agent --pick 2` (or `--pick 1,3`) makes the chosen options in
+  the same session, so the research and footage analysis are not repeated. Add text to steer it:
+  `--pick 2 "make it darker"`.
+- **Where proposals live.** Each proposal is saved in `content_projects/.agent/options/`;
+  `latest.md` is the last one.
+- **Better-matched ideas.** Write `content_projects/channel.md`: your niche, audience, language and
+  what you can record.
+
 How it works:
 - **Tools.** The agent's tools come from an MCP server (`python -m content_agent mcp`):
   - project state;

@@ -27,6 +27,7 @@ from .jobs import Job, JobManager, cli
 Step = Literal["make", "make_draft", "voice", "music", "mix", "build", "render", "render_draft",
                "render_scene", "qa", "thumbnail"]
 Format = Literal["explainer", "shorts", "review"]
+OptionsKind = Literal["ideas", "edit_variants"]
 
 # Claude Code cuts a tool call after MCP_TOOL_TIMEOUT (some setups use 60 s), so a call waits at most
 # this long; the agent runner raises both. Jobs keep running after a call returns.
@@ -38,7 +39,8 @@ Flow: project_status / list_projects -> new_project or import_footage -> write s
 (explainer/review) or edit.json (gameplay Short) with your file tools -> validate until ok ->
 run_step make (poll job_status while it renders) -> read the QA report and Read the overview and
 contact sheet PNGs -> fix by scene id -> run_step again. catalog lists templates, styles, palettes
-and music. preview_frame shows one frame of a scene without a full render."""
+and music. preview_frame shows one frame of a scene without a full render. When asked for ideas or
+variants, save them with propose_options and stop: the user picks one before anything is produced."""
 
 mcp = _Server("content-agent", instructions=INSTRUCTIONS)
 JOBS = JobManager()
@@ -271,6 +273,27 @@ def read_qa(project: str) -> dict[str, Any]:
         raise FileNotFoundError("no QA report yet: run_step qa (or make)")
     return {"qa_report": qa.read_text(encoding="utf-8")[:QA_CHARS], "overview": str(p / "review" / "overview.png"),
             "sheets": [str(x) for x in sorted((p / "review").glob("sheet_*.png"))]}
+
+
+@mcp.tool()
+@_safe
+def propose_options(kind: OptionsKind, context: str, options: list[dict[str, Any]],
+                    project: str | None = None) -> dict[str, Any]:
+    """Save the options you propose (2-6) so the user can pick one by number, then stop and present them.
+
+    kind: "ideas" (what video to make) or "edit_variants" (different ways to cut a recording).
+    context: one or two sentences on what the options are based on (data, footage, channel).
+    Each option: title (working title, English), format ("short" | "explainer" | "review"),
+    pitch (1-2 sentences, Ukrainian), why (evidence it can work: numbers, example videos with views
+    and subscriber counts, trends; never invented), needs (what the user must do: "nothing" or a short
+    shooting list), length ("20 s", "10 min"); optional: titles (list of YouTube titles), hook (first
+    shot + line), moments (timecodes from the footage it uses), style, effort (time to make), sources
+    (URLs)."""
+    from . import options as opts
+
+    saved = opts.save(st.projects_root(), kind, context, options, project)
+    return {**saved, "count": len(options),
+            "next": "stop now: summarise the options in Ukrainian in a few lines; the user picks with --pick N"}
 
 
 @mcp.tool()
