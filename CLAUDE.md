@@ -47,7 +47,7 @@ Needs Python 3.11+, ffmpeg and Node.js 18+ on PATH.
 python -m venv .venv
 # Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
 pip install -e ".[dev,agent]"
-python -m content_agent setup  # renderer packages, Kokoro model, MCP registration, then doctor
+python -m content_agent setup  # renderer packages, Kokoro model, MCP servers (content-agent, youtube-niche), doctor
 pytest -q                      # offline, should be all green
 ```
 

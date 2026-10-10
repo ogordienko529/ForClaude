@@ -280,7 +280,7 @@ answers with a report:
 
 ```bash
 pip install -e ".[agent]"                 # + ffmpeg, Node.js 18+ and Claude Code (logged in once)
-python -m content_agent setup             # npm packages, voice model, MCP tools for Claude Code, checks
+python -m content_agent setup             # npm packages, voice model, MCP servers (video + niche research), checks
 python -m content_agent doctor            # what is missing on this machine, with the fix command
 
 python -m content_agent agent "Make a 20 s Short from this, no voice" --files D:\rec\tnt.mp4
@@ -329,7 +329,8 @@ How it works:
   Any other shell command is denied.
 - **Questions.** When it is blocked (missing footage, an ElevenLabs voice without a key), it ends
   with a "Потрібно від тебе:" list. Your answer goes back in with `--resume`.
-- **Interactive use.** After `setup`, plain `claude` in the repo folder has the same tools.
+- **Interactive use.** After `setup`, plain `claude` in the repo folder has the same tools, plus
+  niche research (`youtube-niche`; add `--everywhere` to have both in every folder).
   Typing `@content-maker` delegates the job to the agent.
 
 By hand, step by step:

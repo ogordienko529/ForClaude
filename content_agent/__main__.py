@@ -412,7 +412,7 @@ def cmd_doctor(a) -> int:
 
 
 def cmd_setup(a) -> int:
-    """One-time setup: renderer packages, voice model, MCP registration for interactive Claude Code."""
+    """One-time setup: renderer packages, voice model, MCP servers (video tools + niche research) for Claude Code."""
     import shutil
     import subprocess
 
@@ -441,18 +441,19 @@ def cmd_setup(a) -> int:
             print("\nClaude Code not found: MCP registration skipped", file=sys.stderr)
     else:
         scope = "user" if a.everywhere else "local"
-        t0 = _step(f"register the content-agent MCP server in Claude Code ({scope} scope)")
         env = {k: v for k, v in os.environ.items() if k not in PARENT_SESSION_VARS}
-        subprocess.run([claude, "mcp", "remove", "content-agent", "-s", scope], cwd=REPO, capture_output=True, env=env)
-        # the name goes before -e: -e takes several values and would swallow it
-        r = subprocess.run([claude, "mcp", "add", "content-agent", "--scope", scope, "--transport", "stdio",
-                            "-e", f"CONTENT_AGENT_HOME={projects_root()}", "--",
-                            sys.executable, "-m", "content_agent", "mcp"], cwd=REPO, capture_output=True, text=True,
-                           env=env)
-        print("   " + (r.stdout or r.stderr).strip().replace("\n", "\n   "), file=sys.stderr)
-        if r.returncode:
-            print("   registration failed: the agent command still works, only plain `claude` lacks the tools",
-                  file=sys.stderr)
+        # video tools, and niche research (reads YOUTUBE_API_KEY from the environment Claude Code runs in)
+        servers = [("content-agent", ["-e", f"CONTENT_AGENT_HOME={projects_root()}"], ["-m", "content_agent", "mcp"]),
+                   ("youtube-niche", [], ["-m", "niche_mcp"])]
+        for name, extra, args in servers:
+            t0 = _step(f"register the {name} MCP server in Claude Code ({scope} scope)")
+            subprocess.run([claude, "mcp", "remove", name, "-s", scope], cwd=REPO, capture_output=True, env=env)
+            # the name goes before -e: -e takes several values and would swallow it
+            r = subprocess.run([claude, "mcp", "add", name, "--scope", scope, "--transport", "stdio", *extra, "--",
+                                sys.executable, *args], cwd=REPO, capture_output=True, text=True, env=env)
+            print("   " + (r.stdout or r.stderr).strip().replace("\n", "\n   "), file=sys.stderr)
+            if r.returncode:
+                print(f"   registration failed: plain `claude` will lack the {name} tools", file=sys.stderr)
     print()
     return cmd_doctor(a)
 
@@ -580,8 +581,8 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("doctor", help="check this machine for everything the agent needs")
     p.set_defaults(fn=cmd_doctor)
 
-    p = sub.add_parser("setup", help="one-time setup: npm packages, voice model, MCP registration, checks")
-    p.add_argument("--everywhere", action="store_true", help="register the MCP tools for every folder (user scope)")
+    p = sub.add_parser("setup", help="one-time setup: npm packages, voice model, MCP servers for Claude Code, checks")
+    p.add_argument("--everywhere", action="store_true", help="register the MCP servers for every folder (user scope)")
     p.add_argument("--no-register", action="store_true", help="do not register the MCP server in Claude Code")
     p.set_defaults(fn=cmd_setup)
 
