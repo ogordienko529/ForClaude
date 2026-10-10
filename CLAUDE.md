@@ -24,7 +24,8 @@ questions ("не запитуй, а роби").
   - `agent --options --files rec.mp4` proposes edit variants of a recording;
   - the user picks with `agent --pick N`;
   - proposals are saved in `content_projects/.agent/options/`;
-  - `content_projects/channel.md` (optional) describes the channel for better ideas.
+  - `content_projects/channel.md` (optional, template in `examples/channel.example.md`) describes
+    the channel for better ideas.
 - **Hand over a whole video:** when the user asks for one, delegate it to the `content-maker`
   subagent (or run the command above).
 - **Machine checks:** `python -m content_agent doctor`. One-time setup:

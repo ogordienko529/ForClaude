@@ -304,8 +304,8 @@ python -m content_agent agent -i --project war_mod                      # chat w
   `--pick 2 "make it darker"`.
 - **Where proposals live.** Each proposal is saved in `content_projects/.agent/options/`;
   `latest.md` is the last one.
-- **Better-matched ideas.** Write `content_projects/channel.md`: your niche, audience, language and
-  what you can record.
+- **Better-matched ideas.** Copy `examples/channel.example.md` to `content_projects/channel.md` and
+  fill it in: your niche, audience, voice and what you can record.
 
 How it works:
 - **Tools.** The agent's tools come from an MCP server (`python -m content_agent mcp`):
