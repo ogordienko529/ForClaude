@@ -173,6 +173,24 @@ def cmd_voice(a) -> None:
     _done(t0, f"({timing['duration']:.1f}s of narration)")
 
 
+def cmd_music_lib(a) -> int:
+    from .music_lib import SOURCES, library_dir, scan
+
+    lib = library_dir(project_dir(a.project) if a.project else None)
+    t0 = _step(f"music library {lib}")
+    index = scan(lib, rescan=a.rescan)
+    _done(t0)
+    if not index:
+        print(f"no tracks in {lib}. Add licensed music there ({'; '.join(SOURCES)}),"
+              f" optionally with tracks.json for credits, then run this again.")
+        return 1
+    for name, e in index.items():
+        drops = ", ".join(f"{d:.1f}s" for d in e["drops"]) or "-"
+        lic = e.get("license") or "license not noted in tracks.json"
+        print(f"{name:40s} {e['duration']:6.1f}s {e['bpm']:6.1f} bpm  drops {drops:22s} {e.get('mood', ''):8s} {lic}")
+    return 0
+
+
 def cmd_music(a) -> None:
     import soundfile as sf
 
@@ -186,6 +204,22 @@ def cmd_music(a) -> None:
         out.unlink(missing_ok=True)
         return
     timing = json.loads((project / "audio" / "voice_timing.json").read_text())
+    if isinstance(mood, dict) and mood.get("track"):  # a real track from the library, looped and faded
+        from .music_lib import credit, library_dir, load, track_audio
+
+        lib = library_dir(project)
+        entry = load(lib).get(Path(mood["track"]).name)
+        if not entry:
+            sys.exit(f"music.track {mood['track']!r} is not in the analysed library {lib}: run `music-lib`")
+        t0 = _step(f"music (track {mood['track']})")
+        y = track_audio(lib / Path(mood["track"]).name, float(mood.get("start", entry.get("intro_end", 0))),
+                        timing["duration"] + 1.0, 48_000)
+        peak = float(abs(y).max()) or 1.0
+        sf.write(out, y / peak * 0.7, 48_000, subtype="PCM_16")
+        (project / "out").mkdir(parents=True, exist_ok=True)
+        (project / "out" / "credits.txt").write_text(credit(entry) + "\n", encoding="utf-8")
+        _done(t0)
+        return
     t0 = _step(f"music ({mood})")
     if mood in ("hype", "phonk"):  # a beat under the voice (ducked in the mix), for reviews and gaming videos
         from .sound import beat_music
@@ -529,6 +563,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--mood", choices=MUSIC_MOODS)
     p.add_argument("--seed", type=int, default=7)
     p.set_defaults(fn=cmd_music)
+
+    p = sub.add_parser("music-lib", help="analyse the music library (content_projects/music): tempo, beats, drops")
+    p.add_argument("project", nargs="?", help="any project (its parent folder holds music/); default: projects root")
+    p.add_argument("--rescan", action="store_true", help="analyse every track again")
+    p.set_defaults(fn=cmd_music_lib)
 
     p = sub.add_parser("mix", help="mix voice + music to the format's loudness")
     p.add_argument("project")

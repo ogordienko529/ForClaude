@@ -129,7 +129,7 @@ def test_mcp_tools_listed():
     names = {t.name for t in asyncio.run(mcp_server.mcp.list_tools())}
     assert names == {"list_projects", "project_status", "new_project", "import_footage", "detect_mods", "catalog",
                      "validate", "run_step", "job_status", "cancel_job", "preview_frame", "read_qa", "doctor",
-                     "propose_options"}
+                     "propose_options", "music_library"}
 
 
 def test_mcp_new_project_validate_and_status(home):

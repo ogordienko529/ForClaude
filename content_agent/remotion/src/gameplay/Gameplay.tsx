@@ -1,5 +1,7 @@
 import '@fontsource/archivo-black/400.css';
 import '@fontsource/bangers/400.css';
+import '@fontsource/inter/600.css';
+import '@fontsource/inter/800.css';
 import '@fontsource/montserrat/800.css';
 import '@fontsource/montserrat/900.css';
 import '@fontsource/orbitron/800.css';
@@ -52,7 +54,8 @@ export type GameplayTimeline = {
   srcWidth: number;
   srcHeight: number;
   progressBar: boolean;
-  style?: string; // meme | boxed | pixel | comic | neon | clean
+  style?: string; // plain | meme | boxed | pixel | comic | neon | clean
+  textCase?: 'upper' | 'as_written';
   clips: Clip[];
   texts: Txt[];
   badges: Badge[];
@@ -62,6 +65,8 @@ type ShortStyle = {font: string; weight: number; accent: string; accent2: string
 
 /** Text and cut styles for Shorts. One per video keeps it consistent; vary between videos or series. */
 export const SHORT_STYLES: Record<string, ShortStyle> = {
+  // the least templated look: what a creator types in the app, no outline, no pop-in
+  plain: {font: '"Inter", sans-serif', weight: 600, accent: '#ffffff', accent2: '#ffffff', cut: 'cut', loads: ['600 80px Inter', '800 80px Inter']},
   meme: {font: '"Montserrat", sans-serif', weight: 900, accent: '#ffd21f', accent2: '#ffffff', cut: 'cut', loads: ['900 80px Montserrat']},
   boxed: {font: '"Archivo Black", sans-serif', weight: 400, accent: '#ffd21f', accent2: '#ff4d6d', cut: 'zoomblur', loads: ['400 80px "Archivo Black"']},
   pixel: {font: '"Pixel Digits", "Pixelify Sans", monospace', weight: 700, accent: '#ffff55', accent2: '#55ff55', cut: 'pixel',
@@ -214,14 +219,15 @@ const parts = (text: string) => {
   }, []);
 };
 
-const TextView: React.FC<{txt: Txt; kind: string}> = ({txt, kind}) => {
+const TextView: React.FC<{txt: Txt; kind: string; upper: boolean}> = ({txt, kind, upper}) => {
   const frame = useCurrentFrame();
   const {width: W, height: H, fps} = useVideoConfig();
   const ss = useShortStyle();
   const st = STYLE[txt.style] || STYLE.caption;
+  const plain = kind === 'plain';
   const pop = spring({frame, fps, config: {damping: 9, stiffness: 240, mass: 0.6}});
-  const scale = interpolate(pop, [0, 1], [0.55, 1]);
-  const jitter = txt.style === 'big' ? 6 * Math.exp(-frame / 6) * Math.sin(frame * 3.1) : 0;
+  const scale = plain ? 1 : interpolate(pop, [0, 1], [0.55, 1]);
+  const jitter = !plain && txt.style === 'big' ? 6 * Math.exp(-frame / 6) * Math.sin(frame * 3.1) : 0;
   const boxW = (SAFE.right - SAFE.left) * W;
   let y = st.y * H;
   let arrow: React.ReactNode = null;
@@ -252,11 +258,11 @@ const TextView: React.FC<{txt: Txt; kind: string}> = ({txt, kind}) => {
     );
   }
   const big = txt.style === 'big';
-  const size = st.size * (({comic: 1.12, neon: 0.86, boxed: 0.82, clean: 0.92, pixel: 1.12} as Record<string, number>)[kind] ?? 1);
+  const size = st.size * (({comic: 1.12, neon: 0.86, boxed: 0.82, clean: 0.92, pixel: 1.12, plain: 0.6} as Record<string, number>)[kind] ?? 1);
   const box: React.CSSProperties = {
     position: 'absolute', left: SAFE.left * W, width: boxW, top: y, textAlign: 'center', lineHeight: 1.08,
-    transform: `translate(${jitter}px, -50%) rotate(${st.tilt}deg) scale(${scale})`, fontFamily: ss.font, fontWeight: ss.weight,
-    fontSize: size, textTransform: 'uppercase', textWrap: 'balance',
+    transform: `translate(${jitter}px, -50%) rotate(${plain ? 0 : st.tilt}deg) scale(${scale})`, fontFamily: ss.font, fontWeight: ss.weight,
+    fontSize: size, textTransform: upper ? 'uppercase' : 'none', textWrap: 'balance',
   };
   let body: React.ReactNode;
   switch (kind) {
@@ -326,6 +332,17 @@ const TextView: React.FC<{txt: Txt; kind: string}> = ({txt, kind}) => {
             padding: '0.14em 0.45em', boxShadow: '0 0.1em 0.3em rgba(0,0,0,0.25)', textTransform: 'none'}}>
             <Words text={txt.text} color={big ? '#111' : ss.accent} />
           </span>
+        </div>
+      );
+      break;
+    case 'plain':
+      body = (
+        <div style={{...box, color: '#fff', lineHeight: 1.18, letterSpacing: '-0.005em',
+          opacity: interpolate(frame, [0, 3], [0, 1], {extrapolateRight: 'clamp'}),
+          textShadow: '0 2px 3px rgba(0,0,0,0.85), 0 0 14px rgba(0,0,0,0.5)'}}>
+          {parts(txt.text).map((x, i) => (
+            <span key={i} style={x.hi ? {fontWeight: 800} : undefined}>{x.w} </span>
+          ))}
         </div>
       );
       break;
@@ -403,7 +420,7 @@ export const Gameplay: React.FC<GameplayTimeline> = (t) => {
       ))}
       {t.texts.map((x, i) => (
         <Sequence key={`t${i}`} from={x.from} durationInFrames={Math.max(x.to - x.from, 1)}>
-          <TextView txt={x} kind={kind} />
+          <TextView txt={x} kind={kind} upper={t.textCase !== 'as_written'} />
         </Sequence>
       ))}
       {t.progressBar ? (

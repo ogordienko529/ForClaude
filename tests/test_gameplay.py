@@ -188,3 +188,37 @@ def test_retention_calm_first_shot_from_footage_analysis(tmp_path):
     calm[0]["in"] = 10.0  # open on the action instead
     msgs = " | ".join(str(i) for i in retention_checks(_redit(tmp_path, calm, drop="s02")))
     assert "calm first shot" not in msgs
+
+
+# ---------------------------------------------------------------- template tells
+def test_template_text_is_flagged(tmp_path):
+    from content_agent.gameplay import template_checks
+
+    segs = [_seg("s01", 3, "WHO BLEW UP MY *HOUSE*?!"), _seg("s02", 4, "STEP 1: *DIG*"), _seg("s03", 4, "Almost done..."),
+            _seg("s04", 4, "DONE!"), _seg("s05", 4, "*KABOOM*"), _seg("s06", 4, "NOOO"),
+            _seg("s07", 4, "2 MINUTES EARLIER..."), _seg("s08", 4, "Rate it now 1-10")]
+    segs[4]["freeze"] = {"dur": 0.8, "text": "WAIT..."}
+    edit = Edit({"title": "t", "music": {"bpm": 120}, "progress_bar": True, "sfx_on_text": "pop", "segments": segs}, tmp_path)
+    msgs = " | ".join(str(i) for i in template_checks(edit))
+    for needle in ("texts in", "'?!'", "'STEP 1/2/3'", "'almost done'", "'DONE!'", "'BOOM / KABOOM'", "'NOOO'",
+                   "'X minutes earlier'", "'rate my X 1-10'", "'WAIT…'", "end with '…'", "progress bar on", "sfx_on_text"):
+        assert needle in msgs, needle
+
+
+def test_human_text_passes(tmp_path):
+    from content_agent.gameplay import template_checks
+
+    segs = [_seg("s01", 3, "he really thought I was out of drones"), _seg("s02", 8), _seg("s03", 8, "one drone left"),
+            _seg("s04", 8), _seg("s05", 6, "ok that was rude")]
+    edit = Edit({"title": "t", "music": {"bpm": 120, "style": "none"}, "game_audio": True, "segments": segs}, tmp_path)
+    assert template_checks(edit) == []
+    edit.data["music"] = {"bpm": 120}  # the generated beat is a tell too
+    assert "generated beat" in " ".join(str(i) for i in template_checks(edit))
+
+
+def test_new_skeleton_defaults_are_not_templated(tmp_path):
+    from content_agent.gameplay import SHORT_STYLES
+
+    assert "plain" in SHORT_STYLES
+    edit = Edit({"title": "t", "style": "plain", "music": {"bpm": 120}, "segments": [_seg("s01", 2, "hi")]}, tmp_path)
+    assert not edit.data.get("progress_bar") and not edit.data.get("sfx_on_text")

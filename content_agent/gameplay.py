@@ -13,12 +13,17 @@ Workflow (driven by Claude Code, see .claude/skills/edit-gameplay/SKILL.md):
 edit.json:
 {
   "title": "I built a house... then TNT",
-  "style": "meme",                      # text + cut style: meme | boxed | pixel | comic | neon | clean
+  "style": "plain",                     # text + cut style: plain | meme | boxed | pixel | comic | neon | clean
+  "text_case": "as_written",            # as_written (default for plain) | upper
   "framing": "crop",                    # crop: fill 9:16 around `focus`; fit: whole frame on a blurred copy
                                         # (a segment can override it, e.g. "fit" for wide shots and timelapses)
-  "music": {"style": "phonk", "bpm": 140, "drop": "s05", "volume_db": -4},
-  "sfx_on_text": "pop",                 # automatic SFX when a text appears (or null)
-  "progress_bar": true,
+  "music": {"track": "apathias.mp3", "drop": "s05", "volume_db": -6},
+                                        # a real track from content_projects/music (tempo and beats come from it);
+                                        # or {"style": "phonk|hype", "bpm": 140} for the generated beat (sounds
+                                        # synthetic: viewers call it AI music)
+  "game_audio": true,                   # the recording's own sound under the music (explosions, shots)
+  "sfx_on_text": null,                  # automatic SFX on every text (off: a pop on every text is a template tell)
+  "progress_bar": false,                # top progress bar (off by default, same reason)
   "segments": [
     {"id": "s01", "src": "footage/raw.mp4", "in": 65.2, "beats": 2, "speed": 1,
      "zoom": 1.15, "zoom_to": 1.5, "focus": [0.45, 0.5], "punch": false, "framing": "fit",
@@ -37,6 +42,7 @@ Times inside a segment (`at`) are output seconds from the segment start.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -53,7 +59,9 @@ FX = ("shake", "flash", "bw")
 MUSIC_STYLES = ("phonk", "hype", "none")
 # Text + cut styles for Shorts (remotion/src/gameplay/Gameplay.tsx SHORT_STYLES)
 SHORT_STYLES = {
-    "meme": "white uppercase with a thick black outline, yellow key word, hard cuts (default)",
+    "plain": "sentence case, plain white text with a soft shadow, no pop-in or outline, hard cuts: reads like the "
+             "creator typed it in the app (least templated)",
+    "meme": "white uppercase with a thick black outline, yellow key word, hard cuts",
     "boxed": "every word on its own coloured box, popping in one by one, zoom-blur cuts",
     "pixel": "pixel font with a hard shadow, in-game tooltip boxes, pixel-dissolve cuts",
     "comic": "speech bubbles and comic-book reaction words, white flash cuts",
@@ -61,6 +69,7 @@ SHORT_STYLES = {
     "clean": "white rounded boxes with dark text, orange key word, whip-pan cuts",
 }
 CUTS = ("cut", "zoomblur", "pixel", "flash", "glitch", "whip")
+TEXT_CASES = ("as_written", "upper")
 
 
 # ---------------------------------------------------------------- footage analysis
@@ -176,8 +185,9 @@ def import_footage(project: Path, videos: list[Path]) -> dict:
         report[f"footage/{dest.name}"] = a
     if not (project / "edit.json").exists() and not (project / "storyboard.json").exists():
         first = next(iter(report))
-        skeleton = {"title": "", "framing": "crop", "music": {"style": "phonk", "bpm": 140, "drop": None},
-                    "sfx_on_text": "pop", "progress_bar": True,
+        skeleton = {"title": "", "style": "plain", "text_case": "as_written", "framing": "crop",
+                    "music": {"style": "phonk", "bpm": 140, "drop": None}, "game_audio": bool(report[first]["has_audio"]),
+                    "sfx_on_text": None, "progress_bar": False,
                     "segments": [{"id": "s01", "src": first, "in": 0.0, "beats": 2, "speed": 1,
                                   "text": {"text": "Hook text", "style": "hook"}}]}
         (project / "edit.json").write_text(json.dumps(skeleton, indent=2) + "\n")
@@ -199,8 +209,25 @@ class Edit:
         return self.data.get("segments", [])
 
     @property
+    def track(self) -> dict | None:
+        """The library entry of music.track (tempo, beats, drops, credits), if the edit uses one."""
+        name = (self.data.get("music") or {}).get("track")
+        if not name:
+            return None
+        from .music_lib import library_dir, load
+
+        lib = library_dir(self.project)
+        entry = load(lib).get(Path(name).name)
+        return {**entry, "path": str(lib / Path(name).name)} if entry else None
+
+    @property
     def bpm(self) -> float:
-        return float((self.data.get("music") or {}).get("bpm", 140))
+        music = self.data.get("music") or {}
+        if music.get("track"):
+            t = self.track
+            if t:
+                return float(t["bpm"])
+        return float(music.get("bpm", 140))
 
     def seg_duration(self, s: dict) -> float:
         """Output seconds of the moving part of a segment (freeze excluded)."""
@@ -229,7 +256,13 @@ def validate_edit(edit: Edit, durations: dict[str, float] | None = None) -> list
     if not segs:
         return [Issue("error", None, "edit.json has no segments")]
     music = edit.data.get("music") or {}
-    if music.get("style", "phonk") not in MUSIC_STYLES:
+    if music.get("track"):
+        if not edit.track:
+            from .music_lib import library_dir
+
+            issues.append(Issue("error", None, f"music.track {music['track']!r} is not in the analysed library "
+                                               f"({library_dir(edit.project)}): add the file and run `music-lib`"))
+    elif music.get("style", "phonk") not in MUSIC_STYLES:
         issues.append(Issue("error", None, f"music.style must be one of {MUSIC_STYLES}"))
     if not 60 <= edit.bpm <= 200:
         issues.append(Issue("error", None, "music.bpm must be 60-200"))
@@ -240,6 +273,8 @@ def validate_edit(edit: Edit, durations: dict[str, float] | None = None) -> list
         issues.append(Issue("error", None, f"style must be one of {tuple(SHORT_STYLES)}"))
     if edit.data.get("framing", "crop") not in ("crop", "fit"):
         issues.append(Issue("error", None, "framing must be crop or fit"))
+    if edit.data.get("text_case", "upper") not in TEXT_CASES:
+        issues.append(Issue("error", None, f"text_case must be one of {TEXT_CASES}"))
     durations = durations or {}
     seen, total = set(), 0.0
     for i, s in enumerate(segs):
@@ -296,10 +331,11 @@ def validate_edit(edit: Edit, durations: dict[str, float] | None = None) -> list
         total += dur + (float(fr.get("dur", 0.8)) if fr else 0)
     if total < 8:
         issues.append(Issue("warning", None, f"only {total:.1f}s total"))
-    try:  # structure advice; a broken edit list already has errors above
-        issues += retention_checks(edit, durations)
-    except (ValueError, TypeError, KeyError, ZeroDivisionError):
-        pass
+    for check in (retention_checks, template_checks):
+        try:  # advice; a broken edit list already has errors above
+            issues += check(edit, durations)
+        except (ValueError, TypeError, KeyError, ZeroDivisionError):
+            pass
     return issues
 
 
@@ -391,9 +427,9 @@ def retention_checks(edit: Edit, durations: dict[str, float] | None = None) -> l
         rehook = any(lo <= m["start"] <= hi and (_texts(m["seg"]) or m["seg"].get("badge") or m["seg"].get("freeze"))
                      for m in marks)
         if not rehook:
-            out.append(Issue("warning", None, f"no re-hook between {lo:.0f}s and {hi:.0f}s: add a text, counter, badge or "
-                                              f"freeze mid-video ('wait for it', 'round 2', '3 left') so the middle "
-                                              f"does not sag"))
+            out.append(Issue("warning", None, f"no re-hook between {lo:.0f}s and {hi:.0f}s: add a text, badge, freeze or "
+                                              f"change mid-video (a counter, a new angle, a sudden silence, a line in your own "
+                                              f"words) so the middle does not sag"))
     for m in marks:
         s = m["seg"]
         texts = _texts(s)
@@ -403,6 +439,78 @@ def retention_checks(edit: Edit, durations: dict[str, float] | None = None) -> l
             if t.get("dur") is not None and float(t["dur"]) < r["min_text_s"]:
                 out.append(Issue("warning", s.get("id"), f"text '{t.get('text', '')[:30]}' shows for {t['dur']}s: "
                                                          f"give it at least {r['min_text_s']} s to be read"))
+    return out
+
+
+# ---------------------------------------------------------------- template tells
+# What viewers call "AI editing": captions that narrate what is already on screen, stock reaction
+# words, the same CapCut typography in every video, generated music. (A viewer wrote exactly this
+# under a Short made with the old defaults: "Ai editing, thats the AI text and also that music is ai".)
+TEMPLATE_PHRASES = [
+    (r"^step\s*\d", "'STEP 1/2/3' captions narrate what the viewer already sees"),
+    (r"^wait\W*$|^wait\s*(\.\.\.|…)|wait (for it|till the end|for the end)", "'WAIT…' / 'wait for it'"),
+    (r"^n+o{2,}\W*$", "'NOOO'"),
+    (r"^(ka)?boo+m\W*$", "'BOOM / KABOOM'"),
+    (r"\b\d+\s*(seconds?|minutes?|mins?|hours?|days?)\s+(earlier|later)\b", "'X minutes earlier'"),
+    (r"^(done|finished|home sweet home)\W*$", "'DONE!'-style labels"),
+    (r"\brate\b.*\b1\s*-\s*10\b", "'rate my X 1-10'"),
+    (r"almost done", "'almost done'"),
+    (r"you won'?t believe|watch (till|until|to) the end|stay (till|until) the end", "watch-to-the-end bait"),
+    (r"\?!|!\?", "'?!'"),
+]
+TEMPLATE = {"text_every_s": 5.0, "min_texts": 3, "max_ellipsis": 1}
+
+
+def _all_texts(edit: Edit) -> list[tuple[str, dict]]:
+    out = []
+    for s in edit.segments:
+        out += [(s.get("id"), t) for t in _texts(s)]
+        fr = s.get("freeze") or {}
+        if fr.get("text"):
+            out.append((s.get("id"), {"text": fr["text"], "style": fr.get("style", "big")}))
+    return out
+
+
+def template_checks(edit: Edit, durations: dict[str, float] | None = None) -> list[Issue]:
+    """Warnings for the tells that make an edit look machine-made."""
+    out: list[Issue] = []
+    texts = _all_texts(edit)
+    _, total = _timeline_marks(edit)
+    limit = max(TEMPLATE["min_texts"], int(total / TEMPLATE["text_every_s"]))
+    if len(texts) > limit:
+        out.append(Issue("warning", None, f"{len(texts)} texts in {total:.0f}s: at most {limit} (one per ~5 s). Keep only "
+                                          f"text that adds what the picture cannot: a stake, a number, your reaction"))
+    for sid, t in texts:
+        raw = t.get("text", "")
+        plain = raw.replace("*", "").strip().lower()
+        for pat, label in TEMPLATE_PHRASES:
+            if re.search(pat, plain):
+                out.append(Issue("warning", sid, f"template text {label}: '{raw[:40]}'. Write what you would say about "
+                                                 f"this moment, or drop the text"))
+                break
+        if raw.count("*") > 2:
+            out.append(Issue("warning", sid, f"more than one highlighted word in '{raw[:40]}': highlight one or none"))
+    ellipsis = sum(t.get("text", "").rstrip().endswith(("...", "…")) for _, t in texts)
+    if ellipsis > TEMPLATE["max_ellipsis"]:
+        out.append(Issue("warning", None, f"{ellipsis} texts end with '…': a trailing ellipsis on every line is a template "
+                                          f"habit"))
+    if edit.data.get("progress_bar"):
+        out.append(Issue("warning", None, "progress bar on: it marks the video as template-made; leave it off"))
+    if edit.data.get("sfx_on_text"):
+        out.append(Issue("warning", None, "sfx_on_text: a pop on every text is a template tell; put SFX on moments"))
+    music = edit.data.get("music") or {}
+    if not music.get("track") and music.get("style", "phonk") != "none":
+        from .music_lib import SOURCES, library_dir, load
+
+        lib = library_dir(edit.project)
+        have = sorted(load(lib))
+        hint = (f"pick one of {have[:6]} as music.track" if have else
+                f"add licensed tracks to {lib} ({'; '.join(SOURCES)}) and run `music-lib`")
+        out.append(Issue("warning", None, f"generated beat: viewers hear it as AI music. {hint}, or use "
+                                          f"\"style\": \"none\" with game_audio"))
+    badges = sum(bool(s.get("badge")) for s in edit.segments)
+    if badges > 1:
+        out.append(Issue("warning", None, f"{badges} speed badges: one at most, or show speed by the footage itself"))
     return out
 
 
@@ -424,7 +532,7 @@ def build(edit: Edit) -> tuple[dict, dict]:
     stops = []
     t = 0.0
     drop_at = None
-    sfx_on_text = d.get("sfx_on_text", "pop")
+    sfx_on_text = d.get("sfx_on_text")
     for s in edit.segments:
         sid = s["id"]
         dur = edit.seg_duration(s)
@@ -482,16 +590,25 @@ def build(edit: Edit) -> tuple[dict, dict]:
         "kind": "gameplay", "title": d.get("title", ""), "fps": FPS, "width": OUT_W, "height": OUT_H,
         "durationInFrames": total, "format": "gameplay", "audio": "audio/mix.wav",
         "framing": d.get("framing", "crop"), "srcWidth": src_info["width"], "srcHeight": src_info["height"],
-        "progressBar": bool(d.get("progress_bar", True)), "style": d.get("style", "meme"),
+        "progressBar": bool(d.get("progress_bar", False)), "style": d.get("style", "meme"),
+        "textCase": d.get("text_case", "as_written" if d.get("style") == "plain" else "upper"),
         "clips": clips, "texts": texts, "badges": badges,
         "scenes": scenes, "showCaptions": False,
         # QA reads these as the on-screen text and checks reading speed
         "captions": [{"from": x["from"], "to": x["to"], "text": x["text"].replace("*", "")} for x in texts],
     }
     music = d.get("music") or {}
+    game_audio = bool(d.get("game_audio", d.get("source_audio", False)))
     plan = {"duration": total / FPS, "bpm": edit.bpm, "style": music.get("style", "phonk"),
-            "volume_db": float(music.get("volume_db", -4)), "drop_at": drop_at, "stops": stops, "sfx": sfx,
-            "source_audio": d.get("source_audio", False), "clips": clips}
+            "volume_db": float(music.get("volume_db", -6 if game_audio else -4)), "drop_at": drop_at, "stops": stops,
+            "sfx": sfx, "source_audio": game_audio, "clips": clips}
+    track = edit.track
+    if track:
+        from .music_lib import place
+
+        plan.update({"style": "track", "track": track["path"],
+                     "track_start": place(track, drop_at, music.get("track_drop"), music.get("start")),
+                     "credit": track})
     return timeline, plan
 
 
@@ -504,7 +621,15 @@ def render_soundtrack(project: Path, plan: dict, out: Path, sr: int = 48_000) ->
 
     n = int(plan["duration"] * sr) + 1
     mix = np.zeros(n, dtype=np.float32)
-    if plan["style"] != "none":
+    if plan["style"] == "track":
+        from .music_lib import credit, track_audio
+
+        music = track_audio(Path(plan["track"]), plan["track_start"], plan["duration"], sr, plan["stops"])
+        peak = float(np.max(np.abs(music))) or 1.0
+        mix[: len(music)] += music / peak * 0.8 * 10 ** (plan["volume_db"] / 20)
+        (project / "out").mkdir(parents=True, exist_ok=True)
+        (project / "out" / "credits.txt").write_text(credit(plan["credit"]) + "\n", encoding="utf-8")
+    elif plan["style"] != "none":
         music = beat_music(plan["duration"], plan["bpm"], plan["style"], plan["drop_at"], plan["stops"], sr)
         mix[: len(music)] += music * 10 ** (plan["volume_db"] / 20)
     if plan.get("source_audio"):

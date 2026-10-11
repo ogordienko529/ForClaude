@@ -202,6 +202,27 @@ def catalog() -> dict[str, Any]:
 
 @mcp.tool()
 @_safe
+def music_library(rescan: bool = False) -> dict[str, Any]:
+    """The user's music library (content_projects/music): each track's length, BPM, drops (s), mood and licence.
+    Use a track as edit.json "music": {"track": "<file>", "drop": "<payoff segment id>"} or storyboard
+    "music": {"track": "<file>"}. Generated beats sound synthetic, so prefer a track or no music with game audio.
+    New or changed files are analysed on the call (a few seconds per track)."""
+    from .music_lib import SOURCES, library_dir, scan
+
+    lib = library_dir()
+    index = scan(lib, rescan=rescan)
+    tracks = [{"file": k, "duration_s": v["duration"], "bpm": v["bpm"], "drops_s": v["drops"],
+               "intro_end_s": v["intro_end"], "mood": v.get("mood", ""), "title": v.get("title", ""),
+               "artist": v.get("artist", ""), "license": v.get("license", "")} for k, v in index.items()]
+    out: dict[str, Any] = {"library": str(lib), "tracks": tracks}
+    if not tracks:
+        out["empty"] = (f"No tracks yet. Ask the user to put licensed music in {lib} ({'; '.join(SOURCES)}) with a "
+                        f"tracks.json for credits. Until then use game audio and no music rather than a generated beat.")
+    return out
+
+
+@mcp.tool()
+@_safe
 def validate(project: str) -> dict[str, Any]:
     """Check storyboard.json (or edit.json for a gameplay Short) without rendering. Fix every error before
     run_step; warnings are worth reading."""

@@ -26,5 +26,11 @@ No own voice. Kokoro (free) for drafts, ElevenLabs for uploads (voice id: ...).
 - Real-war symbols, gore, slurs, clickbait the video does not deliver.
 - Topics already done: see content_projects/.
 
+## Voice
+<!-- How on-screen text and titles should sound. 5-20 lines in your own words beat any rule. -->
+- Language: English, simple. Lowercase on-screen text, like a comment from a friend.
+- Phrases I use: "bro really thought…", "ok that was rude", "not like this", "he had one job".
+- Never: "WAIT…", "NOOO", "KABOOM", "you won't believe", "?!".
+
 ## Style preferences
-Fast pacing. Styles I like: blocky, pixel, comic. Rotate them between videos.
+Fast pacing. Styles I like: plain (Shorts), blocky (long). Rotate between videos.

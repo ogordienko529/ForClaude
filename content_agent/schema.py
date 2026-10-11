@@ -10,7 +10,9 @@ touches that beat.
   "voice": "am_michael",              # Kokoro voice (or blend), or an ElevenLabs voice_id / OpenAI voice
   "voice_engine": "kokoro",           # kokoro (free, local) | elevenlabs | openai | chatterbox
   "voice_options": {},                # engine options, e.g. {"stability": 0.45, "style": 0.3} for ElevenLabs
-  "music": "calm",                    # procedural music: calm | tense | uplifting | hype | phonk | none
+  "music": "calm",                    # calm | tense | uplifting (generated ambient pads) | none, or a real track
+                                      # {"track": "file.mp3", "start": 12.0} from content_projects/music (hype and
+                                      # phonk are generated beats that sound synthetic)
   "palette": "midnight",              # colour theme for the default style (other styles bring their own colours)
   "style": "cosmos",                  # cosmos | paper | blocky | neon | clean | comic (see `content_agent styles`)
   "captions": true,                   # burned-in captions from the narration
@@ -170,8 +172,15 @@ def validate(sb: Storyboard, max_words_per_beat: int = 45, min_words_per_beat: i
         return [Issue("error", None, "storyboard has no beats")]
     if d.get("palette", "midnight") not in PALETTES:
         issues.append(Issue("error", None, f"palette must be one of {PALETTES}"))
-    if d.get("music", "calm") not in MUSIC_MOODS:
-        issues.append(Issue("error", None, f"music must be one of {MUSIC_MOODS}"))
+    music = d.get("music", "calm")
+    if isinstance(music, dict):
+        if not music.get("track"):
+            issues.append(Issue("error", None, 'music as an object needs "track": a file from the music library'))
+    elif music not in MUSIC_MOODS:
+        issues.append(Issue("error", None, f"music must be one of {MUSIC_MOODS} or {{\"track\": \"file.mp3\"}}"))
+    elif music in ("hype", "phonk"):
+        issues.append(Issue("warning", None, f"music '{music}' is a generated beat: viewers hear it as AI music. "
+                                             f"Use {{\"track\": \"file.mp3\"}} from the music library (music-lib)"))
     if d.get("format", "explainer") not in FORMATS:
         issues.append(Issue("error", None, f"format must be one of {FORMATS}"))
     if d.get("style", "cosmos") not in STYLES:

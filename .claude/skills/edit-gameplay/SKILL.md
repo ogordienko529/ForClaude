@@ -71,19 +71,61 @@ density. Treat these warnings as must-fix unless you can say why the edit is bet
 - `focus` is where the action is in the source frame (x, y fractions). In crop mode the 9:16
   window is only 32% of a 16:9 frame wide, so aim it carefully. Use `"framing": "fit"` for wide shots
   and timelapses where the whole frame matters.
-- Text: 1-6 words, uppercase meme style, highlight the key word with `*word*`; styles `hook` (top),
-  `caption` (middle), `big` (reaction words), `label` with `target` (arrow to something).
-  Text never covers the action.
-- SFX: `whoosh` on speed changes/transitions, `riser` before the payoff, `boom` on it, `hit` on a
-  reaction, `ding` on a success, `pop` is added to texts automatically. Not on every cut.
+- Text placement: `hook` (top), `caption` (middle), `big` (a rare reaction), `label` with `target`
+  (an arrow to something). Text never covers the action.
+- SFX on moments, not on every cut or text: `whoosh` on a speed change, `riser` before the payoff,
+  `boom` on it, `hit` on a reaction, `ding` on a success.
 - Effects: `punch` for an instant zoom-in on a cut, `zoom`->`zoom_to` for push-ins/pull-outs,
-  `fx: ["shake", "flash"]` only on impacts, `"bw"` for freeze/"flashback" moments.
+  `fx: ["shake", "flash"]` only on impacts, `"bw"` for a flashback.
+
+## Text: the creator's voice, not captions
+
+Viewers spot "AI editing" from the text first. One wrote, under a Short made with the old
+defaults: "Ai editing, thats the AI text and also that music is ai, do better".
+
+- **Few texts.** At most one per ~5 s, so 3–5 in a 25 s Short. A text exists only if it adds what
+  the picture cannot: a stake ("last drone"), a number ("29 deaths"), a reaction or a joke in the
+  creator's voice ("he really thought I was out of drones").
+- **Never narrate the picture.** "STEP 1: DIG" over digging, "DONE!" over a finished house, "BOOM"
+  over an explosion: the viewer already sees it.
+- **No stock lines.** None of "WAIT…", "NOOO", "KABOOM", "X minutes earlier", "rate my X 1-10",
+  "watch till the end", "?!", a trailing "…" on every line, or more than one highlighted word.
+  `validate` flags all of these.
+- **Write like the channel talks.** Use the "Voice" section of `content_projects/channel.md`: the
+  creator's phrases, slang, language and what they never say. With no voice section, write short
+  and lowercase, like a comment from a friend, not a headline.
+- **Typography that does not shout.** Default to `"style": "plain"` (sentence case, no outline, no
+  pop-in) with `"text_case": "as_written"`. Capitals and outlines are for one word in one moment,
+  not for every line.
+- **Template markers are off by default:** `progress_bar`, `sfx_on_text`, speed badges (one at
+  most).
+## Music and sound
+
+The generated beat (`"style": "phonk" | "hype"`) sounds synthetic, and viewers call it AI music.
+`validate` warns about it.
+- **Use a real track** from the user's library: `music_library` (or `python -m content_agent
+  music-lib`) lists each track's BPM and drops. Then:
+  `"music": {"track": "file.mp3", "drop": "<payoff segment id>"}`.
+  - Beat lengths follow the track's tempo.
+  - The track is placed so its strongest drop lands on the payoff segment. Override with
+    `"track_drop": <s>` or `"start": <s>`.
+  - `out/credits.txt` gets the attribution line for the description.
+- **Use the game's own sound.** `"game_audio": true` puts the recording's sound (shots, explosions,
+  footsteps) under the music. For many Minecraft moments the real sound with quiet music, or no
+  music at all (`"style": "none"`), feels more human than any beat.
+- **Do not reuse a track** that the channel's previous Shorts used. When the library is empty, say
+  so in the report and use game audio rather than the generated beat.
 
 ## Style
 
-`"style"` in edit.json sets the text look and the cut transition. Options are `meme` (outlined
-uppercase, default), `boxed` (words on coloured boxes), `pixel` (pixel font and tooltip boxes),
-`comic` (speech bubbles), `neon` (glow) and `clean` (white boxes). `python -m content_agent styles`
+`"style"` in edit.json sets the text look and the cut transition. Options:
+- `plain`: sentence case, plain text. The default, and the least templated.
+- `meme`: outlined uppercase.
+- `boxed`: words on coloured boxes.
+- `pixel`: pixel font and tooltip boxes.
+- `comic`: speech bubbles.
+- `neon`: glow.
+- `clean`: white boxes. `python -m content_agent styles`
 describes them. Match the video's mood, and rotate styles between videos and series so the channel
 does not look templated (repetitive Shorts are what YouTube demonetises). A segment can override its
 cut with `"transition"` (cut, zoomblur, pixel, flash, glitch, whip). Use that for the payoff or a
