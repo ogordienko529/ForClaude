@@ -258,7 +258,7 @@ const TextView: React.FC<{txt: Txt; kind: string; upper: boolean}> = ({txt, kind
     );
   }
   const big = txt.style === 'big';
-  const size = st.size * (({comic: 1.12, neon: 0.86, boxed: 0.82, clean: 0.92, pixel: 1.12, plain: 0.6} as Record<string, number>)[kind] ?? 1);
+  const size = st.size * (({comic: 1.12, neon: 0.86, boxed: 0.82, clean: 0.92, pixel: 1.12, plain: 0.8} as Record<string, number>)[kind] ?? 1);
   const box: React.CSSProperties = {
     position: 'absolute', left: SAFE.left * W, width: boxW, top: y, textAlign: 'center', lineHeight: 1.08,
     transform: `translate(${jitter}px, -50%) rotate(${plain ? 0 : st.tilt}deg) scale(${scale})`, fontFamily: ss.font, fontWeight: ss.weight,
@@ -339,7 +339,7 @@ const TextView: React.FC<{txt: Txt; kind: string; upper: boolean}> = ({txt, kind
       body = (
         <div style={{...box, color: '#fff', lineHeight: 1.18, letterSpacing: '-0.005em',
           opacity: interpolate(frame, [0, 3], [0, 1], {extrapolateRight: 'clamp'}),
-          textShadow: '0 2px 3px rgba(0,0,0,0.85), 0 0 14px rgba(0,0,0,0.5)'}}>
+          textShadow: '0 3px 4px rgba(0,0,0,0.9), 0 0 18px rgba(0,0,0,0.65), 0 0 3px rgba(0,0,0,0.8)'}}>
           {parts(txt.text).map((x, i) => (
             <span key={i} style={x.hi ? {fontWeight: 800} : undefined}>{x.w} </span>
           ))}
