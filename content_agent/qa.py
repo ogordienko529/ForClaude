@@ -50,8 +50,10 @@ Goal: 70%+ of viewers stay past the first second (Studio: "viewed vs swiped away
 4. Payoff: is the biggest moment in the last third, set up (riser, freeze, silence) and hit hard (drop, shake, boom)?
 5. Ending: does it end within 1-3 s of the payoff on a frame or line that leads back into the hook? No outro.
 6. Length: is every second earned? Breakout Minecraft Shorts run 15-36 s; cut anything that does not escalate.
-7. Clarity and text: readable at phone size, 1-6 words, at most 2 texts at once, never a wall of small labels.
-8. Sound: cuts and hits land on the beat; SFX support the moment instead of cluttering it.
+7. Clarity and text: readable at phone size, few texts, never a wall of small labels.
+8. Sound: cuts land on the beat or on the game's own sounds; SFX support moments, not every cut.
+9. Human, not template: no text that narrates the picture, no stock lines (WAIT..., NOOO, BOOM), no generated
+   beat, and at most 2 devices shared with the channel's previous Short. Would a viewer comment "AI editing"?
 Write findings to review/review.json as
 [{"scene": "s03", "severity": "high|medium|low", "category": "...", "problem": "...", "fix": "..."}]."""
 

@@ -69,17 +69,21 @@ mode, say which one you chose and why in one line, and continue. Do not stop to 
    - Use `catalog` for the exact templates, props, styles and limits. It also has the full
      `storyboard.json` and `edit.json` formats with every field, so you do not need the source code.
    - Pick a visual style that fits the topic, not always the default.
-   - **Shorts must follow the retention structure** (`edit-gameplay` playbook, section 2), and
-     its length is earned, never padded: 20–30 s by default.
-     1. A hook that works as a thumbnail on the first frame, with 2–5 words.
-     2. The stakes, by ~5 s.
-     3. Escalation with a re-hook mid-way.
-     4. The payoff in the last third.
-     5. An end within 1–3 s that loops into the hook.
-5. **Validate.** Call `validate` until `ok` is true. For Shorts, fix every retention warning
-   (length, hook, calm first shot, payoff placement, tail, re-hook, text density) unless you can
-   say why the edit is better without the fix. For other formats, read the warnings and fix the
-   ones that matter.
+   - **Shorts: retention principles, never a recipe** (`edit-gameplay` playbook, section 2).
+     Length is earned: 20–30 s by default.
+     - **Principles:** the first frame sells it; stakes by ~5 s; something new every 2–3 s; the
+       payoff in the last third; a quick end.
+     - **Techniques:** pick 3–5 from the technique bank, not the set the channel's last Shorts used.
+     - **Text:** few lines, in the creator's voice (the Voice section of `channel.md`), never
+       narrating the picture and never stock lines (WAIT…, NOOO, BOOM, STEP 1).
+     - **Music:** a track from `music_library` that the channel has not used yet, or game audio
+       with no music. Never the generated beat when the library has tracks. If the library is
+       empty, say so in the report.
+   - Before the first render, run the playbook's AI-look check (section 4) and fix every "yes".
+5. **Validate.** Call `validate` until `ok` is true.
+   - For Shorts, fix every warning (retention, template tells, sameness with recent edits) unless
+     you can say why the edit is better without the fix.
+   - For other formats, read the warnings and fix the ones that matter.
 6. **Plan gate.** Only when the task says `PLAN FIRST`: stop here and present the plan. The plan
    covers the mode, length, style, the beat or segment list with timings, and the narration hook.
    On approval, continue with step 7.

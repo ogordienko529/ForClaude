@@ -40,16 +40,41 @@ breakout Shorts (YouTube API, 60 days to October 2026) run:
 
 A 58 s Short with a 14 s average view is the typical failure: too long for what happens in it.
 
-| Part | Time (25 s Short) | What happens |
-|---|---|---|
-| **Hook** | 0–1.5 s | The first frame works as a thumbnail: the action, or the payoff itself, already in view. 2–5 words that raise a question or a claim ("1 drone vs 50 zombies", "Wait for it", "Rate my base 1-10"). Text on the first frame. No intro, logo, slow pan or establishing shot. |
-| **Stakes** | by ~5 s | What we are waiting for, or what is at risk, in one short text or a clear shot. |
-| **Escalation** | middle | Every segment raises the stakes: bigger, closer, faster, worse. A pattern break every 2–3 s (cut, zoom, speed change, text, SFX). At 35–65% a **re-hook**: a counter, "round 2", "3 left", a freeze "wait…". Boring stretches at x4–x8 with a speed badge, or cut. |
-| **Payoff** | last third | The biggest moment, set up by a riser, a push-in and a freeze where the music stops. The cut lands on its first frame. Then slow-mo 0.5x, shake + flash, boom, and the drop (`music.drop` = this segment). |
-| **Loop** | last 1–3 s | One reaction beat, then end on a frame or line that leads back into the hook. Examples: "Rate it now 1-10" answers "Rate my base 1-10"; the last shot is the first shot before the action. No outro, no "subscribe" card, no fade to black. |
+**Principles, not a recipe.** Every Short has to satisfy these, but how it does so changes from
+video to video. A channel where every Short has the same freeze, shake, flash and reaction word
+looks like one template, and viewers call it AI.
+- **The first frame sells it.** The action, or the payoff itself, is in view, no intro, logo or
+  slow pan. If there is a text, it says something the picture does not.
+- **Stakes early.** By ~5 s it is clear what we are waiting for or what is at risk.
+- **Something new every 2–3 s.** It must change what the viewer knows, not just add an effect.
+  Around the middle, something re-hooks.
+- **Payoff in the last third**, prepared so it lands: the cut on its first frame.
+- **End quickly** after it, on something that makes the replay feel natural. No outro.
 
-**Opening on the payoff.** You may put the payoff first as the hook, then show "3 minutes
-earlier…" and rebuild to it. In that case the end must deliver a second, bigger payoff or a twist.
+**Technique bank.** Pick 3–5 per Short, and never the same set as the channel's last Shorts.
+`validate` compares with them.
+
+| Technique | What it does |
+|---|---|
+| Open on the payoff, then rebuild | curiosity: how did this happen? |
+| Match cut | the same shape or motion across two moments (a drone dive into an explosion) |
+| Cut on the game's sound | cuts land on shots and explosions instead of a music grid |
+| Music drops out | silence before the hit, with the game sound only (instead of a freeze) |
+| A held shot | 2–3 s without cuts while tension builds (a drone approaching) |
+| Speed ramp | fast to slow on the moment, without a badge |
+| Repeat from another angle | the same hit twice: first-person view, then from outside |
+| Reverse reveal | play a destruction backwards into the build, then forwards |
+| One push-in | a single slow zoom across the whole tension part, no punch-ins |
+| Point of view only | the whole Short from the drone's camera |
+| Counter on screen | the number does the talking: deaths, drones left, seconds |
+| Freeze with no text | the frame says it, no "WAIT…" |
+| Fit framing for scale | the whole wide frame when size matters |
+| Quiet ending | the last 2 s with no text and no music, just the aftermath |
+| Text only once | a single line, at the moment that needs it |
+| A reaction in the creator's words | one line that sounds like the creator, not like a caption |
+
+**Opening on the payoff.** You may put the payoff first as the hook, then rebuild to it. In that
+case the end must deliver a second, bigger payoff or a twist.
 
 **Kill list** (viewers swipe on these):
 - a slow first shot;
@@ -59,9 +84,9 @@ earlier…" and rebuild to it. In that case the end must deliver a second, bigge
 - more than 2 s without a change;
 - anything more than 3 s after the payoff.
 
-`validate` warns about each of these: length, hook segment and text, a calm first shot (from the
-footage analysis), a missing or early payoff, the tail after the payoff, a missing re-hook, and text
-density. Treat these warnings as must-fix unless you can say why the edit is better without the fix.
+`validate` warns about each of these, about template tells (stock lines, generated music, markers)
+and about sameness with the channel's last 3 edits (devices, music track, repeated lines). Treat
+these warnings as must-fix unless you can say why the edit is better without the fix.
 
 ## 3. edit.json rules
 
@@ -132,6 +157,14 @@ cut with `"transition"` (cut, zoomblur, pixel, flash, glitch, whip). Use that fo
 twist only.
 
 ## 4. Review and fix (at least one full round)
+
+**AI-look check, before the first render.** Answer honestly, and fix every "yes":
+1. Does any text describe what is already on screen?
+2. Would the creator really write each line? Read it aloud in their voice.
+3. Is any device here only because it is "what Shorts do": a freeze, a shake, a flash, a reaction
+   word?
+4. Which 3 things are the same as the channel's last Short?
+5. Is the music generated, or a track the channel already used?
 
 After `make`, read `review/qa.md` (pacing, hook, loudness), then open `review/overview.png` and
 `review/sheet_*.png`. Check every segment: is the subject visible in the first frame? Does the

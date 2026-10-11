@@ -331,7 +331,7 @@ def validate_edit(edit: Edit, durations: dict[str, float] | None = None) -> list
         total += dur + (float(fr.get("dur", 0.8)) if fr else 0)
     if total < 8:
         issues.append(Issue("warning", None, f"only {total:.1f}s total"))
-    for check in (retention_checks, template_checks):
+    for check in (retention_checks, template_checks, variety_checks):
         try:  # advice; a broken edit list already has errors above
             issues += check(edit, durations)
         except (ValueError, TypeError, KeyError, ZeroDivisionError):
@@ -511,6 +511,81 @@ def template_checks(edit: Edit, durations: dict[str, float] | None = None) -> li
     badges = sum(bool(s.get("badge")) for s in edit.segments)
     if badges > 1:
         out.append(Issue("warning", None, f"{badges} speed badges: one at most, or show speed by the footage itself"))
+    return out
+
+
+# ---------------------------------------------------------------- variety across the channel
+VARIETY = {"recent": 3, "max_overlap": 0.6}
+
+
+def fingerprint(data: dict) -> set[str]:
+    """The editing choices of an edit list (not its footage): style, music, effects, cuts, devices."""
+    f = {f"style:{data.get('style', 'meme')}", f"case:{data.get('text_case', 'upper')}"}
+    music = data.get("music") or {}
+    f.add(f"music:{music.get('track') or music.get('style', 'phonk')}")
+    if data.get("progress_bar"):
+        f.add("progress_bar")
+    segs = data.get("segments", [])
+    for s in segs:
+        f.update(f"fx:{x}" for x in s.get("fx", []))
+        f.update(f"sfx:{x if isinstance(x, str) else x.get('name')}" for x in s.get("sfx", []))
+        if s.get("transition"):
+            f.add(f"cut:{s['transition']}")
+        if s.get("freeze"):
+            f.add("freeze" + ("_bw" if s["freeze"].get("bw", True) else ""))
+            if s["freeze"].get("text"):
+                f.add("freeze_text")
+        for key in ("badge", "punch"):
+            if s.get(key):
+                f.add(key)
+        if float(s.get("speed", 1)) < 1:
+            f.add("slowmo")
+        if float(s.get("speed", 1)) >= 4:
+            f.add("speedup")
+        for t in _texts(s):
+            f.add(f"text_style:{t.get('style', 'caption')}")
+    drop = music.get("drop")
+    if segs and drop and segs[0].get("id") != drop:
+        d = next((x for x in segs if x.get("id") == drop), None)
+        if d and d.get("src") == segs[0].get("src") and float(segs[0].get("in", 0)) >= float(d.get("in", 0)):
+            f.add("opens_on_payoff")
+    return f
+
+
+def _norm_text(t: str) -> str:
+    return re.sub(r"[^a-z0-9 ]+", "", t.replace("*", "").lower()).strip()
+
+
+def variety_checks(edit: Edit, durations: dict[str, float] | None = None) -> list[Issue]:
+    """Warnings when this edit repeats the channel's recent ones: same devices, same music, same lines."""
+    root = edit.project.parent
+    others = []
+    for p in root.glob("*/edit.json"):
+        if p.parent.resolve() == edit.project.resolve():
+            continue
+        try:
+            others.append((p.stat().st_mtime, p.parent.name, json.loads(p.read_text(encoding="utf-8"))))
+        except (OSError, ValueError):
+            continue
+    others.sort(reverse=True)
+    mine = fingerprint(edit.data)
+    my_texts = {_norm_text(t.get("text", "")) for _, t in _all_texts(edit)} - {""}
+    my_track = (edit.data.get("music") or {}).get("track")
+    out: list[Issue] = []
+    for _, name, data in others[: VARIETY["recent"]]:
+        theirs = fingerprint(data)
+        union = mine | theirs
+        overlap = len(mine & theirs) / len(union) if union else 0
+        if overlap >= VARIETY["max_overlap"]:
+            shared = sorted(mine & theirs)
+            out.append(Issue("warning", None, f"{overlap:.0%} of the editing choices are the same as '{name}' "
+                                              f"({', '.join(shared[:8])}): change the style, the devices or the "
+                                              f"structure so the channel does not look like one template"))
+        if my_track and my_track == (data.get("music") or {}).get("track"):
+            out.append(Issue("warning", None, f"same music track as '{name}': pick another one"))
+        their_texts = {_norm_text(t.get("text", "")) for _, t in _all_texts(Edit(data, root / name))} - {""}
+        for t in sorted(my_texts & their_texts):
+            out.append(Issue("warning", None, f"text '{t}' was already used in '{name}': write a new line"))
     return out
 
 

@@ -222,3 +222,44 @@ def test_new_skeleton_defaults_are_not_templated(tmp_path):
     assert "plain" in SHORT_STYLES
     edit = Edit({"title": "t", "style": "plain", "music": {"bpm": 120}, "segments": [_seg("s01", 2, "hi")]}, tmp_path)
     assert not edit.data.get("progress_bar") and not edit.data.get("sfx_on_text")
+
+
+# ---------------------------------------------------------------- variety across the channel
+def _write_edit(root, name, data, age=0):
+    import os
+    import time
+
+    d = root / name
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "edit.json").write_text(json.dumps(data))
+    if age:
+        t = time.time() - age
+        os.utime(d / "edit.json", (t, t))
+    return d
+
+
+def test_variety_flags_a_copy_of_a_recent_short(tmp_path):
+    from content_agent.gameplay import variety_checks
+
+    base = {"style": "meme", "music": {"track": "a.mp3", "drop": "s02"}, "progress_bar": True,
+            "segments": [{"id": "s01", "src": "footage/x.mp4", "in": 9, "beats": 2, "badge": "x4", "text": {"text": "NOOO"}},
+                         {"id": "s02", "src": "footage/x.mp4", "in": 5, "beats": 4, "fx": ["shake", "flash"],
+                          "freeze": {"dur": 0.8, "text": "wait"}}]}
+    _write_edit(tmp_path, "old_short", base, age=100)
+    me = _write_edit(tmp_path, "new_short", base)
+    msgs = " | ".join(str(i) for i in variety_checks(Edit(base, me)))
+    assert "of the editing choices are the same as 'old_short'" in msgs
+    assert "same music track as 'old_short'" in msgs and "text 'nooo' was already used" in msgs
+
+
+def test_variety_passes_a_different_short(tmp_path):
+    from content_agent.gameplay import variety_checks
+
+    _write_edit(tmp_path, "old_short", {"style": "meme", "music": {"style": "phonk"}, "progress_bar": True,
+                                        "segments": [{"id": "s01", "src": "f.mp4", "beats": 2, "fx": ["shake"],
+                                                      "badge": "x8", "freeze": {"dur": 1}, "text": {"text": "NOOO"}}]})
+    new = {"style": "plain", "text_case": "as_written", "music": {"track": "b.mp3"},
+           "segments": [{"id": "s01", "src": "f.mp4", "beats": 4, "speed": 0.5, "text": {"text": "he had one job"}},
+                        {"id": "s02", "src": "f.mp4", "beats": 8, "transition": "whip"}]}
+    me = _write_edit(tmp_path, "new_short", new)
+    assert variety_checks(Edit(new, me)) == []
