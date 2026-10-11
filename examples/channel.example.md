@@ -1,5 +1,7 @@
 # Channel profile
 
+Channel: https://www.youtube.com/@yourhandle
+
 <!-- Copy to content_projects/channel.md and edit. The agent reads it before proposing ideas
      (content-agent ideas) and keeps your channel consistent. Short answers are enough. -->
 

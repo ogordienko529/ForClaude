@@ -825,6 +825,32 @@ class NicheService:
         )
         return result
 
+    def channel_audit(self, channel: str, max_videos: int = 100, comment_videos: int = 15, export: bool = False,
+                      dry_run: bool = False, max_units: int | None = None) -> dict[str, Any]:
+        """A channel's own history: month by month, top vs bottom, title features, length, viewer comments."""
+        from . import channel_audit as ca
+
+        est = ca.estimate(max_videos, comment_videos)
+        result: dict[str, Any] = {"tool": "channel_audit", "channel": channel, "quota_estimate": {"total": est}}
+        if dry_run:
+            result["quota"] = self.receipt(est, self.quota.session_units, "dry run: nothing spent").to_dict()
+            return result
+        self._check_budget(est, max_units)
+        start = self.quota.session_units
+        report = ca.run(self.client, channel, max_videos=max_videos, comment_videos=comment_videos, now=self.clock())
+        md = ca.to_markdown(report)
+        result.update({"report": report, "markdown": md})
+        if export:
+            import json as _json
+
+            out = self.config.reports_dir / f"channel_{report['channel']['id']}.md"
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text(md, encoding="utf-8")
+            out.with_suffix(".json").write_text(_json.dumps(report, indent=1, ensure_ascii=False), encoding="utf-8")
+            result["exported_to"] = str(out)
+        result["quota"] = self.receipt(est, start).to_dict()
+        return result
+
     def quota_status(self) -> dict[str, Any]:
         return {"tool": "quota_status", **self.quota.status()}
 

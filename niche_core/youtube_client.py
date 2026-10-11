@@ -157,6 +157,67 @@ class YouTubeClient:
             items.extend(data.get("items", []))
         return items
 
+    def channel_details(self, channel_id: str | None = None, handle: str | None = None) -> dict | None:
+        """channels.list by id or @handle with the uploads playlist (1 unit)."""
+        params = {"part": "snippet,statistics,contentDetails",
+                  "fields": "items(id,snippet(title,publishedAt,customUrl,country),statistics,"
+                            "contentDetails/relatedPlaylists/uploads)"}
+        if channel_id:
+            params["id"] = channel_id
+        elif handle:
+            params["forHandle"] = handle if handle.startswith("@") else f"@{handle}"
+        else:
+            raise ValueError("channel_id or handle is required")
+        items = self._get("channels", params).get("items", [])
+        return items[0] if items else None
+
+    def playlist_video_ids(self, playlist_id: str, max_items: int = 100) -> list[str]:
+        """playlistItems.list, newest first, 50 per page (1 unit per page)."""
+        ids: list[str] = []
+        token = None
+        while len(ids) < max_items:
+            params = {"part": "contentDetails", "playlistId": playlist_id, "maxResults": MAX_RESULTS_PER_PAGE,
+                      "fields": "nextPageToken,items(contentDetails/videoId)"}
+            if token:
+                params["pageToken"] = token
+            data = self._get("playlistItems", params)
+            ids += [i["contentDetails"]["videoId"] for i in data.get("items", [])]
+            token = data.get("nextPageToken")
+            if not token:
+                break
+        return ids[:max_items]
+
+    def comment_threads(self, video_id: str, max_results: int = 50, order: str = "relevance") -> list[dict]:
+        """Top-level comments of a video (1 unit). Videos with comments turned off return []."""
+        try:
+            data = self._get("commentThreads", {
+                "part": "snippet", "videoId": video_id, "maxResults": min(max_results, 100), "order": order,
+                "textFormat": "plainText",
+                "fields": "items(snippet/topLevelComment/snippet(authorDisplayName,authorChannelId,textDisplay,"
+                          "likeCount,publishedAt))"})
+        except YouTubeAPIError as exc:
+            if exc.reason in ("commentsDisabled", "videoNotFound", "forbidden"):
+                return []
+            raise
+        out = []
+        for it in data.get("items", []):
+            c = it["snippet"]["topLevelComment"]["snippet"]
+            out.append({"author": c.get("authorDisplayName", ""),
+                        "author_channel": (c.get("authorChannelId") or {}).get("value", ""),
+                        "text": c.get("textDisplay", ""), "likes": int(c.get("likeCount", 0)),
+                        "published_at": c.get("publishedAt", "")})
+        return out
+
+    def list_videos_full(self, ids: list[str]) -> list[dict]:
+        """videos.list with descriptions (for credits and hashtags), batched 50 per call (1 unit each)."""
+        items: list[dict] = []
+        for chunk in _chunks(list(dict.fromkeys(ids)), IDS_PER_CALL):
+            data = self._get("videos", {
+                "part": "snippet,contentDetails,statistics", "id": ",".join(chunk), "maxResults": IDS_PER_CALL,
+                "fields": "items(id,snippet(publishedAt,title,description,tags),contentDetails(duration),statistics)"})
+            items.extend(data.get("items", []))
+        return items
+
     # ------------------------------------------------------------------ internals
     def _get(self, endpoint: str, params: dict[str, Any]) -> dict:
         cost = COSTS[endpoint]

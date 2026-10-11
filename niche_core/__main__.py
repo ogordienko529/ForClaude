@@ -54,6 +54,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--table", action="store_true", help="print a readable table instead of JSON")
     _add_budget_args(p)
 
+    p = sub.add_parser("channel", help="channel_audit: a channel's history, what worked, viewer comments")
+    p.add_argument("channel", help="channel id (UC...), @handle, or a youtube / studio URL")
+    p.add_argument("--videos", type=int, default=100, help="last N uploads (default 100)")
+    p.add_argument("--comment-videos", type=int, default=15, help="videos whose comments are read (default 15)")
+    p.add_argument("--export", action="store_true", help="also write reports/channel_<id>.md and .json")
+    p.add_argument("--json", action="store_true", help="print the full JSON instead of the report")
+    _add_budget_args(p)
+
     p = sub.add_parser("analyze", help="analyze_niche: scored niche report")
     _add_search_args(p)
     p.add_argument("--days", type=int, default=None)
@@ -223,6 +231,12 @@ def main(argv: list[str] | None = None) -> int:
                 ),
                 args,
             )
+        elif args.command == "channel":
+            out = _run_paid(
+                svc.channel_audit,
+                dict(channel=args.channel, max_videos=args.videos, comment_videos=args.comment_videos, export=args.export),
+                args,
+            )
         elif args.command == "analyze":
             out = _run_paid(
                 svc.analyze_niche,
@@ -289,6 +303,10 @@ def main(argv: list[str] | None = None) -> int:
         for s in out["suggestions"]:
             print(f"  {s['score']:>6.1f}  {s['query']:<40} channels={s['channels']:<3} {'/'.join(s['sources']):<9} "
                   f"e.g. {s['example_titles'][0][:60]}")
+    elif args.command == "channel" and not args.json and "markdown" in out:
+        print(out["markdown"])
+        if out.get("exported_to"):
+            print(f"Exported to {out['exported_to']}", file=sys.stderr)
     elif args.command == "analyze" and not args.json and "summary_markdown" in out:
         print(out["summary_markdown"])
         if out.get("exported_to"):

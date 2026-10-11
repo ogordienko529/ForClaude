@@ -48,6 +48,7 @@ python -m niche_core analyze "history documentary" -f long --export # scored rep
 python -m niche_core expand "history documentary" -f long           # sub-niche ideas, 0 units if cached
 python -m niche_core compare "aviation history" "cold war history" "mythology explained" -f long
 python -m niche_core channels UCxxxxxxxxxxxxxxxxxxxxxx              # channel stats
+python -m niche_core channel @yourhandle --export                   # audit your channel: what worked, comments (~20 units)
 python -m niche_core purge                                          # delete cached data older than retention
 python -m niche_core backtest -f shorts --set all                   # calibration report (offline from cache)
 ```
@@ -289,6 +290,23 @@ python -m content_agent agent "Why did Concorde stop flying?" --plan    # stop a
 python -m content_agent agent --resume "OK, render it"                  # answer it / continue the last run
 python -m content_agent agent -i --project war_mod                      # chat with it in Claude Code instead
 ```
+
+**Not looking like AI.** A viewer commented "Ai editing, thats the AI text and also that music is
+ai" under a Short made with the old defaults, so the defaults changed:
+- **Text.** `validate` flags stock lines ("WAIT…", "NOOO", "STEP 1", "X minutes earlier",
+  "rate my X 1-10"), more than one text per ~5 s, and template markers (progress bar, a pop on every
+  text, speed badges). The default `plain` style writes sentence case with no outline. Text is
+  written in the channel's voice (the Voice section of `channel.md`).
+- **Music.** Put licensed tracks in `content_projects/music/` (Pixabay Music, YouTube Audio Library,
+  CC-BY), with a `tracks.json` for credits. `python -m content_agent music-lib` analyses tempo,
+  beats and drops. Shorts cut on the track's beat with its drop on the payoff, and
+  `out/credits.txt` gets the attribution. `"game_audio": true` keeps the recording's own sound.
+  The generated beat now draws a warning.
+- **Variety.** `validate` compares each Short with the channel's last 3 edits: shared devices,
+  the same track, repeated lines. The playbook gives principles and a technique bank instead of
+  one recipe.
+- **Learning from the channel.** `python -m niche_core channel @handle` audits the user's own
+  channel; the agent reads the audit before proposing ideas.
 
 **Options before production.** The agent can propose instead of produce:
 - **Ideas.** `python -m content_agent ideas "minecraft mods"` gives 4 video ideas, then stops.

@@ -186,6 +186,23 @@ def quota_status() -> dict[str, Any]:
     return service().quota_status()
 
 
+@mcp.tool()
+@_safe
+def channel_audit(channel: str, max_videos: int = 100, comment_videos: int = 15, dry_run: bool = False,
+                  max_units: int | None = None) -> dict[str, Any]:
+    """Audit a channel from its public data (~20 units for 100 videos): month-by-month uploads, median views and
+    likes/comments per 1k views, top and bottom videos, which title features the top quarter has, Shorts length vs
+    views, and what viewers say (AI, clickbait, questions, requests). channel: id (UC...), @handle or any channel
+    or YouTube Studio URL. Saves reports/channel_<id>.md; use it before proposing ideas for that channel."""
+    out = service().channel_audit(channel, max_videos=max_videos, comment_videos=comment_videos, export=True,
+                                  dry_run=dry_run, max_units=max_units)
+    if dry_run:
+        return out
+    r = out["report"]
+    return {"markdown": out["markdown"], "exported_to": out.get("exported_to"), "quota": out.get("quota"),
+            "channel": r["channel"], "analysed": r["analysed"]}
+
+
 def main() -> None:
     mcp.run("stdio")
 

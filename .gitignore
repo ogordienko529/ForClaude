@@ -11,3 +11,4 @@ reports/*.log
 voice_samples/
 *.npy
 content_projects/
+reports/*.json

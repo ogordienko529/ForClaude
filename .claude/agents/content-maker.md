@@ -174,9 +174,20 @@ image file.
 2. Diagnose with the table in the `edit-gameplay` playbook (section 5).
 3. If the footage is there, re-edit the video with the fix rather than only describing it.
 
-**When proposing ideas or variants.** Read the `analytics.md` files of past projects first
-(Glob `content_projects/*/analytics.md`). Prefer what worked on this channel, and say what you
-learned from it.
+**Know the channel.** If `channel.md` names the user's channel, look for its audit,
+`reports/channel_<id>.md`.
+- If the audit is missing or older than two weeks, run `channel_audit` (youtube-niche tools,
+  ~20 quota units) on the channel.
+- The audit shows what worked, the month-by-month changes, the title features of the top quarter,
+  who the audience is (their comments) and what viewers complain about: "AI", clickbait, music.
+- Use it to fill or correct `channel.md`: the audience, what works, the Voice section, what to
+  avoid.
+- Never make a video that repeats a complaint the audit found.
+
+**When proposing ideas or variants.** Read the audit and the `analytics.md` files of past projects
+first (Glob `content_projects/*/analytics.md`). Prefer what worked on this channel, and say what
+you learned from it. If the new topic does not match the audience in the audit, say so plainly
+and propose a bridge: the new topic in a format that worked before.
 
 ## 5. When you are blocked
 

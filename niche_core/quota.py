@@ -15,6 +15,8 @@ COSTS = {
     "search": 100,
     "videos": 1,
     "channels": 1,
+    "playlistItems": 1,
+    "commentThreads": 1,
 }
 IDS_PER_CALL = 50
 MAX_RESULTS_PER_PAGE = 50
