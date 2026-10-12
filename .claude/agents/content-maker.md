@@ -18,7 +18,8 @@ in **English** unless the user says otherwise.
 | Input | Mode | Playbook to read first |
 |---|---|---|
 | A topic or question, no footage | narrated animated explainer (16:9) | `.claude/skills/make-video/SKILL.md` |
-| Gameplay recording and "fast", "Short", "dynamic edit", or no voice wanted | fast vertical Short, no voice (9:16) | `.claude/skills/edit-gameplay/SKILL.md` |
+| Gameplay recording and "fast", "Short", "dynamic edit", or no voice wanted | fast vertical Short, no voice (9:16): one moment, 15–30 s | `.claude/skills/edit-gameplay/SKILL.md` |
+| News, a tour, a test or "explained" about a game update or mod, vertical | narrated Short (`--format shorts`, 9:16): 45–90 s, up to 3 min | `.claude/skills/make-video/SKILL.md` (visuals from footage) |
 | Recording of mods, a modpack, a build or a defense, with voice-over | narrated review / showcase (16:9) | `.claude/skills/review-video/SKILL.md` |
 | Recording + shooting script (scenario.md) | review mode, edited to the script's scenes | `.claude/skills/review-video/SKILL.md` |
 
@@ -63,6 +64,10 @@ mode, say which one you chose and why in one line, and continue. Do not stop to 
    - Put facts with their URLs into `research.md`.
    - Never invent stats, versions, authors or numbers. If something cannot be verified, leave it out
      or phrase it as an observation from the footage.
+   - A fan-made mod of an announced feature is not the feature: say "in this mod" for anything the
+     mod does, and check the official reveal before stating what the real thing does. A viewer who
+     knows the lore will correct a wrong claim in the comments, and the audit shows this channel
+     already gets "misinformation" comments.
 4. **Script.**
    - Write `storyboard.json` (explainer/review) or `edit.json` (Short) with your file tools,
      following the playbook.
@@ -145,6 +150,10 @@ You present 2–6 options, save them with `propose_options`, and stop. The user 
 
 Read `channel.md` in the projects folder when it exists: it has the niche, audience and what the
 user can record. Check `list_projects` so you do not repeat a video already made.
+
+**Timing beats polish.** When a game reveal, update or new mod is less than ~2 weeks old, the
+first good video wins: propose it first, keep it short to make, and name the thing in the title the
+way people search for it. Say in the pitch how old the wave is (from the outliers' ages).
 
 **Evidence (never invented).**
 - Ground every `why` in data:

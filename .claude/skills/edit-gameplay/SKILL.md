@@ -40,6 +40,18 @@ breakout Shorts (YouTube API, 60 days to October 2026) run:
 
 A 58 s Short with a 14 s average view is the typical failure: too long for what happens in it.
 
+**Length depends on the kind of Short.** The numbers above are for *moment* Shorts (one clip,
+one payoff, no voice). *News and explainer* Shorts ("Minecraft's new dimension explained", "I got
+the new armour", "someone already added X") are a different animal: in the Sift wave (October
+2026, small channels under 50k) the breakouts ran 36–157 s, median ~60 s, with narration, and a
+14–16 s silent clip on the same topic did ~1k. Reasons: the viewer came for information, and a
+long, narrated Short gets more watch time per view. So:
+- a moment from gameplay → this playbook, 15–30 s, no voice;
+- news, a tour, a test, "explained" → the narrated `shorts` format (`new <slug> --format shorts`,
+  the `make-video` playbook) at 45–90 s, up to 3 min when every sentence adds something.
+Name the thing in the title the way people search for it ("Sift", "Siftite", "Blub"), not a
+paraphrase ("new dimension", "cutest mob").
+
 **Principles, not a recipe.** Every Short has to satisfy these, but how it does so changes from
 video to video. A channel where every Short has the same freeze, shake, flash and reaction word
 looks like one template, and viewers call it AI.
