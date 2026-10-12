@@ -30,7 +30,9 @@ questions ("не запитуй, а роби").
   - Music comes from `content_projects/music/` (analyse with `python -m content_agent music-lib`).
     The generated beat draws warnings, as do stock text lines and edits that copy the channel's
     recent ones.
-  - `python -m niche_core channel @handle --export` audits the user's channel.
+  - `python -m niche_core channel @handle --export` audits the user's channel;
+    `python -m niche_core scan @examples/seeds/minecraft.txt --export` finds tiny channels'
+    breakouts of the last 14 days (run daily; cached searches are free).
 - **Hand over a whole video:** when the user asks for one, delegate it to the `content-maker`
   subagent (or run the command above).
 - **Machine checks:** `python -m content_agent doctor`. One-time setup:

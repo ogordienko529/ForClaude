@@ -158,8 +158,12 @@ way people search for it. Say in the pitch how old the wave is (from the outlier
 **Evidence (never invented).**
 - Ground every `why` in data:
   - Use the `youtube-niche` tools when they are available. Call `quota_status` first and
-    `dry_run=true` when unsure. Prefer one `compare_niches` over 3–6 candidate niches, or
-    `find_outliers` on the best one. Stay under ~1,500 quota units per proposal.
+    `dry_run=true` when unsure. Start with `scan_breakouts` (the last 14 days, channels under
+    1,000 subscribers, 100k+ views; cached for a day, so read `reports/scan_shorts.md` first) to
+    see where tiny channels are winning right now; then `compare_niches` over 3–6 candidates or
+    `find_outliers` on the best one. A channel with 2+ breakouts in the scan is a model: audit it
+    with `channel_audit` and copy its format, not its videos. Stay under ~2,500 quota units per
+    proposal.
   - Without them, use web search for recent breakout videos: views, channel size, date.
 - Name example videos with their numbers and links in `sources`.
 - Label estimates (RPM, views) as estimates.

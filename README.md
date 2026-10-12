@@ -49,6 +49,7 @@ python -m niche_core expand "history documentary" -f long           # sub-niche 
 python -m niche_core compare "aviation history" "cold war history" "mythology explained" -f long
 python -m niche_core channels UCxxxxxxxxxxxxxxxxxxxxxx              # channel stats
 python -m niche_core channel @yourhandle --export                   # audit your channel: what worked, comments (~20 units)
+python -m niche_core scan @examples/seeds/minecraft.txt --export   # tiny channels (<=1k subs) with 100k+ views in 14 days (~100 units/query)
 python -m niche_core purge                                          # delete cached data older than retention
 python -m niche_core backtest -f shorts --set all                   # calibration report (offline from cache)
 ```
@@ -305,8 +306,9 @@ ai" under a Short made with the old defaults, so the defaults changed:
 - **Variety.** `validate` compares each Short with the channel's last 3 edits: shared devices,
   the same track, repeated lines. The playbook gives principles and a technique bank instead of
   one recipe.
-- **Learning from the channel.** `python -m niche_core channel @handle` audits the user's own
-  channel; the agent reads the audit before proposing ideas.
+- **Learning from the channel and from winners.** `python -m niche_core channel @handle` audits
+  the user's own channel; `python -m niche_core scan` finds where tiny channels got big views in
+  the last two weeks. The agent reads both before proposing ideas.
 
 **Options before production.** The agent can propose instead of produce:
 - **Ideas.** `python -m content_agent ideas "minecraft mods"` gives 4 video ideas, then stops.
