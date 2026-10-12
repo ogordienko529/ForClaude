@@ -1,10 +1,10 @@
-# Minecraft Shorts: sub-genres to scan daily (one query per line)
+# Minecraft Shorts: sub-genres to scan daily (one query per line).
+# Spin-offs are a different game: Minecraft Dungeons 2 lives in gaming.txt.
 minecraft
 minecraft mod
 minecraft update
 minecraft sift
 minecraft new dimension
-minecraft dungeons 2
 minecraft animation
 minecraft meme
 minecraft horror
@@ -21,3 +21,6 @@ minecraft redstone
 minecraft smp
 minecraft mobs
 minecraft myth
+minecraft challenge
+minecraft texture pack
+minecraft pvp mods
