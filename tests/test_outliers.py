@@ -126,3 +126,23 @@ def test_analyze_niche_end_to_end(service, fake, tmp_path):
     assert "Niche report" in out["summary_markdown"]
     assert out["exported_to"].endswith(".md")
     assert 0 < out["quota"]["actual"] <= out["quota"]["estimated"]
+
+
+# ---------------------------------------------------------------- breakout scan
+def test_scan_merges_queries_and_groups(service, tmp_path):
+    from niche_core import scan
+
+    seeds_file = tmp_path / "seeds.txt"
+    seeds_file.write_text("# comment\nlighthouse lore\n\nlighthouse lore  # dup\nsea shanty\n")
+    seeds = scan.read_seeds([f"@{seeds_file}", "lighthouse lore"])
+    assert seeds == ["lighthouse lore", "sea shanty"]
+    r = scan.run(service, seeds, fmt="shorts", days=14, max_subs=100_000, min_views=1)
+    assert r["per_query"].keys() == {"lighthouse lore", "sea shanty"}
+    ids = [v["video_id"] for v in r["videos"]]
+    assert ids == sorted(set(ids), key=lambda i: -next(v["views"] for v in r["videos"] if v["video_id"] == i))
+    assert all(len(v["queries"]) >= 1 for v in r["videos"])
+    md = scan.to_markdown(r)
+    assert "# Breakout scan: shorts, last 14 days" in md and "## Top 40 videos" in md
+    out = service.scan_breakouts(seeds, max_channel_subs=100_000, min_views=1, export=True)
+    assert out["exported_to"].endswith("scan_shorts.md") and out["quota"]["actual"] == 0  # second run: all cached
+    assert service.scan_breakouts(["x"], dry_run=True)["quota"]["actual"] == 0

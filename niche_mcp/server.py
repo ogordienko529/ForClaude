@@ -203,6 +203,24 @@ def channel_audit(channel: str, max_videos: int = 100, comment_videos: int = 15,
             "channel": r["channel"], "analysed": r["analysed"]}
 
 
+@mcp.tool()
+@_safe
+def scan_breakouts(seeds: list[str] | None = None, format: Format = "shorts", published_within_days: int = 14,
+                   max_channel_subs: int = 1000, min_views: int = 100000, dry_run: bool = False,
+                   max_units: int | None = None) -> dict[str, Any]:
+    """Where tiny channels got big views lately: runs find_outliers for every seed query, keeps videos from channels
+    at or under max_channel_subs with at least min_views, and groups them by query, channel and length. ~100 units
+    per query for shorts (cached 24 h). seeds: queries (default: a 20-query Minecraft list). Saves reports/scan_<format>.md.
+    Use it before proposing ideas: a channel with 2+ breakouts is worth auditing with channel_audit."""
+    out = service().scan_breakouts(seeds, format=format, published_within_days=published_within_days,
+                                   max_channel_subs=max_channel_subs, min_views=min_views, export=True,
+                                   dry_run=dry_run, max_units=max_units)
+    if dry_run:
+        return out
+    return {"markdown": out["markdown"], "exported_to": out.get("exported_to"), "quota": out.get("quota"),
+            "videos": len(out["videos"]), "channels": out["channels"][:15], "per_query": out["per_query"]}
+
+
 def main() -> None:
     mcp.run("stdio")
 

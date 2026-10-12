@@ -6,7 +6,7 @@ from niche_mcp import server
 def test_all_tools_registered():
     names = {t.name for t in asyncio.run(server.mcp.list_tools())}
     assert names == {"search_niche", "get_channel_stats", "find_outliers", "analyze_niche",
-                     "compare_niches", "expand_keywords", "quota_status", "channel_audit"}
+                     "compare_niches", "expand_keywords", "quota_status", "channel_audit", "scan_breakouts"}
 
 
 def test_tools_return_structured_errors(monkeypatch, service):

@@ -851,6 +851,35 @@ class NicheService:
         result["quota"] = self.receipt(est, start).to_dict()
         return result
 
+    def scan_breakouts(self, seeds: list[str] | None = None, format: str = "shorts", published_within_days: int = 14,
+                       max_channel_subs: int = 1000, min_views: int = 100_000, export: bool = False,
+                       dry_run: bool = False, max_units: int | None = None, log=None) -> dict[str, Any]:
+        """Breakouts from tiny channels across many queries: the daily feed of where small channels win."""
+        from . import scan as sc
+
+        seeds = sc.read_seeds(seeds)
+        fmt = validate_format(format)
+        days, n = self._window(published_within_days, None)
+        est = sum(self.estimate_collect(self.make_specs(q, fmt, days, n, "viewCount", None, None), with_channels=True)["total"]
+                  for q in seeds)
+        if dry_run:
+            return {"tool": "scan", "seeds": seeds, "quota_estimate": {"total": est},
+                    "quota": self.receipt(est, self.quota.session_units, "dry run: nothing spent").to_dict()}
+        self._check_budget(est, max_units)
+        result = sc.run(self, seeds, fmt=fmt, days=days, max_subs=max_channel_subs, min_views=min_views,
+                        max_units=max_units, log=log)
+        result["markdown"] = sc.to_markdown(result)
+        if export:
+            import json as _json
+
+            out = self.config.reports_dir / f"scan_{fmt}.md"
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text(result["markdown"], encoding="utf-8")
+            out.with_suffix(".json").write_text(_json.dumps({k: v for k, v in result.items() if k != "markdown"},
+                                                            indent=1, ensure_ascii=False), encoding="utf-8")
+            result["exported_to"] = str(out)
+        return result
+
     def quota_status(self) -> dict[str, Any]:
         return {"tool": "quota_status", **self.quota.status()}
 

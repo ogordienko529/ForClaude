@@ -62,6 +62,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--json", action="store_true", help="print the full JSON instead of the report")
     _add_budget_args(p)
 
+    p = sub.add_parser("scan", help="breakout scan: tiny channels with big views lately, across many queries")
+    p.add_argument("seeds", nargs="*", help="queries, or @file with one per line (default: a Minecraft list)")
+    p.add_argument("--format", "-f", choices=FORMATS, default="shorts")
+    p.add_argument("--days", type=int, default=14)
+    p.add_argument("--max-subs", type=int, default=1000, help="channel size ceiling (default 1000)")
+    p.add_argument("--min-views", type=int, default=100_000, help="views floor (default 100k)")
+    p.add_argument("--export", action="store_true", help="write reports/scan_<format>.md and .json")
+    p.add_argument("--json", action="store_true")
+    _add_budget_args(p)
+
     p = sub.add_parser("analyze", help="analyze_niche: scored niche report")
     _add_search_args(p)
     p.add_argument("--days", type=int, default=None)
@@ -231,6 +241,14 @@ def main(argv: list[str] | None = None) -> int:
                 ),
                 args,
             )
+        elif args.command == "scan":
+            out = _run_paid(
+                svc.scan_breakouts,
+                dict(seeds=args.seeds or None, format=args.format, published_within_days=args.days,
+                     max_channel_subs=args.max_subs, min_views=args.min_views, export=args.export,
+                     log=lambda m: print(m, file=sys.stderr)),
+                args,
+            )
         elif args.command == "channel":
             out = _run_paid(
                 svc.channel_audit,
@@ -303,7 +321,7 @@ def main(argv: list[str] | None = None) -> int:
         for s in out["suggestions"]:
             print(f"  {s['score']:>6.1f}  {s['query']:<40} channels={s['channels']:<3} {'/'.join(s['sources']):<9} "
                   f"e.g. {s['example_titles'][0][:60]}")
-    elif args.command == "channel" and not args.json and "markdown" in out:
+    elif args.command in ("channel", "scan") and not args.json and "markdown" in out:
         print(out["markdown"])
         if out.get("exported_to"):
             print(f"Exported to {out['exported_to']}", file=sys.stderr)
