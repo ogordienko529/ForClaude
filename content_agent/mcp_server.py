@@ -40,7 +40,9 @@ Flow: project_status / list_projects -> new_project or import_footage -> write s
 run_step make (poll job_status while it renders) -> read the QA report and Read the overview and
 contact sheet PNGs -> fix by scene id -> run_step again. catalog lists templates, styles, palettes
 and music. preview_frame shows one frame of a scene without a full render. When asked for ideas or
-variants, save them with propose_options and stop: the user picks one before anything is produced."""
+variants, save them with propose_options and stop: the user picks one before anything is produced.
+Own voice: write the storyboard, call narration_lines, ask the user to record lines.md as
+voice/narration.m4a, set "voice_engine": "recording" and run make: the file is split on the pauses."""
 
 mcp = _Server("content-agent", instructions=INSTRUCTIONS)
 JOBS = JobManager()
@@ -234,6 +236,25 @@ def validate(project: str) -> dict[str, Any]:
             "errors": [ln for ln in lines if ln.startswith("ERROR")],
             "warnings": [ln for ln in lines if ln.startswith("WARNING")],
             "output": "\n".join(lines[-80:]) if r.returncode and not any(ln.startswith("ERROR") for ln in lines) else ""}
+
+
+@mcp.tool()
+@_safe
+def narration_lines(project: str) -> dict[str, Any]:
+    """Write <project>/lines.md: the storyboard's narration as numbered lines for the creator to record in
+    their own voice, with the recording rules (one take, 2-second pauses, retake = read the line again).
+    Then stop and ask the user to record it as voice/narration.m4a; with "voice_engine": "recording" the
+    voice step splits the file on the pauses and matches the lines to the beats."""
+    from .recording import write_lines
+
+    p = st.resolve(project)
+    sb = json.loads((p / "storyboard.json").read_text(encoding="utf-8"))
+    out = write_lines(sb, p / "lines.md")
+    words = sum(len((b.get("narration") or "").split()) for b in sb.get("beats", []))
+    return {"lines_md": str(out), "lines": len(sb.get("beats", [])), "words": words,
+            "speech_minutes": round(words / 150, 1), "record_to": str(p / "voice" / "narration.m4a"),
+            "then": 'set "voice_engine": "recording" and "voice_recording": "voice/narration.m4a" in storyboard.json, '
+                    'validate, run_step make'}
 
 
 @mcp.tool()

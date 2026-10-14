@@ -77,6 +77,12 @@ def next_step(project: Path, kind: str) -> str:
         return "plan: import footage (import_footage) or create the project (new_project), then write the script"
     if kind == "footage_only":
         return "write storyboard.json (review/explainer) or edit.json (Short) for this footage"
+    if kind not in ("gameplay_short",):
+        sb = _read_json(project / "storyboard.json")
+        rec = sb.get("voice_recording")
+        if sb.get("voice_engine") == "recording" and rec and not (project / rec).exists():
+            return (f"waiting for the creator's recording at {rec}: write lines.md (narration_lines) and ask for it, "
+                    f"then run_step make")
     if m["timeline"] is None or (source and m["timeline"] < source):
         return "validate, then run_step make (storyboard/edit changed since the last build)"
     if m["video"] is None or m["video"] < m["timeline"]:

@@ -11,6 +11,11 @@ Gameplay edits (no voice-over, 9:16):
     # write content_projects/mc_tnt/edit.json (the agent picks moments, zooms, texts, SFX)
     python -m content_agent make mc_tnt                       # validate -> soundtrack -> build -> render -> qa
 
+Your own voice instead of a synthetic one:
+    python -m content_agent lines mc_review        # lines.md to read into a phone, 2 s pauses between lines
+    # drop the file at content_projects/mc_review/voice/narration.m4a, set "voice_engine": "recording"
+    python -m content_agent make mc_review         # the recording is split on the pauses and cut to the beats
+
 Everything runs on this machine: Kokoro for the voice, numpy for the music, ffmpeg for the mix,
 Remotion + headless Chromium for the picture. No paid APIs.
 """
@@ -166,11 +171,31 @@ def cmd_voice(a) -> None:
     fmt = sb.data.get("format", "explainer")
     engine_name = sb.data.get("voice_engine", "kokoro")
     t0 = _step(f"voice ({engine_name})")
-    engine = make_voice_engine(engine_name, sb.data.get("voice") or None, fmt, sb.data.get("voice_options"))
-    timing = synthesize_voice(sb.beats, project / "audio" / "voice.wav", fmt=fmt, engine=engine,
-                              log=lambda m: print(m, file=sys.stderr))
+    log = lambda m: print(m, file=sys.stderr)  # noqa: E731
+    if engine_name == "recording":
+        from .recording import RecordingError, assemble_recording
+
+        try:
+            timing = assemble_recording(sb.beats, sb.data, project, project / "audio" / "voice.wav", fmt=fmt, log=log)
+        except RecordingError as exc:
+            sys.exit(f"recording: {exc}")
+    else:
+        engine = make_voice_engine(engine_name, sb.data.get("voice") or None, fmt, sb.data.get("voice_options"))
+        timing = synthesize_voice(sb.beats, project / "audio" / "voice.wav", fmt=fmt, engine=engine, log=log)
     (project / "audio" / "voice_timing.json").write_text(json.dumps(timing, indent=2) + "\n", encoding="utf-8")
     _done(t0, f"({timing['duration']:.1f}s of narration)")
+
+
+def cmd_lines(a) -> None:
+    """lines.md: the narration as numbered lines for the creator to record (voice_engine "recording")."""
+    from .recording import write_lines
+
+    project = project_dir(a.project)
+    sb = _load(project)
+    out = write_lines(sb.data, project / "lines.md")
+    words = sum(len(b.get("narration", "").split()) for b in sb.beats)
+    print(f"{out}: {len(sb.beats)} lines, {words} words (~{words / 150:.1f} min). Record it as voice/narration.m4a",
+          file=sys.stderr)
 
 
 def cmd_music_lib(a) -> int:
@@ -270,6 +295,36 @@ def cmd_build(a) -> None:
     desc = _write_description(project, sb, tl)
     print(f"timeline: {len(tl['scenes'])} scenes, {tl['durationInFrames'] / tl['fps']:.1f}s; description: {desc}",
           file=sys.stderr)
+    for w in retention_warnings(tl):
+        print(f"WARNING {w}", file=sys.stderr)
+
+
+def retention_warnings(tl: dict, hook_s: float = 5.0, rehook_s: float = 40.0, static_s: float = 25.0) -> list[str]:
+    """Long-form retention: the key picture inside the first seconds, a new picture at least every
+    rehook_s, no footage clip running unchanged for static_s. Advisory; printed by build."""
+    fps, fmt = tl["fps"], tl.get("format", "explainer")
+    if fmt in ("shorts", "gameplay") or not tl["scenes"]:
+        return []
+    out = []
+    first = tl["scenes"][0]
+    if first["template"] in ("title", "chapter") or first["durationInFrames"] / fps > hook_s * 2:
+        out.append(f"{first['id']}: the video opens on a {first['template']} card of {first['durationInFrames'] / fps:.0f}s. "
+                   f"Viewers decide in the first {hook_s:.0f}s: open on the strongest footage, put the title card second")
+    for s in tl["scenes"]:
+        d = s["durationInFrames"] / fps
+        if d > static_s and s["template"] == "footage" and not s["props"].get("zoom_to"):
+            out.append(f"{s['id']}: one footage clip for {d:.0f}s. Split the beat or change the picture every "
+                       f"{static_s:.0f}s at most")
+    changes = [s["from"] / fps for s in tl["scenes"] if s["template"] != "footage"] + [0.0]
+    gaps = sorted(set(changes))
+    total = tl["durationInFrames"] / fps
+    prev = 0.0
+    for t in gaps[1:] + [total]:
+        if t - prev > rehook_s and total > rehook_s * 1.5:
+            out.append(f"{_tc(prev)}-{_tc(t)}: {t - prev:.0f}s of footage with no card, label or question in between. "
+                       f"Re-hook every {rehook_s:.0f}s: a stat, a comparison, a question or a chapter card")
+        prev = t
+    return out[:6]
 
 
 def _check_footage(project: Path, tl: dict) -> list[str]:
@@ -557,6 +612,10 @@ def main(argv: list[str] | None = None) -> int:
         if name == "make":
             p.add_argument("--draft", action="store_true", help="half resolution render (faster)")
         p.set_defaults(fn=fn)
+
+    p = sub.add_parser("lines", help="write lines.md: the narration to record in your own voice (voice_engine recording)")
+    p.add_argument("project")
+    p.set_defaults(fn=cmd_lines)
 
     p = sub.add_parser("music", help="generate procedural background music")
     p.add_argument("project")

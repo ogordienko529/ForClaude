@@ -16,7 +16,9 @@ English-speaking, 13-30. Not made for kids.
 - Shorts: 15-40 s, no voice.
 
 ## Voice
-No own voice. Kokoro (free) for drafts, ElevenLabs for uploads (voice id: ...).
+My own voice: I record lines.md on my phone (one take, 2 s pauses) and drop the file into
+voice/narration.m4a; the storyboard uses "voice_engine": "recording". Shorts without my voice stay
+silent. (Alternatives: Kokoro (free) for drafts only, ElevenLabs for uploads with voice id ...)
 
 ## What I can record
 - OBS, 1080p60.

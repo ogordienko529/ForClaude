@@ -263,7 +263,7 @@ uploads. Claude Code is the writer, editor and reviewer (it follows the playbook
 | Step | Tool (all local, free) |
 |---|---|
 | Research, script, storyboard | Claude Code + web search, sources kept in `research.md` |
-| Narration | Kokoro via `sleep_voice` (documentary pacing, cached per scene) |
+| Narration | your own recording, split on the pauses and matched to the script (`voice_engine: recording`), or Kokoro via `sleep_voice` (cached per scene) |
 | Music | procedural ambient pads generated with numpy: no licence or Content ID risk |
 | Mix | ffmpeg: voice clean-up, music ducked under the voice, −14 LUFS |
 | Picture | Remotion (React) templates rendered in headless Chromium |
@@ -437,8 +437,13 @@ python -m content_agent make my-review          # + out/description.md with chap
 python -m content_agent thumbnail my-review     # out/thumbnail.png
 ```
 
-Voice: `"voice_engine": "kokoro"` (free, local) or `"elevenlabs"`, with `"voice"` set to your
-ElevenLabs voice_id and the key in the `ELEVENLABS_API_KEY` environment variable. `build` stops if
+Voice: `"voice_engine": "recording"` uses your own voice. `python -m content_agent lines my-review`
+writes `lines.md`; read it into a phone in one take with two-second pauses between lines (a fumbled
+line: pause, read it again), save the file as `voice/narration.m4a` in the project and set
+`"voice_recording": "voice/narration.m4a"`. The voice step splits the file on the pauses, matches the
+lines to the beats by their length (the later take wins), cleans and levels them, and the rest of the
+pipeline is unchanged. `"kokoro"` (free, local) and `"elevenlabs"` (with `"voice"` set to your
+ElevenLabs voice_id and the key in the `ELEVENLABS_API_KEY` environment variable) remain. `build` stops if
 a footage beat needs more recording than exists, and names the beat and the fix. The demo
 (`examples/gameplay_sim/review_storyboard.json`) is a 1:53 review of the Luanti Nether mod, made
 from a 73 s silent recording (`record.py --session nether`).

@@ -38,12 +38,29 @@ its own files: real name, author, version, loader, features, recipes and licence
 `research.md` and in each beat's `sources`. Never describe a feature you did not verify. If a
 feature is not in the footage, show it on a card (list, comparison, fact), not over unrelated clips.
 
-## 3. Script and structure (8-18 min for a real upload; median of small-channel hits is ~11 min)
+## 3. Script and structure (5-12 min for a first upload; small-channel hits run 4:50-11:48)
 
 Story beats work better than a feature list (data: "minecraft mods" scores 90/100, a dry
-"mod showcase" only 29/100):
-1. **Hook (0-20 s):** the most impressive or scary moment of the footage plus one line that
-   promises what the video shows.
+"mod showcase" only 29/100). Horror-mod hits from channels under 20k subscribers (Verity, October
+2026) are **premises, not showcases**: "Every HORROR Mod vs Verity..." (11:48, 7.9k subs, 602k),
+"Verity vs YouTubers: Who Is The Real Threat?" (4:50, 1.0M in 6 days). The title is a question or a
+contest, the video answers it, and the viewer knows by second five what they are waiting for.
+
+**Retention rules for long videos** (the Studio curve of this channel's long videos drops 25% in the
+first 5 s and then slides with no bumps: no hooks):
+- **Open on footage, not a card.** The strongest 3-5 s of the recording first (the scare, the
+  reveal, the fail), one spoken line that states the premise, the title card second. `build` warns
+  when the video opens on a card.
+- **Re-hook every 30-40 s:** a stat or comparison card, a label with a number, a question to the
+  viewer, a chapter card, a cut to a different moment. `build` warns about stretches without one.
+- **Never one clip for more than ~25 s** without a zoom, a label or a cut (`build` warns).
+- **Promise and pay off:** the hook names what will happen at the end ("by night six I had one torch
+  left"); the last chapter delivers it. No "stay till the end".
+- 15-30 words per beat; the picture changes every 6-12 s. Cut everything that does not move the
+  premise forward: menus, walking, repeats.
+
+1. **Hook (0-5 s footage, 0-20 s total):** the most impressive or scary moment of the footage plus
+   one line that states the premise and what is at stake.
 2. **What it is:** title card, mod name, version, loader (`chapter`).
 3. **Getting started:** crafting or setup steps over the matching footage, with labels.
 4. **The experience:** the features in the order you discover them, with your reactions; one beat
@@ -75,7 +92,21 @@ cuts), `clean` (bright minimal, big word-by-word captions) and `comic` (halftone
 
 ## 4. Voice
 
-`voice_engine`: `kokoro` (free, local, default; `voice` like `am_michael`) or `elevenlabs`
+**The creator's own voice (`voice_engine: "recording"`) is the default when `channel.md` says so**,
+and it is the right choice on any channel whose audit shows "AI voice" comments. Flow:
+1. Write the storyboard with narration as *spoken* lines: short sentences, contractions, 12-25 words
+   per beat, no numbers spelled out (the creator reads them naturally).
+2. `python -m content_agent lines <slug>` (MCP: `narration_lines`) writes `lines.md`. Hand it over and
+   stop: «Потрібно від тебе: запиши lines.md…». Rules the splitter needs: one take, one file, a pause
+   of ~2 s between lines, a fumbled line is read again after a pause (the later take wins), the file
+   sent as a *file* (Voice Memos; Telegram "file", not a voice message) to `voice/narration.m4a`.
+3. Set `"voice_recording": "voice/narration.m4a"`, `validate`, `make`. The voice log says how many
+   lines were found, used and dropped, and flags a line whose length does not fit its text: check
+   those on the contact sheets, or re-record just that line into `"audio": "voice/b07.m4a"` on the
+   beat. `"voice_segments": [[start, end], ...]` pins the split by hand when the room was noisy.
+4. Captions are timed by sentence length with a recording: keep `captions` off or check them.
+
+Synthetic engines when the user accepts them: `kokoro` (free, local; `voice` like `am_michael`) or `elevenlabs`
 (`voice` = an ElevenLabs voice_id, key in `ELEVENLABS_API_KEY` in the environment, never in files
 or chat; `voice_options` such as `{"stability": 0.45, "style": 0.3}`). `openai` also works with
 `OPENAI_API_KEY`. Narration is cached per beat, so editing one beat re-voices only that beat.

@@ -21,6 +21,7 @@ python -m content_agent templates [--json]           # visual templates and thei
 python -m content_agent validate <slug>              # L0 checks, must print OK
 python -m content_agent make <slug>                  # voice -> music -> mix -> build -> render -> qa
 python -m content_agent voice|music|mix|build|render|qa <slug>   # single steps
+python -m content_agent lines <slug>                 # lines.md for the creator to record ("voice_engine": "recording")
 python -m content_agent still <slug> <scene> [--at 0.6]          # one PNG frame of a scene
 python -m content_agent render <slug> --scene <id>               # one scene as a clip
 ```

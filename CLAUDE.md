@@ -33,6 +33,10 @@ questions ("не запитуй, а роби").
   - `python -m niche_core channel @handle --export` audits the user's channel;
     `python -m niche_core scan @examples/seeds/minecraft.txt --export` finds tiny channels'
     breakouts of the last 14 days (run daily; cached searches are free).
+- **The creator's own voice:** `python -m content_agent lines <slug>` writes `lines.md`; the user
+  records it on a phone (one take, 2 s pauses) to `content_projects/<slug>/voice/narration.m4a`;
+  `"voice_engine": "recording"` splits the file on the pauses and cuts the video to it. On this
+  channel a synthetic voice is used only when the user asks for it; Shorts without his voice are silent.
 - **Hand over a whole video:** when the user asks for one, delegate it to the `content-maker`
   subagent (or run the command above).
 - **Machine checks:** `python -m content_agent doctor`. One-time setup:

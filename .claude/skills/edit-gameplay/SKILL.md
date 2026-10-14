@@ -48,7 +48,13 @@ the new armour", "someone already added X") are a different animal: in the Sift 
 long, narrated Short gets more watch time per view. So:
 - a moment from gameplay → this playbook, 15–30 s, no voice;
 - news, a tour, a test, "explained" → the narrated `shorts` format (`new <slug> --format shorts`,
-  the `make-video` playbook) at 45–90 s, up to 3 min when every sentence adds something.
+  the `make-video` playbook) at 45–90 s, up to 3 min when every sentence adds something;
+- a **story Short** from a horror or survival session → the same narrated `shorts` format, 45–60 s,
+  in the creator's own voice (`voice_engine: recording`, the `review-video` playbook, section 4):
+  one named character or threat, one night or one event, a question in the title, the answer in
+  the last 10 s. Data (Verity, October 2026): the "Jerry" series on a 30k-sub channel, 57–59 s,
+  0.9–9M per episode; the same topic as a 14 s silent clip did ~1k. Narration without the
+  creator's voice is **off** on channels whose audit shows "AI voice" comments.
 Name the thing in the title the way people search for it ("Sift", "Siftite", "Blub"), not a
 paraphrase ("new dimension", "cutest mob").
 

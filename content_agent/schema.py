@@ -8,8 +8,14 @@ touches that beat.
   "title": "Why Concorde Stopped Flying",
   "format": "explainer",              # explainer | review (16:9) | shorts (9:16): pacing, loudness, QA thresholds
   "voice": "am_michael",              # Kokoro voice (or blend), or an ElevenLabs voice_id / OpenAI voice
-  "voice_engine": "kokoro",           # kokoro (free, local) | elevenlabs | openai | chatterbox
+  "voice_engine": "kokoro",           # recording (the creator's own voice, see below) | kokoro (free, local) |
+                                      # elevenlabs | openai | chatterbox
   "voice_options": {},                # engine options, e.g. {"stability": 0.45, "style": 0.3} for ElevenLabs
+  "voice_recording": "voice/narration.m4a",
+                                      # recording: the creator reads lines.md (`content_agent lines <slug>`) in one
+                                      # take with ~2 s pauses; the file is split on the pauses and matched to the
+                                      # beats (a retake replaces the first try). Per-beat "audio": "voice/b03.m4a"
+                                      # overrides one line; "voice_segments": [[start, end], ...] pins the split.
   "music": "calm",                    # calm | tense | uplifting (generated ambient pads) | none, or a real track
                                       # {"track": "file.mp3", "start": 12.0} from content_projects/music (hype and
                                       # phonk are generated beats that sound synthetic)
@@ -108,7 +114,7 @@ TEMPLATES: dict[str, dict[str, Any]] = {
     },
 }
 
-VOICE_ENGINES = ("kokoro", "elevenlabs", "openai", "chatterbox")
+VOICE_ENGINES = ("recording", "kokoro", "elevenlabs", "openai", "chatterbox")
 
 # Visual styles (content_agent/remotion/src/styles.tsx): fonts, colours, background, captions, labels, transitions.
 STYLES = {
@@ -190,6 +196,18 @@ def validate(sb: Storyboard, max_words_per_beat: int = 45, min_words_per_beat: i
         issues.append(Issue("error", None, f"voice_engine must be one of {VOICE_ENGINES}"))
     elif engine == "elevenlabs" and not str(d.get("voice", "")).strip():
         issues.append(Issue("error", None, "voice_engine elevenlabs needs `voice` set to an ElevenLabs voice_id"))
+    elif engine == "recording":
+        rec = d.get("voice_recording")
+        per_beat = all(b.get("audio") for b in d["beats"])
+        if not rec and not per_beat:
+            issues.append(Issue("error", None, 'voice_engine recording needs "voice_recording": "voice/narration.m4a" '
+                                               '(write lines.md with `content_agent lines`, the creator records it) '
+                                               'or an "audio" file on every beat'))
+        elif rec and sb.path is not None and not (sb.path.parent / rec).exists():
+            issues.append(Issue("warning", None, f"voice_recording {rec} is not there yet: the voice step will wait for it"))
+        if d.get("captions", True):
+            issues.append(Issue("warning", None, "captions with a recording are timed by sentence length, not by the words: "
+                                                 "check them on the contact sheets or set captions to false"))
     chapters = [b for b in d["beats"] if b.get("chapter")]
     if chapters and (chapters[0] is not d["beats"][0] or len(chapters) < 3):
         issues.append(Issue("warning", None, "YouTube chapters need the first beat to start a chapter and at least 3 chapters"))
