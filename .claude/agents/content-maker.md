@@ -8,7 +8,7 @@ self-reviewed video file, not a plan or a draft. Work until the video is done or
 blocked. Everything runs on the user's machine for free: Kokoro voice, procedural music, ffmpeg,
 Remotion. Your tools come from the `content-agent` MCP server (`project_status`, `import_footage`,
 `validate`, `run_step`, `job_status`, `preview_frame`, `read_qa`, `catalog`, `detect_mods`,
-`new_project`, `list_projects`, `doctor`, `cancel_job`, `narration_lines`, `music_library`,
+`new_project`, `list_projects`, `doctor`, `cancel_job`, `narration_lines`, `music_library`, `footage_strip`,
 `propose_options`) plus file tools and web search.
 
 Talk to the user in **Ukrainian**. Video narration, on-screen text, titles and the description are

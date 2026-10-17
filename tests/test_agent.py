@@ -64,7 +64,7 @@ def test_gameplay_project_and_listing(home):
     s = status.project_status(p)
     assert s["kind"] == "gameplay_short" and s["segments"] == 2
     assert s["footage"] == [{"src": "footage/a.mp4", "duration_s": 12.5, "size": "1280x720", "events": 2,
-                             "sheets": ["s.png"], "analysed": True}]
+                             "overview_sheets": [], "sheets": ["s.png"], "analysed": True}]
     (home / "empty_dir").mkdir()
     assert [x["project"] for x in status.list_projects()] == ["short"]
 
@@ -129,7 +129,7 @@ def test_mcp_tools_listed():
     names = {t.name for t in asyncio.run(mcp_server.mcp.list_tools())}
     assert names == {"list_projects", "project_status", "new_project", "import_footage", "detect_mods", "catalog",
                      "validate", "run_step", "job_status", "cancel_job", "preview_frame", "read_qa", "doctor",
-                     "propose_options", "music_library", "narration_lines"}
+                     "propose_options", "music_library", "narration_lines", "footage_strip"}
 
 
 def test_mcp_new_project_validate_and_status(home):

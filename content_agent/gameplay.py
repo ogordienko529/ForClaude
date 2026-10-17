@@ -85,29 +85,118 @@ def probe(video: Path) -> dict:
             "has_audio": any(s["codec_type"] == "audio" for s in data["streams"])}
 
 
+def _vf(fps: float, w: int, h: int, crop: tuple[float, float, float, float] | None = None) -> str:
+    f = f"fps={fps}"
+    if crop:
+        x, y, cw, ch = crop
+        f += f",crop=iw*{cw}:ih*{ch}:iw*{x}:ih*{y}"
+    return f + f",scale={w}:{h}"
+
+
+def iter_frames(video: Path, fps: float, w: int = 160, h: int = 90, *, start: float | None = None,
+                duration: float | None = None, crop: tuple[float, float, float, float] | None = None,
+                chunk_s: float = 30.0):
+    """Frames as uint8 arrays (n, h, w, 3), streamed in chunks: a 4-hour recording never sits in memory.
+    Tries hardware decoding first (much faster on most laptops) and falls back to software."""
+    frame_bytes = w * h * 3
+    per_chunk = max(int(fps * chunk_s), 1)
+    for hw in (True, False):
+        cmd = ["ffmpeg", "-v", "error", "-nostdin"] + (["-hwaccel", "auto"] if hw else [])
+        if start is not None:
+            cmd += ["-ss", f"{max(start, 0):.3f}"]
+        if duration is not None:
+            cmd += ["-t", f"{duration:.3f}"]
+        cmd += ["-i", str(video), "-an", "-vf", _vf(fps, w, h, crop), "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        got = 0
+        try:
+            while True:
+                buf = proc.stdout.read(frame_bytes * per_chunk)
+                n = len(buf) // frame_bytes
+                if n == 0:
+                    break
+                got += n
+                yield np.frombuffer(buf[: n * frame_bytes], np.uint8).reshape(n, h, w, 3)
+        finally:
+            proc.stdout.close()
+            err = proc.stderr.read().decode("utf-8", "replace")
+            proc.stderr.close()
+            proc.wait()
+        if got:
+            return
+        if not hw:
+            if proc.returncode:
+                raise RuntimeError(f"ffmpeg could not read {video}: {err.strip()[-500:]}")
+            return
+
+
 def _frames(video: Path, fps: float, w: int = 160, h: int = 90) -> np.ndarray:
-    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(video), "-vf", f"fps={fps},scale={w}:{h}",
-                          "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True, check=True).stdout
-    return np.frombuffer(raw, np.uint8).reshape(-1, h, w, 3)
+    """All frames at once: only for short clips. Long recordings go through iter_frames."""
+    chunks = list(iter_frames(video, fps, w, h))
+    return np.concatenate(chunks) if chunks else np.zeros((0, h, w, 3), np.uint8)
+
+
+def loudness(video: Path, sr: int = 4000, chunk_s: int = 60) -> list[float]:
+    """Game audio level per second (dBFS), streamed. Empty when the recording has no audio."""
+    cmd = ["ffmpeg", "-v", "error", "-nostdin", "-i", str(video), "-vn", "-ac", "1", "-ar", str(sr),
+           "-f", "s16le", "-"]
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    out: list[float] = []
+    rest = np.zeros(0, np.float32)
+    try:
+        while True:
+            buf = proc.stdout.read(sr * 2 * chunk_s)
+            if not buf:
+                break
+            y = np.concatenate([rest, np.frombuffer(buf[: len(buf) // 2 * 2], np.int16).astype(np.float32) / 32768])
+            whole = len(y) // sr
+            for k in range(whole):
+                seg = y[k * sr:(k + 1) * sr]
+                out.append(round(float(20 * np.log10(np.sqrt(np.mean(seg * seg)) + 1e-6)), 1))
+            rest = y[whole * sr:]
+    finally:
+        proc.stdout.close()
+        proc.wait()
+    if len(rest) > sr // 4:
+        out.append(round(float(20 * np.log10(np.sqrt(np.mean(rest * rest)) + 1e-6)), 1))
+    return out
 
 
 def analyze(video: Path, sample_fps: float = 10.0) -> dict:
-    """Per-second motion, 'burst' (sudden bright / fiery colour change) and idle stretches."""
+    """Per-second motion, 'burst' (sudden bright / fiery colour change), 'loud' (game audio jumps: roars,
+    explosions, screams) and idle stretches. Streams the recording, so hours of footage are fine."""
     info = probe(video)
-    fr = _frames(video, sample_fps).astype(np.float32)
-    gray = fr.mean(axis=3)
-    motion = np.concatenate([[0.0], np.abs(np.diff(gray, axis=0)).mean(axis=(1, 2))])
-    r, g, b = fr[..., 0], fr[..., 1], fr[..., 2]
-    hot = ((r > 200) & (g > 70) & (g < 210) & (b < 110)).mean(axis=(1, 2))  # fire, explosions, lava
-    bright = gray.mean(axis=(1, 2))
-    n_sec = int(np.ceil(len(fr) / sample_fps))
+    if info["duration"] > 1800:          # long recordings: 4 samples a second are plenty for per-second stats
+        sample_fps = min(sample_fps, 4.0)
+    motion_l: list[float] = []
+    hot_l: list[float] = []
+    bright_l: list[float] = []
+    prev = None
+    for chunk in iter_frames(video, sample_fps):
+        fr = chunk.astype(np.float32)
+        gray = fr.mean(axis=3)
+        if prev is None:
+            diffs = np.concatenate([[0.0], np.abs(np.diff(gray, axis=0)).mean(axis=(1, 2))])
+        else:
+            diffs = np.abs(np.diff(np.concatenate([prev[None], gray]), axis=0)).mean(axis=(1, 2))
+        prev = gray[-1]
+        r, g, b = fr[..., 0], fr[..., 1], fr[..., 2]
+        motion_l.extend(diffs.tolist())
+        hot_l.extend(((r > 200) & (g > 70) & (g < 210) & (b < 110)).mean(axis=(1, 2)).tolist())  # fire, lava
+        bright_l.extend(gray.mean(axis=(1, 2)).tolist())
+    motion, hot, bright = np.array(motion_l), np.array(hot_l), np.array(bright_l)
+    db = loudness(video) if info.get("has_audio") else []
+    n_sec = int(np.ceil(len(motion) / sample_fps))
     per_sec = []
     for s in range(n_sec):
         sl = slice(int(s * sample_fps), int((s + 1) * sample_fps))
         if not len(motion[sl]):
             break
-        per_sec.append({"t": s, "motion": round(float(motion[sl].mean()), 2), "hot": round(float(hot[sl].max()), 3),
-                        "bright": round(float(bright[sl].mean()), 1)})
+        p = {"t": s, "motion": round(float(motion[sl].mean()), 2), "hot": round(float(hot[sl].max()), 3),
+             "bright": round(float(bright[sl].mean()), 1)}
+        if s < len(db):
+            p["db"] = db[s]
+        per_sec.append(p)
     m = np.array([p["motion"] for p in per_sec])
     h = np.array([p["hot"] for p in per_sec])
     events = []
@@ -121,6 +210,13 @@ def analyze(video: Path, sample_fps: float = 10.0) -> dict:
     for i, p in enumerate(per_sec):
         if m[i] >= hi and m[i] > 2 and (i == 0 or m[i] >= m[i - 1]) and (i + 1 == len(m) or m[i] >= m[i + 1]):
             events.append({"t": p["t"], "kind": "action", "score": round(float(m[i]), 2)})
+    # loud: the game audio jumps well above the last few seconds (roar, explosion, jumpscare sound)
+    if db:
+        d = np.array(db[: len(per_sec)])
+        for i in range(3, len(d)):
+            base = float(np.median(d[max(i - 6, 0):i]))
+            if d[i] > -40 and d[i] - base >= 12 and (i + 1 == len(d) or d[i] >= d[i + 1]):
+                events.append({"t": per_sec[i]["t"], "kind": "loud", "score": round(float(d[i] - base), 1)})
     # idle: low motion for 2+ seconds (cut or speed up)
     lo = max(np.percentile(m, 25) if len(m) else 0, 0.6)
     idle, start = [], None
@@ -132,42 +228,115 @@ def analyze(video: Path, sample_fps: float = 10.0) -> dict:
                 idle.append({"start": start, "end": p["t"]})
             start = None
     events.sort(key=lambda e: e["t"])
-    return {"video": str(video), **info, "per_second": per_sec, "events": events, "idle": idle}
+    return {"video": str(video), **info, "sample_fps": sample_fps, "per_second": per_sec, "events": events,
+            "idle": idle}
+
+
+OVERVIEW_EVERY = 10.0      # recordings longer than OVERVIEW_MIN_S also get one frame per 10 s
+OVERVIEW_MIN_S = 1200.0
+
+
+def _sheet(frames: list[tuple[float, np.ndarray]], per: dict, mmax: float, cols: int, w: int, h: int, font,
+           path: Path) -> Path:
+    from PIL import Image, ImageDraw
+
+    r = (len(frames) + cols - 1) // cols
+    sheet = Image.new("RGB", (cols * (w + 4) + 4, r * (h + 4) + 4), (18, 18, 22))
+    draw = ImageDraw.Draw(sheet)
+    for i, (t, img) in enumerate(frames):
+        x, y = 4 + (i % cols) * (w + 4), 4 + (i // cols) * (h + 4)
+        sheet.paste(Image.fromarray(img), (x, y))
+        label = f"{int(t // 3600)}:{int(t % 3600 // 60):02d}:{t % 60:04.1f}" if t >= 3600 else f"{int(t // 60)}:{t % 60:04.1f}"
+        draw.rectangle([x, y, x + 9 * len(label) + 8, y + 19], fill=(0, 0, 0))
+        draw.text((x + 4, y + 1), label, font=font, fill=(255, 220, 80))
+        p = per.get(int(t), {"motion": 0, "hot": 0})
+        draw.rectangle([x, y + h - 6, x + int(w * min(p["motion"] / mmax, 1)), y + h - 3], fill=(80, 170, 255))
+        draw.rectangle([x, y + h - 3, x + int(w * min(p["hot"] * 8, 1)), y + h], fill=(255, 140, 40))
+    sheet.save(path)
+    return path
 
 
 def footage_sheets(video: Path, analysis: dict, outdir: Path, every: float = 1.0, cols: int = 10,
                    rows: int = 8) -> list[Path]:
-    """One frame per `every` seconds with timecode, motion bar (blue) and burst bar (orange)."""
-    from PIL import Image, ImageDraw
-
+    """One frame per `every` seconds with timecode, motion bar (blue) and burst bar (orange), streamed.
+    Long recordings also get overview_NN.png: one frame per 10 s, the whole recording in a few sheets."""
     from .qa import _font
 
     outdir.mkdir(parents=True, exist_ok=True)
-    w, h = 256, int(256 * analysis["height"] / analysis["width"])
-    fr = _frames(video, 1 / every, w, h)
+    w, h = 256, int(256 * analysis["height"] / analysis["width"]) // 2 * 2
     per = {p["t"]: p for p in analysis["per_second"]}
     mmax = max([p["motion"] for p in analysis["per_second"]] + [1])
     font = _font(15)
-    sheets = []
     per_sheet = cols * rows
-    for k in range(0, len(fr), per_sheet):
-        chunk = fr[k : k + per_sheet]
-        r = (len(chunk) + cols - 1) // cols
-        sheet = Image.new("RGB", (cols * (w + 4) + 4, r * (h + 4) + 4), (18, 18, 22))
-        draw = ImageDraw.Draw(sheet)
-        for i, img in enumerate(chunk):
-            t = (k + i) * every
-            x, y = 4 + (i % cols) * (w + 4), 4 + (i // cols) * (h + 4)
-            sheet.paste(Image.fromarray(img), (x, y))
-            draw.rectangle([x, y, x + 62, y + 19], fill=(0, 0, 0))
-            draw.text((x + 4, y + 1), f"{int(t // 60)}:{t % 60:04.1f}", font=font, fill=(255, 220, 80))
-            p = per.get(int(t), {"motion": 0, "hot": 0})
-            draw.rectangle([x, y + h - 6, x + int(w * min(p["motion"] / mmax, 1)), y + h - 3], fill=(80, 170, 255))
-            draw.rectangle([x, y + h - 3, x + int(w * min(p["hot"] * 8, 1)), y + h], fill=(255, 140, 40))
-        path = outdir / f"footage_{k // per_sheet + 1:02d}.png"
-        sheet.save(path)
-        sheets.append(path)
+    want_overview = analysis.get("duration", 0) > OVERVIEW_MIN_S
+    step = max(int(round(OVERVIEW_EVERY / every)), 1)
+    sheets, overview = [], []
+    buf: list[tuple[float, np.ndarray]] = []
+    obuf: list[tuple[float, np.ndarray]] = []
+    k = 0
+    for chunk in iter_frames(video, 1 / every, w, h):
+        for img in chunk:
+            t = k * every
+            buf.append((t, img))
+            if want_overview and k % step == 0:
+                obuf.append((t, img))
+            k += 1
+            if len(buf) == per_sheet:
+                sheets.append(_sheet(buf, per, mmax, cols, w, h, font, outdir / f"footage_{len(sheets) + 1:02d}.png"))
+                buf = []
+            if len(obuf) == per_sheet:
+                overview.append(_sheet(obuf, per, mmax, cols, w, h, font, outdir / f"overview_{len(overview) + 1:02d}.png"))
+                obuf = []
+    if buf:
+        sheets.append(_sheet(buf, per, mmax, cols, w, h, font, outdir / f"footage_{len(sheets) + 1:02d}.png"))
+    if obuf:
+        overview.append(_sheet(obuf, per, mmax, cols, w, h, font, outdir / f"overview_{len(overview) + 1:02d}.png"))
+    analysis["overview_sheets"] = [str(o) for o in overview]
     return sheets
+
+
+STRIP_CROPS = {
+    "full": None,
+    "chat": (0.0, 0.42, 0.55, 0.48),     # Minecraft chat: bottom-left, above the hotbar
+    "center": (0.25, 0.2, 0.5, 0.6),     # the middle of the screen (crosshair, a mob in front of you)
+}
+
+
+def footage_strip(video: Path, start: float, duration: float, out: Path, fps: float = 2.0, crop: str = "full",
+                  cols: int = 6, max_frames: int = 48) -> Path:
+    """A close look at one stretch: frames from `start` at `fps`, large enough to read the chat when
+    crop="chat". Use it to find exact in-points and to read what Verity (or anyone) typed."""
+    from .qa import _font
+
+    if crop not in STRIP_CROPS:
+        raise ValueError(f"crop must be one of {tuple(STRIP_CROPS)}")
+    info = probe(video)
+    duration = max(min(duration, max_frames / fps, info["duration"] - start), 0.1)
+    box = STRIP_CROPS[crop]
+    aspect = (info["width"] * (box[2] if box else 1)) / (info["height"] * (box[3] if box else 1))
+    w = 640 if crop == "chat" else 480
+    h = int(w / aspect) // 2 * 2
+    frames: list[tuple[float, np.ndarray]] = []
+    for chunk in iter_frames(video, fps, w, h, start=start, duration=duration, crop=box):
+        for img in chunk:
+            frames.append((start + len(frames) / fps, img))
+    if not frames:
+        raise RuntimeError(f"no frames at {start:.1f}s in {video}")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    return _sheet(frames[:max_frames], {}, 1.0, min(cols, len(frames)), w, h, _font(18), out)
+
+
+def _link_or_copy(src: Path, dest: Path) -> str:
+    """A hard link when the recording is on the same drive (instant, no extra space), else a copy.
+    The pipeline only reads footage, so the original is never modified."""
+    import os
+
+    try:
+        os.link(src, dest)
+        return "linked"
+    except OSError:
+        shutil.copy2(src, dest)
+        return "copied"
 
 
 def import_footage(project: Path, videos: list[Path]) -> dict:
@@ -176,11 +345,16 @@ def import_footage(project: Path, videos: list[Path]) -> dict:
     report = {}
     for v in videos:
         dest = project / "footage" / v.name
-        if v.resolve() != dest.resolve():
-            shutil.copy2(v, dest)
+        if not dest.exists() or v.resolve() != dest.resolve():
+            if dest.exists():
+                dest.unlink()
+            how = _link_or_copy(v, dest)
+        else:
+            how = "in place"
         a = analyze(dest)
         sheets = footage_sheets(dest, a, project / "review" / dest.stem)
         a["sheets"] = [str(s) for s in sheets]
+        a["import"] = how
         (project / "footage" / f"{dest.stem}.analysis.json").write_text(json.dumps(a, indent=1) + "\n")
         report[f"footage/{dest.name}"] = a
     if not (project / "edit.json").exists() and not (project / "storyboard.json").exists():

@@ -26,7 +26,21 @@ footage scene needs more recording than there is (it says which scene and what t
    and chat in the footage sheets.
 2. **What happens:** open every `review/<video>/footage_*.png`; write a log of the recording with
    timecodes: "0:10-0:23 builds the portal", "0:24 lights it", "0:38-0:52 dark loading", "0:57 lava
-   sea reveal". Make finer strips around key moments to pick exact in-points.
+   sea reveal". Make finer strips around key moments to pick exact in-points
+   (`strip <slug> footage/x.mp4 <second>`, MCP `footage_strip`).
+   **Recordings of an hour or more** (a let's-play session):
+   - Import streams the file (memory stays flat) and links it instead of copying when it is on the
+     same drive. It takes roughly 5-10 minutes per hour of 1080p: run it as a job and poll.
+   - Pass 1, the whole recording: Read **every** `overview_*.png` (one frame per 10 s) and the
+     `events` in `<video>.analysis.json`: `burst` (fire, explosions), `loud` (a roar, an explosion, a
+     jumpscare sound in the game audio), `action` (motion peaks). Write `moments.md` as you go, one
+     line per moment with file and timecode, so nothing is lost when your context is compacted.
+   - Pass 2, every candidate: the per-second `footage_*.png` around it (sheet N covers seconds
+     (N-1)*80 to N*80), then `footage_strip` for the exact first frame of the payoff.
+   - Chat is content (an AI character's replies, death messages, advancements): read it with
+     `footage_strip(..., crop="chat")` wherever the chat changes, and quote it word for word.
+   - Mark every moment by role: hook candidate, threat (first appearance of each mob), progress step,
+     twist, payoff, funny fail, thumbnail frame, Short candidate, and "cut" for dead time.
 3. **What to cut:** menus and inventory, loading and black screens, standing still, walking with
    nothing new, repeats. Check suspicious dark stretches with a brightness measurement, not just by
    eye; QA flags black frames.

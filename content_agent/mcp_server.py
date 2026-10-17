@@ -149,9 +149,12 @@ def new_project(project: str, title: str, format: Format = "explainer", overwrit
 @mcp.tool()
 @_safe
 def import_footage(project: str, paths: list[str], wait_seconds: int = 50) -> dict[str, Any]:
-    """Copy recordings into the project, analyse motion/action/idle per second and draw footage sheets
-    (thumbnails with timecodes) to Read. Creates an edit.json skeleton when the project has no script yet.
-    paths: absolute paths of video files."""
+    """Bring recordings into the project (a hard link on the same drive, else a copy), analyse them per
+    second (motion, fire/explosion bursts, loud game-audio moments, idle stretches) and draw footage sheets
+    (thumbnails with timecodes) to Read. Recordings longer than 20 min also get overview sheets, one frame
+    per 10 s: read all of those first, then the per-second sheets around the events, then footage_strip.
+    Hours of footage are fine (streamed); a long import runs as a job, poll job_status.
+    Creates an edit.json skeleton when the project has no script yet. paths: absolute paths of video files."""
     p = st.resolve(project)
     files = [Path(x).expanduser().resolve() for x in paths]
     missing = [str(f) for f in files if not f.exists()]
@@ -160,6 +163,25 @@ def import_footage(project: str, paths: list[str], wait_seconds: int = 50) -> di
     p.mkdir(parents=True, exist_ok=True)
     job = JOBS.start(p, "footage", [str(f) for f in files])
     return _job_view(JOBS.wait(job, min(wait_seconds, MAX_WAIT)), 60)
+
+
+@mcp.tool()
+def footage_strip(project: str, src: str, start: float, duration: float = 12.0, fps: float = 2.0,
+                  crop: str = "full") -> list:
+    """A close look at one stretch of an imported recording: frames from `start` (seconds) at `fps`,
+    with timecodes. crop="chat" enlarges Minecraft's chat (bottom-left) so you can read what was typed;
+    "center" enlarges the middle of the screen. Use it after the overview and footage sheets to find exact
+    in-points, read Verity's chat lines and check a moment before writing a beat. At most 48 frames."""
+    try:
+        p = st.resolve(project)
+        r = _run_cli("strip", str(p), src, str(start), "--dur", str(duration), "--fps", str(fps), "--crop", crop,
+                     timeout=600)
+        if r.returncode:
+            return [f"error: {(r.stderr or r.stdout).strip()[-1500:]}"]
+        path = Path(r.stdout.strip().splitlines()[-1])
+        return [f"{path}", Image(path=path)]
+    except (ValueError, subprocess.TimeoutExpired) as exc:
+        return [f"error: {exc}"]
 
 
 @mcp.tool()

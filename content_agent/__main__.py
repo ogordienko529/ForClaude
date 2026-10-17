@@ -134,12 +134,32 @@ def cmd_footage(a) -> None:
     _done(t0)
     for src, r in report.items():
         print(f"{src}: {r['duration']:.1f}s {r['width']}x{r['height']} @{r['fps']:.0f}fps"
-              f"{' with audio' if r['has_audio'] else ' (no audio)'}")
-        print("  events: " + ", ".join(f"{e['kind']}@{e['t']}s" for e in r["events"][:20]))
-        print("  idle: " + ", ".join(f"{i['start']}-{i['end']}s" for i in r["idle"]))
-        print("  look at: " + ", ".join(r["sheets"]))
+              f"{' with audio' if r['has_audio'] else ' (no audio)'} ({r.get('import', '')})")
+        kinds = {}
+        for e in r["events"]:
+            kinds[e["kind"]] = kinds.get(e["kind"], 0) + 1
+        print(f"  events: {kinds or 'none'} (all of them in {Path(src).stem}.analysis.json)")
+        print("  first events: " + ", ".join(f"{e['kind']}@{e['t']}s" for e in r["events"][:20]))
+        print(f"  idle stretches: {len(r['idle'])}")
+        if r.get("overview_sheets"):
+            print("  overview (one frame per 10 s, read these first): " + ", ".join(r["overview_sheets"]))
+        print(f"  detail sheets (one frame per second): {len(r['sheets'])} in {Path(r['sheets'][0]).parent}"
+              if r["sheets"] else "  no sheets")
     if (project / "edit.json").exists():
         print(f"edit list: {project / 'edit.json'}")
+
+
+def cmd_strip(a) -> None:
+    """A close look at one stretch of a recording (exact in-points, readable chat)."""
+    from .gameplay import footage_strip
+
+    project = project_dir(a.project)
+    video = project / a.src if not Path(a.src).is_absolute() else Path(a.src)
+    if not video.exists():
+        sys.exit(f"not found: {video}")
+    tag = f"{Path(a.src).stem}_{a.start:.0f}_{a.crop}"
+    out = footage_strip(video, a.start, a.dur, project / "review" / "strips" / f"{tag}.png", fps=a.fps, crop=a.crop)
+    print(out)
 
 
 def cmd_validate(a) -> int:
@@ -612,6 +632,15 @@ def main(argv: list[str] | None = None) -> int:
         if name == "make":
             p.add_argument("--draft", action="store_true", help="half resolution render (faster)")
         p.set_defaults(fn=fn)
+
+    p = sub.add_parser("strip", help="frames of one stretch of a recording, to find in-points or read the chat")
+    p.add_argument("project")
+    p.add_argument("src", help="footage/<file>.mp4 (relative to the project) or an absolute path")
+    p.add_argument("start", type=float, help="seconds from the start of the recording")
+    p.add_argument("--dur", type=float, default=12.0)
+    p.add_argument("--fps", type=float, default=2.0)
+    p.add_argument("--crop", choices=["full", "chat", "center"], default="full")
+    p.set_defaults(fn=cmd_strip)
 
     p = sub.add_parser("lines", help="write lines.md: the narration to record in your own voice (voice_engine recording)")
     p.add_argument("project")

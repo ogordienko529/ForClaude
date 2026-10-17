@@ -66,7 +66,8 @@ def footage(project: Path) -> list[dict]:
         out.append({"src": f"footage/{v.name}", "duration_s": a.get("duration"),
                     "size": f"{a.get('width')}x{a.get('height')}" if a else None,
                     "events": len(a.get("events", [])) if a else None,
-                    "sheets": a.get("sheets", []), "analysed": bool(a)})
+                    "overview_sheets": a.get("overview_sheets", []), "sheets": a.get("sheets", []),
+                    "analysed": bool(a)})
     return out
 
 
