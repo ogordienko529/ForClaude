@@ -45,6 +45,28 @@ second, and many titles carried no searchable words at all, so the feed, not sea
 
 Formats this channel cannot copy: 3D or LEGO animation, clips of other streamers' SMPs, phone tests.
 
+**Reference Shorts for `test` (watch them before editing one; views on 21 Oct 2026):**
+- "Can ANY explosion break OBSIDIAN? Kevin is hiding inside" (seedpite, 812k, 33 s): a ladder of
+  explosions, 1 TNT, 10 TNT, 10 charged creepers..., with a character at stake.
+  https://www.youtube.com/shorts/gZkai9_7jPc
+- "1000 TNT with POWER 20 vs Cow AND Villager" (Hollow Point, 6.8k subs, 740k, 55 s): "did they survive?".
+  https://www.youtube.com/shorts/w1_PbKVk9ZM
+- "I Tested a Dark Sniffer's Happiness Meter in Minecraft... Part 2" (Pixalotyl, 933 subs, 585k, 20 s): a
+  meter as the counter, "watch the meter to the end". https://www.youtube.com/shorts/9pU-t-qV7zs
+- "Every Pixel You Mine Earn $0.005" (JustJinx, 8.9k subs, 3.6M, 33 s): a money counter.
+  https://www.youtube.com/shorts/MnkRGkVkYSQ
+- "MINECRAFT SCARY but nuking horror mods godzilla" (JohnnyXD Random, 13k subs, 411k, 77 s): this channel's
+  topic; compare with "Bloodbath Godzilla vs a Nuke" (5.9k). https://www.youtube.com/shorts/Q9V5pSkgbHM
+- "HOW MANY PIGS CAN ONE SPEAR KILL?" (Superoid Man, 1.5M, 82 s). https://www.youtube.com/shorts/gI5wD4qjvuY
+- "How much fall damage can Steve take on different type of blocks" (super epic, 6.0M, 60 s).
+  https://www.youtube.com/shorts/PCwdcvWftmE
+- "the BEST minecraft ARMOUR" (CoreCraft, 3.7M, 16 s). https://www.youtube.com/shorts/EvZID9x3RbA
+- Same idea, 45x apart: "1 TNT NORMAL VS 1000 TNTs PEQUENAS!" (2.1M, 31 s)
+  https://www.youtube.com/shorts/f2HNxNTKtgE vs "1 Regular TNT vs. 1,000 Mini TNT" (46k, 27 s)
+  https://www.youtube.com/shorts/xFLMZxp0QIg: the delivery decides.
+- "1 To 25000 Emeralds Vs Minecraft Villager!" (Craft Destruction, 5.1k subs, 1.8M, 33 s; made in Teardown,
+  but the cleanest 1-to-N structure). https://www.youtube.com/shorts/0Y3a-G1GPdw
+
 **Feed readiness (QA checks the rendered file).** `qa` adds a "Feed readiness" table:
 - hook text on screen by 0.5 s;
 - the first 2 s move at least 0.6x as much as the rest (open on the action, not a calm shot);
