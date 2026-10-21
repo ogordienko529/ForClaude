@@ -1,0 +1,32 @@
+# Minecraft Shorts by FORMAT: which kinds of Shorts small channels turn into 100k+ views.
+# Run: python -m niche_core scan @examples/seeds/formats.txt --days 30 --max-subs 10000 --export
+minecraft meme
+minecraft funny
+minecraft troll
+minecraft build
+minecraft build hack
+minecraft satisfying
+minecraft pov
+minecraft animation
+minecraft edit
+minecraft parkour
+minecraft clutch
+minecraft speedrun
+minecraft mod
+minecraft mod showcase
+minecraft horror
+minecraft scary
+minecraft but
+minecraft challenge
+minecraft test
+minecraft vs
+minecraft experiment
+minecraft hardcore
+minecraft survival
+minecraft facts
+minecraft myth
+minecraft secret
+minecraft tutorial
+minecraft redstone
+minecraft villager
+minecraft smp

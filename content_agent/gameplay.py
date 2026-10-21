@@ -13,6 +13,9 @@ Workflow (driven by Claude Code, see .claude/skills/edit-gameplay/SKILL.md):
 edit.json:
 {
   "title": "I built a house... then TNT",
+  "format": "test",                     # meme | test | showcase | story | build | moment (SHORT_FORMATS): sets the
+                                        # length window, the loop rule and the QA feed checks
+  "loop": true,                         # optional: false when the ending must not lead back into the opening
   "style": "plain",                     # text + cut style: plain | meme | boxed | pixel | comic | neon | clean
   "text_case": "as_written",            # as_written (default for plain) | upper
   "framing": "crop",                    # crop: fill 9:16 around `focus`; fit: whole frame on a blurred copy
@@ -429,6 +432,8 @@ def validate_edit(edit: Edit, durations: dict[str, float] | None = None) -> list
     segs = edit.segments
     if not segs:
         return [Issue("error", None, "edit.json has no segments")]
+    if edit.data.get("format") is not None and edit.data["format"] not in SHORT_FORMATS:
+        issues.append(Issue("error", None, "format must be one of " + ", ".join(SHORT_FORMATS)))
     music = edit.data.get("music") or {}
     if music.get("track"):
         if not edit.track:
@@ -518,6 +523,28 @@ def validate_edit(edit: Edit, durations: dict[str, float] | None = None) -> list
 # Small-channel breakout Shorts (YouTube API, 60 days to Oct 2026): Minecraft drone Shorts 9-29 s
 # (median ~15 s), gun mods median ~27 s, war mods median ~36 s. Good Shorts keep 70%+ "viewed"
 # (vs swiped away); under 60% the hook is the problem.
+# What kind of Short this is. The length windows and the loop rule come from 57 Minecraft Shorts with 100k+
+# views on channels under 10k subscribers (YouTube API, 30 days to 21 October 2026). Plain gameplay moments
+# were rare among them: the winners had a premise you get in one second.
+SHORT_FORMATS: dict[str, dict] = {
+    "meme": {"len": (6, 25), "loop": True,
+             "doc": "one joke or relatable situation, the punchline is the payoff "
+                    "(\"Hey it's me it's verity\" 9.2M, 34 s; \"The old faithful\" 2.4M, 7 s)"},
+    "test": {"len": (15, 40), "loop": True,
+             "doc": "a question tested on screen with a counter that keeps rising: 1 to 25,000, every block = X "
+                    "(\"1 To 25000 Emeralds Vs Villager\" 1.8M, 33 s; \"Every Pixel You Mine Earn $0.005\" 3.6M, 33 s)"},
+    "showcase": {"len": (20, 35), "loop": True,
+                 "doc": "one mod, one effect nobody has seen, shown in the first second "
+                        "(\"Cool Hole Filler Mod...\" 3.8M, 34 s; \"GUNGNIR The Shooting Star\" 1.1M, 27 s)"},
+    "story": {"len": (35, 60), "loop": False,
+              "doc": "a horror or survival mini-story: one threat, one question, the answer at the end "
+                     "(\"TRYING TO FIND THE REAL JERRY\" 4.3M, 48 s; \"Where am I?\" 1.8M, 54 s)"},
+    "build": {"len": (25, 45), "loop": True,
+              "doc": "a build that does something, the reveal last (\"I Built a FLYING Star Destroyer\" 2.1M, 35 s)"},
+    "moment": {"len": (15, 30), "loop": True,
+               "doc": "one gameplay moment with a payoff (clutch, fail, kill). Rare among breakouts: give it a premise"},
+}
+
 RETENTION = {"max_total_s": 35.0, "hook_seg_s": 2.0, "hook_text_at_s": 0.3, "hook_words": 5,
              "payoff_min_frac": 0.4, "tail_after_payoff_s": 3.0, "min_text_s": 0.7, "rehook_after_s": 20.0}
 
@@ -556,10 +583,21 @@ def retention_checks(edit: Edit, durations: dict[str, float] | None = None) -> l
     marks, total = _timeline_marks(edit)
     first = segs[0]
     fid = first.get("id")
-    if total > r["max_total_s"]:
-        out.append(Issue("warning", None, f"{total:.1f}s total: breakout Minecraft Shorts on small channels run 15-36 s "
-                                          f"(drones ~15 s, guns ~27 s, war mods ~36 s). Keep only the strongest "
-                                          f"20-30 s; length must be earned by escalation"))
+    kind = edit.data.get("format")
+    if kind in SHORT_FORMATS:
+        lo, hi = SHORT_FORMATS[kind]["len"]
+        if total > hi:
+            out.append(Issue("warning", None, f"{total:.1f}s is long for a {kind} Short ({lo}-{hi} s in the 100k+ "
+                                              f"breakouts): cut to the strongest beats, length must be earned"))
+        elif total < lo:
+            out.append(Issue("warning", None, f"{total:.1f}s is short for a {kind} Short ({lo}-{hi} s): the setup or "
+                                              f"the escalation is missing"))
+    else:
+        out.append(Issue("warning", None, "set \"format\" (" + " | ".join(SHORT_FORMATS) + "): the length window, "
+                                          "the loop rule and the QA feed checks depend on it"))
+        if total > r["max_total_s"]:
+            out.append(Issue("warning", None, f"{total:.1f}s total: breakout Minecraft Shorts on small channels run "
+                                              f"15-40 s, mini-stories up to 60 s. Length must be earned by escalation"))
     if edit.seg_duration(first) > r["hook_seg_s"]:
         out.append(Issue("warning", fid, f"hook segment is {edit.seg_duration(first):.1f}s: cut to the next shot within "
                                          f"{r['hook_seg_s']:.0f} s"))
@@ -838,6 +876,7 @@ def build(edit: Edit) -> tuple[dict, dict]:
     timeline = {
         "kind": "gameplay", "title": d.get("title", ""), "fps": FPS, "width": OUT_W, "height": OUT_H,
         "durationInFrames": total, "format": "gameplay", "audio": "audio/mix.wav",
+        "shortFormat": d.get("format"), "loop": d.get("loop"),
         "framing": d.get("framing", "crop"), "srcWidth": src_info["width"], "srcHeight": src_info["height"],
         "progressBar": bool(d.get("progress_bar", False)), "style": d.get("style", "meme"),
         "textCase": d.get("text_case", "as_written" if d.get("style") == "plain" else "upper"),

@@ -89,6 +89,9 @@ mode, say which one you chose and why in one line, and continue. Do not stop to 
      answers; a new picture or card at least every 30–40 s; no single clip longer than ~25 s;
      promise in the hook, payoff in the last chapter. `build` prints retention warnings: fix every
      one before rendering.
+   - **Shorts: pick the format first** (`edit-gameplay` playbook, section 1b): `test`, `showcase`, `story`,
+     `meme`, `build` or `moment`, set as `"format"` in edit.json. It sets the length window and the QA feed
+     checks. A plain playthrough moment without a premise is the weakest choice.
    - **Shorts: retention principles, never a recipe** (`edit-gameplay` playbook, section 2).
      Length is earned: 20–30 s by default.
      - **Principles:** the first frame sells it; stakes by ~5 s; something new every 2–3 s; the
@@ -113,7 +116,8 @@ mode, say which one you chose and why in one line, and continue. Do not stop to 
      calls; a tool timeout does not stop the job. Do not poll in a tight loop.
    - If a step fails, read `log_tail`, fix the cause, and run the step again.
 8. **Self-review (never skip).**
-   - Read the QA report.
+   - Read the QA report. For Shorts, the "Feed readiness" table must say ready: fix every high finding
+     (calm opening) and every medium one (silent start, wrong length) before you call it done.
    - Then Read `overview.png` and **every** contact sheet. Judge them against the playbook's
      rubric: hook in the first seconds, readable text, nothing covering the HUD or faces, no black
      or frozen frames, footage matching the narration, pacing, a clear ending.

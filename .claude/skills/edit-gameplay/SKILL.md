@@ -26,6 +26,41 @@ and find the exact frame of the payoff (the first frame that changes).
 Write down: the payoff (the one moment the Short is about), the setup that makes it land, the
 boring parts (cut, or speed them up), and one frame that explains the video at a glance (the hook).
 
+## 1b. Pick the format first (what reaches 100k)
+
+Set `"format"` in edit.json. It sets the length window, the loop rule and the QA feed checks.
+The data: 57 Minecraft Shorts with 100k+ views on channels under 10k subscribers, YouTube API, 30
+days to 21 October 2026 (`niche_core scan @examples/seeds/formats.txt --days 30 --max-subs 10000`).
+Plain moments from a playthrough were rare among them. The winners had a premise you get in one
+second, and many titles carried no searchable words at all, so the feed, not search, pushed them.
+
+| Format | Length | Breakouts (views, length, channel size) | Recipe |
+|---|---|---|---|
+| `test` | 15-40 s | "1 To 25000 Emeralds Vs Minecraft Villager!" 1.8M, 33 s, 5k; "Every Pixel You Mine Earn $0.005" 3.6M, 33 s, 8.9k; "Can i pass it?..." 2.0M, 21 s | the question is the hook text; frame 1 shows both sides and the counter at its first value; the counter rises every 1-3 s, each step bigger; the result in the last third; end on the counter or "again?" |
+| `showcase` | 20-35 s | "Cool Hole Filler Mod..." 3.8M, 34 s, 9.5k; "GUNGNIR The Shooting Star Minecraft Mod" 1.1M, 27 s, 4.1k | frame 1 is the effect itself, never the crafting; 3-4 uses, each more extreme; the mod name as a small label (viewers always ask); the biggest use last |
+| `story` | 35-60 s | "TRYING TO FIND THE REAL JERRY" 4.3M, 48 s, 7.9k; "Where am I?" 1.8M, 54 s, 4.3k; "The Horror Mob Came to Take the Fat Villager" 1.3M, 38 s, 8.3k | frame 1 is the threat or the strangest moment; the first line (text or chat) is the question; 3-5 beats, each raising the stakes; the answer in the last 5-10 s; no loop needed |
+| `meme` | 6-25 s | "Hey it's me it's verity" 9.2M, 34 s, 9.6k; "The old faithful" 2.4M, 7 s, 3.8k; "Smart baby villagers" 1.3M, 17 s | one relatable situation; setup in frame 1, punchline at 70-90%; no explaining text; cut back to the setup frame to loop |
+| `build` | 25-45 s | "I Built a FLYING Star Destroyer in Minecraft!" 2.1M, 35 s, 3.9k | 1 s of the finished build doing its thing, then the build-up as a fast timelapse, the full reveal last |
+| `moment` | 15-30 s | (rare) | only with a premise in the hook text; otherwise pick another format |
+
+Formats this channel cannot copy: 3D or LEGO animation, clips of other streamers' SMPs, phone tests.
+
+**Feed readiness (QA checks the rendered file).** `qa` adds a "Feed readiness" table:
+- hook text on screen by 0.5 s;
+- the first 2 s move at least 0.6x as much as the rest (open on the action, not a calm shot);
+- sound from the first frame (louder than -35 dBFS in the first 0.5 s);
+- length inside the format's window;
+- the last frame leads back into the first (colour difference <= 0.22) for every format except `story`.
+A high finding means the Short is not ready: fix it before upload.
+
+**Targets after upload (Studio, 48 h):** viewed vs swiped >= 70% and average percentage viewed >= 90%
+(loops count). This channel's best Short so far had 64% viewed and got 90% of its views from search:
+the feed did not push it.
+
+**Test formats like an experiment.** Make 3 Shorts in each of 2-3 formats, publish 1-2 a day, and log
+views, viewed vs swiped and average percentage viewed at 48 h in `<project>/analytics.md`. Keep the format
+that reaches 70% viewed or 3x the channel's median views; drop the rest. One week, then double down.
+
 ## 2. Structure: hook → stakes → escalation → payoff → loop
 
 **Goal.** At least 70% of viewers stay past the first second: YouTube Studio's "viewed vs swiped

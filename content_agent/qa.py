@@ -283,13 +283,102 @@ def _tc(t: float) -> str:
     return f"{int(m)}:{s:04.1f}"
 
 
+# Feed readiness of a Short, measured on the rendered file. The Shorts feed shows a new Short to a small test
+# group and keeps showing it while viewers do not swipe away (Studio: "viewed vs swiped away") and watch most
+# of it. Our best Short so far (6.1k views) had 64% viewed: the feed barely pushed it, search brought 90%.
+FEED = {
+    "opening_motion": 0.6,   # motion in the first 2 s vs the median of the rest: below this, the opening is calm
+    "start_db": -35.0,       # level of the first 0.5 s: below this, the Short starts in silence
+    "loop_diff": 0.22,       # mean difference of the first and last frame (0-1): above this, no loop
+    "targets": "after upload: viewed vs swiped >= 70%, average percentage viewed >= 90% (loops count)",
+}
+
+
+def _start_level(video: Path, seconds: float = 0.5) -> float | None:
+    import numpy as np
+
+    out = subprocess.run(["ffmpeg", "-v", "error", "-nostdin", "-t", f"{seconds}", "-i", str(video), "-vn", "-ac", "1",
+                          "-ar", "16000", "-f", "s16le", "-"], capture_output=True)
+    if out.returncode or not out.stdout:
+        return None
+    y = np.frombuffer(out.stdout[: len(out.stdout) // 2 * 2], np.int16).astype(np.float32) / 32768
+    return round(float(20 * np.log10(np.sqrt(np.mean(y * y)) + 1e-6)), 1)
+
+
+def _frame_diff(video: Path, t0: float, t1: float) -> float | None:
+    import numpy as np
+
+    from .gameplay import iter_frames
+
+    frames = []
+    for t in (t0, t1):
+        chunk = next(iter(iter_frames(video, 10, 54, 96, start=max(t, 0), duration=0.2)), None)
+        if chunk is None or not len(chunk):
+            return None
+        frames.append(chunk[0].astype(np.float32))          # colour, not brightness: red vs blue must differ
+    return round(float(np.abs(frames[0] - frames[1]).mean() / 255), 3)
+
+
+def feed_checks(video: Path, timeline: dict) -> tuple[list[Finding], dict]:
+    """Does the rendered Short do what the 100k+ breakouts do in its first seconds and at its end?"""
+    from statistics import median
+
+    from .gameplay import SHORT_FORMATS, analyze
+
+    fps = timeline["fps"]
+    total = timeline["durationInFrames"] / fps
+    kind = timeline.get("shortFormat")
+    out: list[Finding] = []
+    feed: dict = {"format": kind, "duration_s": round(total, 1), "targets": FEED["targets"]}
+
+    a = analyze(video)
+    motions = [p["motion"] for p in a["per_second"]]
+    if len(motions) >= 4:
+        opening = sum(motions[:2]) / 2
+        rest = median(motions[2:]) or 1e-6
+        feed["opening_motion_ratio"] = round(opening / rest, 2)
+        if opening < FEED["opening_motion"] * rest:
+            out.append(Finding("feed_opening", "high", f"the first 2 s move less than the rest of the Short "
+                                                       f"({opening:.1f} vs {rest:.1f}): viewers decide in the first "
+                                                       f"second, open on the action or the payoff itself", None, 0, 2))
+    lvl = _start_level(video)
+    feed["start_db"] = lvl
+    if lvl is not None and lvl < FEED["start_db"]:
+        out.append(Finding("feed_sound", "medium", f"the first 0.5 s are nearly silent ({lvl:.0f} dBFS): start on a "
+                                                   f"sound (the game, the music hit, a voice)", None, 0, 0.5))
+    texts = timeline.get("texts", [])
+    feed["hook_text"] = any(x["from"] / fps <= 0.5 for x in texts)
+    if kind in SHORT_FORMATS:
+        lo, hi = SHORT_FORMATS[kind]["len"]
+        feed["length_ok"] = lo <= total <= hi
+        if not feed["length_ok"]:
+            out.append(Finding("feed_length", "medium", f"{total:.1f}s for a {kind} Short: the breakouts run {lo}-{hi} s"))
+        wants_loop = SHORT_FORMATS[kind]["loop"] if timeline.get("loop") is None else bool(timeline["loop"])
+    else:
+        feed["length_ok"] = None
+        out.append(Finding("feed_format", "low", "no format in edit.json (meme | test | showcase | story | build | "
+                                                 "moment): length and loop could not be checked"))
+        wants_loop = timeline.get("loop") is not False
+    diff = _frame_diff(video, 0.05, max(total - 0.15, 0.1))
+    feed["loop_diff"] = diff
+    if wants_loop and diff is not None and diff > FEED["loop_diff"]:
+        out.append(Finding("feed_loop", "low", f"the last frame looks unlike the first (difference {diff:.2f}): end on "
+                                               f"a frame or line that leads back into the opening, a replay counts "
+                                               f"towards average viewed", None, max(total - 1, 0), total))
+    feed["ready"] = not any(f.severity == "high" for f in out)
+    return out, feed
+
+
 def run_qa(project: Path, video: Path, timeline: dict, storyboard_issues: list | None = None) -> dict:
     review = project / "review"
     review.mkdir(parents=True, exist_ok=True)
     findings, info = technical_checks(video, timeline)
     rubric = RUBRIC
+    feed = None
     if timeline.get("kind") == "gameplay":
         findings += pacing_checks(timeline)
+        feed_findings, feed = feed_checks(video, timeline)
+        findings += feed_findings
         rubric = RUBRIC_GAMEPLAY
     sheets = contact_sheets(video, timeline, review)
     ov = overview(video, timeline, review)
@@ -305,6 +394,7 @@ def run_qa(project: Path, video: Path, timeline: dict, storyboard_issues: list |
         "overview": str(ov),
         "transcript": str(review / "transcript.txt"),
         "rubric": rubric,
+        **({"feed": feed} if feed else {}),
     }
     (review / "qa.json").write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     lines = [f"# QA: {timeline.get('title', '')}", "",
@@ -318,6 +408,22 @@ def run_qa(project: Path, video: Path, timeline: dict, storyboard_issues: list |
             lines.append(f"| {f.severity} | {f.scene or '-'}{when} | {f.check} | {f.message} |")
     else:
         lines.append("No technical issues found.")
+    if feed:
+        def mark(ok):
+            return "-" if ok is None else ("yes" if ok else "**no**")
+        lines += ["", f"## Feed readiness ({feed.get('format') or 'format not set'}, {feed['duration_s']} s)", "",
+                  "| Check | Result |", "|---|---|",
+                  f"| Hook text on screen by 0.5 s | {mark(feed['hook_text'])} |",
+                  f"| Opening moves at least like the rest (ratio >= {FEED['opening_motion']}) | "
+                  f"{mark(feed.get('opening_motion_ratio', 1) >= FEED['opening_motion'])} "
+                  f"({feed.get('opening_motion_ratio', '-')}) |",
+                  f"| Sound from the first frame (> {FEED['start_db']:.0f} dBFS) | "
+                  f"{mark(feed['start_db'] is None or feed['start_db'] >= FEED['start_db'])} ({feed['start_db']}) |",
+                  f"| Length in the format's window | {mark(feed['length_ok'])} |",
+                  f"| Ending leads back into the opening (difference <= {FEED['loop_diff']}) | "
+                  f"{mark(feed['loop_diff'] is None or feed['loop_diff'] <= FEED['loop_diff'])} ({feed['loop_diff']}) |",
+                  "", f"Ready for the feed: {'yes' if feed['ready'] else '**no**, fix the high findings first'}. "
+                  f"Then check in Studio {feed['targets']}."]
     lines += ["", "Contact sheets: " + ", ".join(p.name for p in sheets), f"Overview: {ov.name}", "", rubric]
     (review / "qa.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return report

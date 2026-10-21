@@ -140,9 +140,12 @@ def _seg(sid, beats, text=None, **kw):
     return s
 
 
-def _redit(tmp_path, segments, drop=None):
+def _redit(tmp_path, segments, drop=None, fmt=None):
     # 120 bpm: one beat is 0.5 s
-    return Edit({"title": "t", "music": {"style": "phonk", "bpm": 120, "drop": drop}, "segments": segments}, tmp_path)
+    data = {"title": "t", "music": {"style": "phonk", "bpm": 120, "drop": drop}, "segments": segments}
+    if fmt:
+        data["format"] = fmt
+    return Edit(data, tmp_path)
 
 
 def test_retention_good_structure_has_no_warnings(tmp_path):
@@ -150,7 +153,7 @@ def test_retention_good_structure_has_no_warnings(tmp_path):
 
     segs = [_seg("s01", 3, "WAIT FOR *IT*"), _seg("s02", 6, "1 drone vs 50"), _seg("s03", 6), _seg("s04", 6, "ROUND *2*"),
             _seg("s05", 6), _seg("s06", 6, "LAST ONE"), _seg("s07", 4, "*BOOM*"), _seg("s08", 3, "again?")]
-    assert retention_checks(_redit(tmp_path, segs, drop="s07")) == []
+    assert retention_checks(_redit(tmp_path, segs, drop="s07", fmt="test")) == []
 
 
 def test_retention_flags_long_slow_unstructured_edits(tmp_path):
