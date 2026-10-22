@@ -43,8 +43,10 @@ Write findings to review/review.json as
 
 RUBRIC_GAMEPLAY = """Review rubric for fast gameplay edits (score each 1-5, list fixes with segment ids).
 Goal: 70%+ of viewers stay past the first second (Studio: "viewed vs swiped away") and most watch to the end.
-1. Hook (0-1.5 s): would the first frame work as a thumbnail? Action or the payoff in view, 2-5 words that raise a
-   question or a claim, no intro, no logo, no slow pan.
+1. Hook (0-1.5 s): Read review/first_frame.png (the frames at 0.1 s and 1 s at phone size). Is the subject big
+   (a third of the frame height or more) and the premise readable from that frame alone? A tiny figure in a big
+   sky, empty ground or a dark frame gets swiped. Action or the payoff in view, 2-5 words that raise a question or
+   a claim, no intro, no logo, no slow pan.
 2. Stakes (by ~5 s): is it clear what we are waiting for or what is at risk?
 3. Escalation: does every segment raise the stakes, with a pattern break every 2-3 s and a re-hook mid-video?
 4. Payoff: is the biggest moment in the last third, set up (riser, freeze, silence) and hit hard (drop, shake, boom)?
@@ -319,6 +321,27 @@ def _frame_diff(video: Path, t0: float, t1: float) -> float | None:
     return round(float(np.abs(frames[0] - frames[1]).mean() / 255), 3)
 
 
+def first_frames(video: Path, out: Path, times: tuple[float, ...] = (0.1, 1.0)) -> Path | None:
+    """The opening as a viewer sees it in the feed: frames at phone size (270x480) side by side."""
+    from PIL import Image as _Image
+
+    from .gameplay import iter_frames
+
+    tiles = []
+    for t in times:
+        chunk = next(iter(iter_frames(video, 10, 270, 480, start=t, duration=0.2)), None)
+        if chunk is not None and len(chunk):
+            tiles.append(_Image.fromarray(chunk[0]))
+    if not tiles:
+        return None
+    sheet = _Image.new("RGB", (len(tiles) * 280 + 10, 490), (18, 18, 22))
+    for i, im in enumerate(tiles):
+        sheet.paste(im, (10 + i * 280, 5))
+    out.parent.mkdir(parents=True, exist_ok=True)
+    sheet.save(out)
+    return out
+
+
 def feed_checks(video: Path, timeline: dict) -> tuple[list[Finding], dict]:
     """Does the rendered Short do what the 100k+ breakouts do in its first seconds and at its end?"""
     from statistics import median
@@ -365,6 +388,8 @@ def feed_checks(video: Path, timeline: dict) -> tuple[list[Finding], dict]:
         out.append(Finding("feed_loop", "low", f"the last frame looks unlike the first (difference {diff:.2f}): end on "
                                                f"a frame or line that leads back into the opening, a replay counts "
                                                f"towards average viewed", None, max(total - 1, 0), total))
+    ff = first_frames(video, video.parent.parent / "review" / "first_frame.png")
+    feed["first_frame"] = str(ff) if ff else None
     feed["ready"] = not any(f.severity == "high" for f in out)
     return out, feed
 
@@ -422,6 +447,8 @@ def run_qa(project: Path, video: Path, timeline: dict, storyboard_issues: list |
                   f"| Length in the format's window | {mark(feed['length_ok'])} |",
                   f"| Ending leads back into the opening (difference <= {FEED['loop_diff']}) | "
                   f"{mark(feed['loop_diff'] is None or feed['loop_diff'] <= FEED['loop_diff'])} ({feed['loop_diff']}) |",
+                  f"| First frame at phone size: subject big and premise readable? | look at "
+                  f"{Path(feed['first_frame']).name if feed.get('first_frame') else '-'} |",
                   "", f"Ready for the feed: {'yes' if feed['ready'] else '**no**, fix the high findings first'}. "
                   f"Then check in Studio {feed['targets']}."]
     lines += ["", "Contact sheets: " + ", ".join(p.name for p in sheets), f"Overview: {ov.name}", "", rubric]

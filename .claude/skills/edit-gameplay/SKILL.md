@@ -73,6 +73,10 @@ Formats this channel cannot copy: 3D or LEGO animation, clips of other streamers
 - sound from the first frame (louder than -35 dBFS in the first 0.5 s);
 - length inside the format's window;
 - the last frame leads back into the first (colour difference <= 0.22) for every format except `story`.
+- `review/first_frame.png`: the frames at 0.1 s and 1 s at phone size. Judge it by eye: the subject must fill
+  a third of the frame height or more, and the premise must read from that frame alone. "Bloodbath Godzilla
+  vs Every TNT" (2.3k, 61% viewed, 76% of views from search) showed Godzilla as a small dark shape in a big
+  sky on its cover frame.
 A high finding means the Short is not ready: fix it before upload.
 
 **Targets after upload (Studio, 48 h):** viewed vs swiped >= 70% and average percentage viewed >= 90%

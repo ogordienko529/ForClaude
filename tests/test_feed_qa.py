@@ -103,3 +103,14 @@ def test_length_window_by_format(tmp_path):
     assert "long for a story" not in msgs and "short for a story" not in msgs   # 48 s is inside 35-60 s
     short_story = _edit(tmp_path, {"format": "story", "music": {"style": "none", "bpm": 120}, "segments": _segs(6)})
     assert any("short for a story Short" in i.message for i in gp.retention_checks(short_story))
+
+
+def test_first_frame_sheet_at_phone_size(tmp_path):
+    from PIL import Image
+
+    (tmp_path / "out").mkdir()
+    v = _render(tmp_path / "out" / "video.mp4", "testsrc2=s=1080x1920:d=4:r=30", "volume=0.5", 4)
+    _, feed = feed_checks(v, _tl(4, "meme"))
+    ff = Path(feed["first_frame"])
+    assert ff == tmp_path / "review" / "first_frame.png" and ff.exists()
+    assert Image.open(ff).size == (2 * 280 + 10, 490)          # two frames, 270x480 each
