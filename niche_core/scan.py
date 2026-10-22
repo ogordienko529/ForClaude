@@ -40,6 +40,49 @@ def read_seeds(spec: list[str] | None) -> list[str]:
     return list(dict.fromkeys(out))
 
 
+# YouTube search for "minecraft zombie apocalypse" also returns 7 Days to Die, Project Zomboid, Roblox, Teardown
+# and Blender videos. A scan over Minecraft queries keeps only videos that name the game in their title,
+# description or tags, and drops those whose title or tags name another game or tool.
+GAME_WORDS = {"minecraft": ["minecraft", "майнкрафт", "マイクラ", "mcpe"]}
+OTHER_GAMES = ["teardown", "zomboid", "7 days to die", "roblox", "brookhaven", "garry's mod", "gmod", "blender",
+               "left 4 dead", "fallout", "dayz", "unturned", "fortnite", "gta"]
+
+
+def auto_require(seeds: list[str]) -> list[str] | None:
+    """When every query is about one game we know, require that game's name in the video."""
+    for game, words in GAME_WORDS.items():
+        if seeds and all(game in q.lower() for q in seeds):
+            return words
+    return None
+
+
+def verify_game(service, videos: dict[str, dict], require: list[str] | None, exclude: list[str] | None
+                ) -> list[dict]:
+    """Drops videos that are not about the game. Returns what was dropped and why. ~1 unit per 50 videos."""
+    import re as _re
+
+    if not videos or not (require or exclude):
+        return []
+    meta = {it["id"]: it.get("snippet", {}) for it in service.client.list_videos_full(list(videos))}
+    dropped = []
+    for vid in list(videos):
+        sn = meta.get(vid, {})
+        title, desc, tags = sn.get("title", ""), sn.get("description", ""), " ".join(sn.get("tags", []) or [])
+        anywhere = f"{title}\n{desc}\n{tags}".lower()
+        named = f"{title}\n{tags}".lower()
+        reason = None
+        if require and not any(w.lower() in anywhere for w in require):
+            reason = "does not name the game"
+        else:
+            hit = [o for o in (exclude or []) if _re.search(r"(?<![a-z])" + _re.escape(o) + r"(?![a-z])", named)]
+            if hit:
+                reason = "another game or tool: " + ", ".join(hit)
+        if reason:
+            v = videos.pop(vid)
+            dropped.append({"video_id": vid, "title": v["title"], "views": v["views"], "reason": reason})
+    return sorted(dropped, key=lambda d: -d["views"])
+
+
 def _bucket(dur: int) -> str:
     for lo, hi in ((0, 20), (20, 40), (40, 70), (70, 120), (120, 181)):
         if lo <= dur < hi:
@@ -48,7 +91,8 @@ def _bucket(dur: int) -> str:
 
 
 def run(service, seeds: list[str], *, fmt: str = "shorts", days: int = 14, max_subs: int = 1000,
-        min_views: int = 100_000, max_units: int | None = None, log=None) -> dict[str, Any]:
+        min_views: int = 100_000, max_units: int | None = None, log=None,
+        require: list[str] | None | str = "auto", exclude: list[str] | None | str = "auto") -> dict[str, Any]:
     videos: dict[str, dict] = {}
     per_query: dict[str, list[str]] = {}
     errors: list[str] = []
@@ -69,6 +113,13 @@ def run(service, seeds: list[str], *, fmt: str = "shorts", days: int = 14, max_s
             v["queries"].append(q)
         if log:
             log(f"  {q}: scanned {out.get('scanned', 0)}, breakouts {len(hits)}")
+    req = auto_require(seeds) if require == "auto" else require
+    exc = (OTHER_GAMES if req else None) if exclude == "auto" else exclude
+    dropped = verify_game(service, videos, req, exc)
+    if dropped and log:
+        log(f"  dropped {len(dropped)} videos that are not about the game")
+    for q in per_query:
+        per_query[q] = [i for i in per_query[q] if i in videos]
     ranked = sorted(videos.values(), key=lambda v: -v["views"])
     by_channel: dict[str, list[dict]] = defaultdict(list)
     for v in ranked:
@@ -84,7 +135,7 @@ def run(service, seeds: list[str], *, fmt: str = "shorts", days: int = 14, max_s
                       if w not in {"the", "and", "minecraft", "shorts", "this", "with", "for", "you", "your", "that", "but"}})
     return {
         "tool": "scan", "format": fmt, "days": days, "max_subs": max_subs, "min_views": min_views,
-        "seeds": seeds, "errors": errors,
+        "seeds": seeds, "errors": errors, "require": req, "dropped": dropped,
         "videos": ranked,
         "per_query": {q: len(ids) for q, ids in per_query.items()},
         "channels": channels,
@@ -105,6 +156,9 @@ def to_markdown(r: dict, limit: int = 40) -> str:
              + (f" (median length {r['median_length_s']} s)" if r["median_length_s"] else "") + ".")
     if r["errors"]:
         L += ["", "Stopped early: " + "; ".join(r["errors"])]
+    if r.get("dropped"):
+        L += ["", f"Dropped {len(r['dropped'])} videos that are not about the game (checked title, description, tags): "
+              + "; ".join(f"{d['title'][:40]} ({d['reason']})" for d in r["dropped"][:8])]
     L += ["", "## Where the breakouts are (per query)", ""]
     for q, n in sorted(r["per_query"].items(), key=lambda x: -x[1]):
         L.append(f"- {q}: {n}")

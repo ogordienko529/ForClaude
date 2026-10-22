@@ -853,7 +853,8 @@ class NicheService:
 
     def scan_breakouts(self, seeds: list[str] | None = None, format: str = "shorts", published_within_days: int = 14,
                        max_channel_subs: int = 1000, min_views: int = 100_000, export: bool = False,
-                       dry_run: bool = False, max_units: int | None = None, log=None) -> dict[str, Any]:
+                       dry_run: bool = False, max_units: int | None = None, log=None,
+                       require: list[str] | None | str = "auto", exclude: list[str] | None | str = "auto") -> dict[str, Any]:
         """Breakouts from tiny channels across many queries: the daily feed of where small channels win."""
         from . import scan as sc
 
@@ -867,7 +868,7 @@ class NicheService:
                     "quota": self.receipt(est, self.quota.session_units, "dry run: nothing spent").to_dict()}
         self._check_budget(est, max_units)
         result = sc.run(self, seeds, fmt=fmt, days=days, max_subs=max_channel_subs, min_views=min_views,
-                        max_units=max_units, log=log)
+                        max_units=max_units, log=log, require=require, exclude=exclude)
         result["markdown"] = sc.to_markdown(result)
         if export:
             import json as _json

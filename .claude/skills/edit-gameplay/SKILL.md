@@ -29,14 +29,16 @@ boring parts (cut, or speed them up), and one frame that explains the video at a
 ## 1b. Pick the format first (what reaches 100k)
 
 Set `"format"` in edit.json. It sets the length window, the loop rule and the QA feed checks.
-The data: 57 Minecraft Shorts with 100k+ views on channels under 10k subscribers, YouTube API, 30
-days to 21 October 2026 (`niche_core scan @examples/seeds/formats.txt --days 30 --max-subs 10000`).
+The data: 57 Shorts with 100k+ views on channels under 10k subscribers found by Minecraft queries, YouTube
+API, 30 days to 21 October 2026 (`niche_core scan @examples/seeds/formats.txt --days 30 --max-subs 10000`).
+YouTube search mixes in other games: 6 of the 57 did not name Minecraft and 5 were Teardown, Blender or GTA
+edits. The scan now drops those (`--require`, `--exclude`); check the game before you copy a format.
 Plain moments from a playthrough were rare among them. The winners had a premise you get in one
 second, and many titles carried no searchable words at all, so the feed, not search, pushed them.
 
 | Format | Length | Breakouts (views, length, channel size) | Recipe |
 |---|---|---|---|
-| `test` | 15-40 s | "1 To 25000 Emeralds Vs Minecraft Villager!" 1.8M, 33 s, 5k; "Every Pixel You Mine Earn $0.005" 3.6M, 33 s, 8.9k; "Can i pass it?..." 2.0M, 21 s | the question is the hook text; frame 1 shows both sides and the counter at its first value; the counter rises every 1-3 s, each step bigger; the result in the last third; end on the counter or "again?" |
+| `test` | 15-40 s | "1 To 25000 Emeralds Vs Minecraft Villager!" 1.8M, 33 s, 5k (made in Teardown, not Minecraft); "Every Pixel You Mine Earn $0.005" 3.6M, 33 s, 8.9k; "Can i pass it?..." 2.0M, 21 s | the question is the hook text; frame 1 shows both sides and the counter at its first value; the counter rises every 1-3 s, each step bigger; the result in the last third; end on the counter or "again?" |
 | `showcase` | 20-35 s | "Cool Hole Filler Mod..." 3.8M, 34 s, 9.5k; "GUNGNIR The Shooting Star Minecraft Mod" 1.1M, 27 s, 4.1k | frame 1 is the effect itself, never the crafting; 3-4 uses, each more extreme; the mod name as a small label (viewers always ask); the biggest use last |
 | `story` | 35-60 s | "TRYING TO FIND THE REAL JERRY" 4.3M, 48 s, 7.9k; "Where am I?" 1.8M, 54 s, 4.3k; "The Horror Mob Came to Take the Fat Villager" 1.3M, 38 s, 8.3k | frame 1 is the threat or the strangest moment; the first line (text or chat) is the question; 3-5 beats, each raising the stakes; the answer in the last 5-10 s; no loop needed |
 | `meme` | 6-25 s | "Hey it's me it's verity" 9.2M, 34 s, 9.6k; "The old faithful" 2.4M, 7 s, 3.8k; "Smart baby villagers" 1.3M, 17 s | one relatable situation; setup in frame 1, punchline at 70-90%; no explaining text; cut back to the setup frame to loop |
@@ -61,9 +63,8 @@ Formats this channel cannot copy: 3D or LEGO animation, clips of other streamers
 - "How much fall damage can Steve take on different type of blocks" (super epic, 6.0M, 60 s).
   https://www.youtube.com/shorts/PCwdcvWftmE
 - "the BEST minecraft ARMOUR" (CoreCraft, 3.7M, 16 s). https://www.youtube.com/shorts/EvZID9x3RbA
-- Same idea, 45x apart: "1 TNT NORMAL VS 1000 TNTs PEQUENAS!" (2.1M, 31 s)
-  https://www.youtube.com/shorts/f2HNxNTKtgE vs "1 Regular TNT vs. 1,000 Mini TNT" (46k, 27 s)
-  https://www.youtube.com/shorts/xFLMZxp0QIg: the delivery decides.
+- "1 Regular TNT vs. 1,000 Mini TNT in Minecraft!" (MineStorm, 4.3k subs, 46k, 27 s): the same idea as bigger
+  hits, far fewer views; compare its first 2 s with the ones above. https://www.youtube.com/shorts/xFLMZxp0QIg
 - "1 To 25000 Emeralds Vs Minecraft Villager!" (Craft Destruction, 5.1k subs, 1.8M, 33 s; made in Teardown,
   but the cleanest 1-to-N structure). https://www.youtube.com/shorts/0Y3a-G1GPdw
 

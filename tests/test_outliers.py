@@ -146,3 +146,23 @@ def test_scan_merges_queries_and_groups(service, tmp_path):
     out = service.scan_breakouts(seeds, max_channel_subs=100_000, min_views=1, export=True)
     assert out["exported_to"].endswith("scan_shorts.md") and out["quota"]["actual"] == 0  # second run: all cached
     assert service.scan_breakouts(["x"], dry_run=True)["quota"]["actual"] == 0
+
+
+def test_scan_drops_videos_that_are_not_about_the_game(service):
+    from niche_core import scan
+
+    assert scan.auto_require(["minecraft horror", "minecraft but"]) == scan.GAME_WORDS["minecraft"]
+    assert scan.auto_require(["minecraft horror", "lighthouse lore"]) is None
+    videos = {vid: {"video_id": vid, "title": vid, "views": n}
+              for vid, n in (("vShortVert01", 30), ("vShortHoriz1", 20), ("vLongLore001", 10))}
+    dropped = scan.verify_game(service, videos, require=["lighthouse"], exclude=["documentary"])
+    assert set(videos) == {"vShortVert01"}                      # "I survived 100 days in a lighthouse"
+    reasons = {d["video_id"]: d["reason"] for d in dropped}
+    assert reasons["vShortHoriz1"] == "does not name the game"   # "Quick horizontal clip"
+    assert reasons["vLongLore001"].startswith("another game")    # tagged documentary
+    assert scan.verify_game(service, {"x": {"title": "x", "views": 1}}, None, None) == []
+    # in a full scan the per-query counts and the report follow the filter
+    r = scan.run(service, ["lighthouse lore"], fmt="shorts", days=14, max_subs=100_000, min_views=1,
+                 require=["nothing-matches-this"], exclude=None)
+    assert r["videos"] == [] and sum(r["per_query"].values()) == 0 and r["dropped"]
+    assert "not about the game" in scan.to_markdown(r)

@@ -70,6 +70,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--min-views", type=int, default=100_000, help="views floor (default 100k)")
     p.add_argument("--export", action="store_true", help="write reports/scan_<format>.md and .json")
     p.add_argument("--json", action="store_true")
+    p.add_argument("--require", default="auto",
+                   help="comma-separated words a video must name (title/description/tags); default: the game when every "
+                        "query names it (minecraft); 'none' to keep everything")
+    p.add_argument("--exclude", default="auto", help="comma-separated other games/tools to drop (default: a built-in list)")
     _add_budget_args(p)
 
     p = sub.add_parser("analyze", help="analyze_niche: scored niche report")
@@ -206,6 +210,15 @@ def _backtest(svc: NicheService, args: argparse.Namespace) -> int:
     return 0
 
 
+def _words(value: str):
+    """'auto' stays auto, 'none' disables, anything else is a comma-separated list."""
+    if value in ("auto", None):
+        return "auto"
+    if value.lower() == "none":
+        return None
+    return [w.strip() for w in value.split(",") if w.strip()]
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
@@ -246,7 +259,8 @@ def main(argv: list[str] | None = None) -> int:
                 svc.scan_breakouts,
                 dict(seeds=args.seeds or None, format=args.format, published_within_days=args.days,
                      max_channel_subs=args.max_subs, min_views=args.min_views, export=args.export,
-                     log=lambda m: print(m, file=sys.stderr)),
+                     log=lambda m: print(m, file=sys.stderr),
+                     require=_words(args.require), exclude=_words(args.exclude)),
                 args,
             )
         elif args.command == "channel":
