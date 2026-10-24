@@ -80,6 +80,25 @@ def validate_format(fmt: str) -> str:
     return fmt
 
 
+def game_filter(query: str, videos: list[Video]) -> tuple[list[Video], int]:
+    """When the query names a game we know (minecraft), keep videos whose title or tags name it and none that
+    name another game or tool: search for "minecraft tornado" also returns real storm chasers."""
+    import re as _re
+
+    from .scan import OTHER_GAMES, auto_require
+
+    req = auto_require([query])
+    if not req:
+        return videos, 0
+    keep = []
+    for v in videos:
+        named = (v.title + " " + " ".join(v.tags or [])).lower()
+        if any(w in named for w in req) and not any(
+                _re.search(r"(?<![a-z])" + _re.escape(o) + r"(?![a-z])", named) for o in OTHER_GAMES):
+            keep.append(v)
+    return keep, len(videos) - len(keep)
+
+
 class NicheService:
     def __init__(
         self,
@@ -476,6 +495,9 @@ class NicheService:
         excluded: dict[str, int] = {}
         try:
             videos, channels, excluded = self.collect(specs, fmt, with_channels=True, errors=errors)
+            videos, off_game = game_filter(query, videos)
+            if off_game:
+                excluded["not_the_game"] = excluded.get("not_the_game", 0) + off_game
         except QuotaExceededError as exc:
             errors.append(str(exc))
             result["partial"] = True
@@ -596,6 +618,10 @@ class NicheService:
         excluded: dict[str, int] = {}
         try:
             videos_by_group, channels, excluded = self.collect_groups(groups, fmt, with_channels=True, errors=errors)
+            for g in list(videos_by_group):
+                videos_by_group[g], off_game = game_filter(query, videos_by_group[g])
+                if off_game:
+                    excluded["not_the_game"] = excluded.get("not_the_game", 0) + off_game
         except QuotaExceededError as exc:
             errors.append(str(exc))
             result["partial"] = True

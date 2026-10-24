@@ -166,3 +166,21 @@ def test_scan_drops_videos_that_are_not_about_the_game(service):
                  require=["nothing-matches-this"], exclude=None)
     assert r["videos"] == [] and sum(r["per_query"].values()) == 0 and r["dropped"]
     assert "not about the game" in scan.to_markdown(r)
+
+
+def test_niche_analysis_keeps_only_the_game():
+    from niche_core.models import Video
+    from niche_core.service import game_filter
+
+    def v(vid, title, tags=()):
+        return Video(video_id=vid, channel_id="c", channel_title="ch", title=title, published_at=None,
+                     duration_s=600, format_class="long", tags=list(tags))
+
+    vids = [v("a", "2 Idiots Try to Survive an EF5 Tornado in Minecraft"),
+            v("b", "DOMINATOR 3! #reedtimmer #tornado #tornadochaser"),          # a real storm chaser
+            v("c", "Surviving a tornado", tags=["minecraft", "weather mod"]),    # the game only in tags
+            v("d", "Minecraft vs Roblox tornado")]                               # another game named
+    kept, dropped = game_filter("minecraft tornado", vids)
+    assert [x.video_id for x in kept] == ["a", "c"] and dropped == 2
+    same, none = game_filter("lighthouse lore", vids)                            # no known game: untouched
+    assert same == vids and none == 0
