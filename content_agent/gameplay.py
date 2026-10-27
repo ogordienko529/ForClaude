@@ -31,6 +31,7 @@ edit.json:
     {"id": "s01", "src": "footage/raw.mp4", "in": 65.2, "beats": 2, "speed": 1,
      "zoom": 1.15, "zoom_to": 1.5, "focus": [0.45, 0.5], "punch": false, "framing": "fit",
      "fx": ["shake", "flash", "bw"],
+     "brightness": 1.0,                # 1.3-1.8 lifts a dark cave or night shot (a dark opening reads as black on a phone)
      "text": {"text": "POV: your *house*", "style": "hook|caption|big|label", "at": 0, "dur": null,
               "target": [0.5, 0.6]},     # label arrow target (fraction of the output frame)
      "badge": "x8",
@@ -492,6 +493,9 @@ def validate_edit(edit: Edit, durations: dict[str, float] | None = None) -> list
         for fx in s.get("fx", []):
             if fx not in FX:
                 issues.append(Issue("error", sid, f"unknown fx {fx!r} (use {FX})"))
+        b = s.get("brightness", 1)
+        if not isinstance(b, (int, float)) or not 0.5 <= b <= 2.5:
+            issues.append(Issue("error", sid, "brightness must be a number from 0.5 to 2.5 (1 = unchanged)"))
         for x in _sfx(s):
             if x.get("name") not in SFX_NAMES:
                 issues.append(Issue("error", sid, f"unknown sfx {x.get('name')!r} (use {SFX_NAMES})"))
@@ -829,7 +833,8 @@ def build(edit: Edit) -> tuple[dict, dict]:
         if (d.get("music") or {}).get("drop") == sid:
             drop_at = f0 / FPS
         common = {"focus": s.get("focus", [0.5, 0.5]), "fx": s.get("fx", []),
-                  "framing": s.get("framing", d.get("framing", "crop")), "transition": s.get("transition")}
+                  "framing": s.get("framing", d.get("framing", "crop")), "transition": s.get("transition"),
+                  "brightness": float(s.get("brightness", 1))}
         clips.append({"id": sid, "kind": "video", "src": s["src"], "from": f0, "durationInFrames": max(f1 - f0, 1),
                       "startFrom": round(float(s.get("in", 0)) * FPS), "playbackRate": speed,
                       "zoom": float(s.get("zoom", 1)), "zoomTo": float(s.get("zoom_to", s.get("zoom", 1))),
@@ -856,7 +861,8 @@ def build(edit: Edit) -> tuple[dict, dict]:
                           "durationInFrames": g1 - f1, "zoom": float(s.get("zoom_to", s.get("zoom", 1))),
                           "zoomTo": float(fr.get("zoom", 1.12)) * float(s.get("zoom_to", s.get("zoom", 1))),
                           "punch": False, "focus": s.get("focus", [0.5, 0.5]),
-                          "framing": common["framing"], "fx": (["bw"] if fr.get("bw", True) else [])})
+                          "framing": common["framing"], "fx": (["bw"] if fr.get("bw", True) else []),
+                          "brightness": common["brightness"]})
             if fr.get("text"):
                 texts.append({"text": fr["text"], "style": fr.get("style", "big"), "from": f1, "to": g1, "seg": sid,
                               "target": None})

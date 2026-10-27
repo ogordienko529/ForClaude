@@ -72,6 +72,8 @@ Formats this channel cannot copy: 3D or LEGO animation, clips of other streamers
 - hook text on screen by 0.5 s;
 - the first 2 s move at least 0.6x as much as the rest (open on the action, not a calm shot);
 - sound from the first frame (louder than -35 dBFS in the first 0.5 s);
+- the opening frame bright enough for a phone (mean brightness 50/255 or more): night and cave shots
+  read as a black screen in the feed; set `"brightness": 1.4`–`1.8` on that segment or open on a lit moment;
 - length inside the format's window;
 - the last frame leads back into the first (colour difference <= 0.22) for every format except `story`.
 - `review/first_frame.png`: the frames at 0.1 s and 1 s at phone size. Judge it by eye: the subject must fill

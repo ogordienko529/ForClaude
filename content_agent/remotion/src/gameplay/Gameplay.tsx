@@ -40,6 +40,7 @@ export type Clip = {
   fx: string[];
   framing?: 'crop' | 'fit';
   transition?: string | null; // cut | zoomblur | pixel | flash | glitch | whip (default: the style's)
+  brightness?: number; // 1 = unchanged; lifts dark caves and nights
 };
 export type Txt = {text: string; style: string; from: number; to: number; target?: [number, number] | null};
 export type Badge = {text: string; from: number; to: number};
@@ -142,6 +143,7 @@ const ClipView: React.FC<{clip: Clip; t: GameplayTimeline}> = ({clip, t}) => {
     rot = 0.9 * Math.exp(-frame / 8) * Math.sin(frame * 2.1);
   }
   const bw = clip.fx.includes('bw');
+  const lift = clip.brightness && clip.brightness !== 1 ? `brightness(${clip.brightness})` : '';
   const media: React.CSSProperties = {position: 'absolute', left, top, width: sw, height: sh, maxWidth: 'none'};
   const ss = useShortStyle();
   const cut = cutEffect(clip.from === 0 || clip.kind === 'still' ? 'cut' : clip.transition || ss.cut, frame);
@@ -164,7 +166,7 @@ const ClipView: React.FC<{clip: Clip; t: GameplayTimeline}> = ({clip, t}) => {
         style={{
           transform: `translate(${sx}px, ${sy}px) rotate(${rot}deg) scale(${z})`,
           transformOrigin: `${ox}px ${oy}px`,
-          filter: bw ? 'grayscale(1) contrast(1.3) brightness(0.92)' : undefined,
+          filter: [lift, bw ? 'grayscale(1) contrast(1.3) brightness(0.92)' : ''].filter(Boolean).join(' ') || undefined,
         }}
       >
         {clip.kind === 'video' ? (

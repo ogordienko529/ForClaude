@@ -292,6 +292,7 @@ FEED = {
     "opening_motion": 0.6,   # motion in the first 2 s vs the median of the rest: below this, the opening is calm
     "start_db": -35.0,       # level of the first 0.5 s: below this, the Short starts in silence
     "loop_diff": 0.22,       # mean difference of the first and last frame (0-1): above this, no loop
+    "dark_luma": 50,         # mean brightness of the opening frame (0-255): below this it reads as black on a phone
     "targets": "after upload: viewed vs swiped >= 70%, average percentage viewed >= 90% (loops count)",
 }
 
@@ -319,6 +320,16 @@ def _frame_diff(video: Path, t0: float, t1: float) -> float | None:
             return None
         frames.append(chunk[0].astype(np.float32))          # colour, not brightness: red vs blue must differ
     return round(float(np.abs(frames[0] - frames[1]).mean() / 255), 3)
+
+
+def _luma(video: Path, t: float) -> float | None:
+    from .gameplay import iter_frames
+
+    chunk = next(iter(iter_frames(video, 10, 54, 96, start=max(t, 0), duration=0.2)), None)
+    if chunk is None or not len(chunk):
+        return None
+    f = chunk[0].astype("float32")
+    return round(float((0.299 * f[..., 0] + 0.587 * f[..., 1] + 0.114 * f[..., 2]).mean()), 1)
 
 
 def first_frames(video: Path, out: Path, times: tuple[float, ...] = (0.1, 1.0)) -> Path | None:
@@ -369,6 +380,12 @@ def feed_checks(video: Path, timeline: dict) -> tuple[list[Finding], dict]:
     if lvl is not None and lvl < FEED["start_db"]:
         out.append(Finding("feed_sound", "medium", f"the first 0.5 s are nearly silent ({lvl:.0f} dBFS): start on a "
                                                    f"sound (the game, the music hit, a voice)", None, 0, 0.5))
+    luma = _luma(video, 0.1)
+    feed["opening_luma"] = luma
+    if luma is not None and luma < FEED["dark_luma"]:
+        out.append(Finding("feed_dark", "medium", f"the opening frame is dark (brightness {luma:.0f}/255): on a phone "
+                                                  f"it reads as a black screen and gets swiped; lift it (\"brightness\": "
+                                                  f"1.4-1.8 on the segment) or open on a lit moment", None, 0, 1))
     texts = timeline.get("texts", [])
     feed["hook_text"] = any(x["from"] / fps <= 0.5 for x in texts)
     if kind in SHORT_FORMATS:
@@ -444,6 +461,9 @@ def run_qa(project: Path, video: Path, timeline: dict, storyboard_issues: list |
                   f"({feed.get('opening_motion_ratio', '-')}) |",
                   f"| Sound from the first frame (> {FEED['start_db']:.0f} dBFS) | "
                   f"{mark(feed['start_db'] is None or feed['start_db'] >= FEED['start_db'])} ({feed['start_db']}) |",
+                  f"| Opening frame bright enough for a phone (>= {FEED['dark_luma']}/255) | "
+                  f"{mark(feed.get('opening_luma') is None or feed['opening_luma'] >= FEED['dark_luma'])} "
+                  f"({feed.get('opening_luma', '-')}) |",
                   f"| Length in the format's window | {mark(feed['length_ok'])} |",
                   f"| Ending leads back into the opening (difference <= {FEED['loop_diff']}) | "
                   f"{mark(feed['loop_diff'] is None or feed['loop_diff'] <= FEED['loop_diff'])} ({feed['loop_diff']}) |",

@@ -43,6 +43,32 @@ def test_busy_opening_with_sound_and_loop_passes(tmp_path):
     assert not [f for f in findings if f.check in ("feed_opening", "feed_sound", "feed_length")]
 
 
+def test_dark_opening_is_flagged(tmp_path):
+    # a night or cave shot: moving, with sound, but nearly black at phone size
+    v = _render(tmp_path / "dark.mp4", "testsrc2=s=270x480:d=8:r=30,eq=brightness=-0.75", "volume=0.5", 8)
+    findings, feed = feed_checks(v, _tl(8, "meme"))
+    assert feed["opening_luma"] < FEED["dark_luma"]
+    assert any(f.check == "feed_dark" and f.severity == "medium" for f in findings)
+    bright = _render(tmp_path / "bright.mp4", "testsrc2=s=270x480:d=8:r=30", "volume=0.5", 8)
+    assert not any(f.check == "feed_dark" for f in feed_checks(bright, _tl(8, "meme"))[0])
+
+
+def test_brightness_reaches_the_timeline_and_is_validated(tmp_path):
+    p = tmp_path / "proj"
+    (p / "footage").mkdir(parents=True)
+    _render(p / "footage" / "raw.mp4", "testsrc2=s=640x360:d=6:r=30", "volume=0.5", 6)
+    data = {"title": "t", "format": "meme", "music": {"style": "none"},
+            "segments": [{"id": "s01", "src": "footage/raw.mp4", "in": 0, "beats": 4, "brightness": 1.6}]}
+    (p / "edit.json").write_text(json.dumps(data))
+    edit = gp.Edit.load(p)
+    assert not [i for i in gp.validate_edit(edit) if i.level == "error" and "brightness" in i.message]
+    tl, _ = gp.build(edit)
+    assert tl["clips"][0]["brightness"] == 1.6
+    data["segments"][0]["brightness"] = 4
+    (p / "edit.json").write_text(json.dumps(data))
+    assert any("brightness must be" in i.message for i in gp.validate_edit(gp.Edit.load(p)))
+
+
 def test_silent_start_is_flagged(tmp_path):
     v = _render(tmp_path / "quiet.mp4", "testsrc2=s=270x480:d=8:r=30", "volume='if(lt(t,1),0,0.5)':eval=frame", 8)
     findings, feed = feed_checks(v, _tl(8, "meme"))
