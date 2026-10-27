@@ -48,6 +48,8 @@ def _read_json(path: Path) -> dict:
 
 
 def kind_of(project: Path) -> str:
+    if (project / "cut.json").exists():
+        return "commentary"
     if (project / "storyboard.json").exists():
         return _read_json(project / "storyboard.json").get("format", "explainer")
     if (project / "edit.json").exists():
@@ -76,6 +78,11 @@ def next_step(project: Path, kind: str) -> str:
     source = m["storyboard"] if kind not in ("gameplay_short",) else m["edit"]
     if kind == "empty":
         return "plan: import footage (import_footage) or create the project (new_project), then write the script"
+    if kind == "commentary":
+        if m["video"] is None or (m["timeline"] and m["video"] < m["timeline"]) or \
+                (project / "cut.json").stat().st_mtime > (m["video"] or 0):
+            return "run_step cut (cut.json changed since the last render), then read review/qa.md"
+        return "read review/qa.md and review/first_frame.png; for English: dub out/voice_stem.wav, then dub_mix"
     if kind == "footage_only":
         return "write storyboard.json (review/explainer) or edit.json (Short) for this footage"
     if kind not in ("gameplay_short",):
@@ -97,7 +104,8 @@ def next_step(project: Path, kind: str) -> str:
 
 def project_status(project: Path) -> dict:
     kind = kind_of(project)
-    data = _read_json(project / ("storyboard.json" if kind not in ("gameplay_short", "footage_only", "empty")
+    data = _read_json(project / ("cut.json" if kind == "commentary" else
+                                 "storyboard.json" if kind not in ("gameplay_short", "footage_only", "empty")
                                  else "edit.json"))
     info: dict = {
         "project": str(project),
@@ -109,7 +117,10 @@ def project_status(project: Path) -> dict:
         "artifacts": {k: str(project / v) for k, v in ARTIFACTS.items() if (project / v).exists()},
         "next_step": next_step(project, kind),
     }
-    if kind not in ("gameplay_short", "footage_only", "empty"):
+    if kind == "commentary":
+        info["segments"] = len(data.get("segments", []))
+        info["cold_open"] = bool(data.get("cold_open"))
+    elif kind not in ("gameplay_short", "footage_only", "empty"):
         beats = data.get("beats", [])
         info["beats"] = len(beats)
         info["words"] = sum(len(b.get("narration", "").split()) for b in beats)

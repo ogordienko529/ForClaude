@@ -37,6 +37,10 @@ questions ("не запитуй, а роби").
   records it on a phone (one take, 2 s pauses) to `content_projects/<slug>/voice/narration.m4a`;
   `"voice_engine": "recording"` splits the file on the pauses and cuts the video to it. On this
   channel a synthetic voice is used only when the user asks for it; Shorts without his voice are silent.
+- **Live commentary (preferred for long videos):** the user talks while playing, OBS records mic and
+  game on separate tracks; `python -m content_agent commentary <slug> footage/rec.mp4` finds reactions
+  and dead stretches, the agent writes `cut.json`, `cut <slug>` renders, `dub <slug> <file>` swaps in
+  an English dub of `out/voice_stem.wav` with the same timing.
 - **Hand over a whole video:** when the user asks for one, delegate it to the `content-maker`
   subagent (or run the command above).
 - **Machine checks:** `python -m content_agent doctor`. One-time setup:
@@ -46,6 +50,8 @@ Playbooks in `.claude/skills/` (follow them when the request matches):
 - `make-video`: topic → narrated animated explainer.
 - `edit-gameplay`: raw gameplay → fast vertical Short, no voice.
 - `review-video`: silent mod recording → narrated mod review with chapters, verdict, thumbnail.
+- `commentary-video`: recording with live commentary (voice on its own OBS track) → long video cut
+  from the session with the creator's real voice, optional English dub.
 
 When the user brings footage together with a shooting script, put both in `content_projects/<slug>/`
 and edit the footage to the script with the `review-video` playbook.

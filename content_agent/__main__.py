@@ -149,6 +149,60 @@ def cmd_footage(a) -> None:
         print(f"edit list: {project / 'edit.json'}")
 
 
+def cmd_commentary(a) -> None:
+    """Analyse a recording with live commentary: speech, reactions, loud game moments, dead stretches."""
+    from .commentary import analyze, to_markdown
+
+    project = project_dir(a.project)
+    video = project / a.src if not Path(a.src).is_absolute() else Path(a.src)
+    if not video.exists():
+        sys.exit(f"not found: {video}")
+    t0 = _step("commentary analysis")
+    gt = None if a.game_track is not None and a.game_track < 0 else a.game_track
+    vt = None if a.voice_track is not None and a.voice_track < 0 else a.voice_track
+    res = analyze(video, vt, gt, transcribe=a.transcribe, log=lambda m: print(m, file=sys.stderr))
+    outdir = project / "commentary"
+    outdir.mkdir(parents=True, exist_ok=True)
+    (outdir / f"{video.stem}.json").write_text(json.dumps(res, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    md = outdir / f"{video.stem}.md"
+    md.write_text(to_markdown(res), encoding="utf-8")
+    _done(t0, f"({len(res['reactions'])} reactions, {len(res['dead'])} dead stretches, talking {res['talk_share']:.0%})")
+    print(md)
+
+
+def cmd_cut(a) -> int:
+    """Validate cut.json, render the live-commentary video, write stems + description, run QA."""
+    from .commentary import load, qa, render, validate_cut
+
+    project = project_dir(a.project)
+    issues = validate_cut(project, load(project))
+    for i in issues:
+        print(i)
+    if any(i.level == "error" for i in issues):
+        print("fix the errors in cut.json first")
+        return 1
+    t0 = _step("cut (render)")
+    res = render(project, draft=a.draft, log=lambda m: print(m, file=sys.stderr))
+    _done(t0, f"({res['parts']} parts, {res['duration'] / 60:.1f} min)")
+    t0 = _step("qa")
+    rep = qa(project)
+    _done(t0)
+    print((project / "review" / "qa.md").read_text(encoding="utf-8"))
+    print(f"video: {res['video']}\nvoice stem for dubbing: {res['voice_stem']}\ndescription: {res['description']}")
+    return 0
+
+
+def cmd_dub(a) -> None:
+    from .commentary import dub
+
+    project = project_dir(a.project)
+    voice = Path(a.voice) if Path(a.voice).is_absolute() else project / a.voice
+    if not voice.exists():
+        sys.exit(f"not found: {voice}")
+    res = dub(project, voice, log=lambda m: print(m, file=sys.stderr))
+    print(f"{res['video_en']}\noriginal audio track to upload as a second language: {res['audio_original']}")
+
+
 def cmd_strip(a) -> None:
     """A close look at one stretch of a recording (exact in-points, readable chat)."""
     from .gameplay import footage_strip
@@ -632,6 +686,24 @@ def main(argv: list[str] | None = None) -> int:
         if name == "make":
             p.add_argument("--draft", action="store_true", help="half resolution render (faster)")
         p.set_defaults(fn=fn)
+
+    p = sub.add_parser("commentary", help="analyse a recording with live commentary (speech, reactions, dead stretches)")
+    p.add_argument("project")
+    p.add_argument("src", help="footage/<file> (relative to the project) or an absolute path")
+    p.add_argument("--voice-track", type=int, default=1, help="audio stream of the microphone (OBS track 2 = 1)")
+    p.add_argument("--game-track", type=int, default=2, help="audio stream of the game (OBS track 3 = 2); -1: none")
+    p.add_argument("--transcribe", action="store_true", help="timed transcript with faster-whisper (if installed)")
+    p.set_defaults(fn=cmd_commentary)
+
+    p = sub.add_parser("cut", help="render a live-commentary video from cut.json (+ stems, description, QA)")
+    p.add_argument("project")
+    p.add_argument("--draft", action="store_true", help="half resolution, faster")
+    p.set_defaults(fn=cmd_cut)
+
+    p = sub.add_parser("dub", help="replace the live voice with a dubbed one (same timing): out/video_en.mp4")
+    p.add_argument("project")
+    p.add_argument("voice", help="dubbed voice file (e.g. ElevenLabs dubbing of out/voice_stem.wav)")
+    p.set_defaults(fn=cmd_dub)
 
     p = sub.add_parser("strip", help="frames of one stretch of a recording, to find in-points or read the chat")
     p.add_argument("project")

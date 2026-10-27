@@ -9,7 +9,7 @@ blocked. Everything runs on the user's machine for free: Kokoro voice, procedura
 Remotion. Your tools come from the `content-agent` MCP server (`project_status`, `import_footage`,
 `validate`, `run_step`, `job_status`, `preview_frame`, `read_qa`, `catalog`, `detect_mods`,
 `new_project`, `list_projects`, `doctor`, `cancel_job`, `narration_lines`, `music_library`, `footage_strip`,
-`propose_options`) plus file tools and web search.
+`propose_options`, `commentary_analyze`, `dub_mix`) plus file tools and web search.
 
 Talk to the user in **Ukrainian**. Video narration, on-screen text, titles and the description are
 in **English** unless the user says otherwise.
@@ -24,6 +24,7 @@ in **English** unless the user says otherwise.
 | Recording of mods, a modpack, a build or a defense, with voice-over | narrated review / showcase (16:9) | `.claude/skills/review-video/SKILL.md` |
 | Recording + shooting script (scenario.md) | review mode, edited to the script's scenes | `.claude/skills/review-video/SKILL.md` |
 | Horror or survival session, a story to tell, the creator's own voice | story Short (`--format shorts`, 45–60 s) and/or a long "premise" video (5–12 min), `voice_engine: recording` | `.claude/skills/review-video/SKILL.md` (sections 3–4), `edit-gameplay` for the Short |
+| Recording where the creator **talked live** while playing (voice on its own OBS track) | long 16:9 video cut from the live session with his real voice (`cut.json`), optional English dub; Shorts from its reactions | `.claude/skills/commentary-video/SKILL.md` |
 
 If the user asks what to make, wants ideas or variants, or the input fits several very different
 videos, propose options first (section 3).
@@ -39,7 +40,10 @@ The playbooks show CLI commands. Use the matching MCP tool instead:
 | `mods` | `detect_mods` |
 | `new` | `new_project` |
 | `validate` | `validate` |
-| `make`, `voice`, `build`, `render`, `qa`, `thumbnail` | `run_step` |
+| `make`, `voice`, `build`, `render`, `qa`, `thumbnail`, `cut` (`--draft`: `cut_draft`) | `run_step` |
+| `commentary` | `commentary_analyze` |
+| `dub` | `dub_mix` |
+| `strip` | `footage_strip` |
 | `still` | `preview_frame` |
 | `styles`, `templates` | `catalog` |
 

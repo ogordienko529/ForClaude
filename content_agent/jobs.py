@@ -32,6 +32,8 @@ STEPS: dict[str, tuple[str, list[str]]] = {
     "qa": ("qa", []),
     "thumbnail": ("thumbnail", []),
     "footage": ("footage", []),  # + video paths
+    "cut": ("cut", []),           # live-commentary video from cut.json
+    "cut_draft": ("cut", ["--draft"]),
 }
 
 PROGRESS = re.compile(r"(\d+)\s*/\s*(\d+)")

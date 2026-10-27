@@ -448,6 +448,25 @@ a footage beat needs more recording than exists, and names the beat and the fix.
 (`examples/gameplay_sim/review_storyboard.json`) is a 1:53 review of the Luanti Nether mod, made
 from a 73 s silent recording (`record.py --session nether`).
 
+### Live commentary
+
+When you talk while playing, nothing needs to be written or voiced afterwards: the edit only cuts.
+Record in OBS with three audio tracks (1: everything, 2: microphone, 3: the game via Application
+Audio Capture), then:
+
+```bash
+python -m content_agent footage my-session rec.mp4
+python -m content_agent commentary my-session footage/rec.mp4   # reactions, dead stretches, talking share
+# write content_projects/my-session/cut.json: a 3-8 s cold open + the segments to keep, with chapters
+python -m content_agent cut my-session --draft                  # render + QA of the opening and dead air
+python -m content_agent cut my-session                          # out/video.mp4, voice and game stems, chapters
+python -m content_agent dub my-session voice/dub_en.wav         # optional: a dubbed voice, same timing
+```
+
+The game is ducked under the voice, the result is normalised to −14 LUFS, and `out/voice_stem.wav`
+(the voice only, already cut) is what you upload to a dubbing service. The playbook is
+`.claude/skills/commentary-video/SKILL.md`.
+
 ### Visual styles
 
 A video does not have to look like the last one. One field switches the whole look:

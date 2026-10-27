@@ -58,7 +58,14 @@ def segments(y: np.ndarray, sr: int, *, min_gap: float = 0.7, min_len: float = 0
              threshold_db: float | None = None, frame_s: float = FRAME_S) -> list[tuple[float, float]]:
     """Spoken stretches as (start, end) seconds, split where the signal stays near the noise floor for
     at least `min_gap`. The threshold sits between the room noise and the speech of this very file."""
-    env = envelope_db(y, sr, frame_s)
+    return segments_from_envelope(envelope_db(y, sr, frame_s), frame_s, len(y) / sr, min_gap=min_gap,
+                                  min_len=min_len, pad=pad, threshold_db=threshold_db)
+
+
+def segments_from_envelope(env: np.ndarray, frame_s: float, total: float, *, min_gap: float = 0.7,
+                           min_len: float = 0.25, pad: float = 0.12,
+                           threshold_db: float | None = None) -> list[tuple[float, float]]:
+    """`segments` on a level envelope in dB (one value per `frame_s`), for audio too long to hold in memory."""
     if threshold_db is None:
         floor = float(np.percentile(env, 15))
         loud = float(np.percentile(env, 90))
@@ -81,7 +88,6 @@ def segments(y: np.ndarray, sr: int, *, min_gap: float = 0.7, min_len: float = 0
         i = j
     segs = [(a, b) for a, b in out if b - a >= min_len]
     padded = []
-    total = len(y) / sr
     for k, (a, b) in enumerate(segs):
         lo = max(a - pad, 0.0, padded[-1][1] if padded else 0.0)
         hi = min(b + pad, total, segs[k + 1][0] if k + 1 < len(segs) else total)

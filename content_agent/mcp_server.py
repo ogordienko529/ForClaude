@@ -25,7 +25,7 @@ from . import status as st
 from .jobs import Job, JobManager, cli
 
 Step = Literal["make", "make_draft", "voice", "music", "mix", "build", "render", "render_draft",
-               "render_scene", "qa", "thumbnail"]
+               "render_scene", "qa", "thumbnail", "cut", "cut_draft"]
 Format = Literal["explainer", "shorts", "review"]
 OptionsKind = Literal["ideas", "edit_variants"]
 
@@ -166,6 +166,41 @@ def import_footage(project: str, paths: list[str], wait_seconds: int = 50) -> di
 
 
 @mcp.tool()
+@_safe
+def commentary_analyze(project: str, src: str, voice_track: int = 1, game_track: int = 2,
+                       transcribe: bool = False) -> dict[str, Any]:
+    """Analyse an imported recording with LIVE commentary (OBS: track 1 mix, 2 microphone, 3 game, so voice_track=1,
+    game_track=2; -1 when missing). Finds when the creator talks, reactions (voice jumps: screams, laughs), loud game
+    moments and dead stretches, and writes commentary/<stem>.md. Use it to write cut.json (cold open + segments to
+    keep), then run_step cut. transcribe=true adds a timed transcript when faster-whisper is installed."""
+    p = st.resolve(project)
+    args = ["commentary", str(p), src, "--voice-track", str(voice_track), "--game-track", str(game_track)]
+    if transcribe:
+        args.append("--transcribe")
+    r = _run_cli(*args, timeout=3600)
+    if r.returncode:
+        raise RuntimeError((r.stderr or r.stdout).strip()[-2000:])
+    md = Path(r.stdout.strip().splitlines()[-1])
+    data = json.loads(md.with_suffix(".json").read_text(encoding="utf-8"))
+    return {"summary": md.read_text(encoding="utf-8")[:6000], "analysis": str(md.with_suffix(".json")),
+            "reactions": len(data["reactions"]), "dead": len(data["dead"]), "talk_share": data["talk_share"]}
+
+
+@mcp.tool()
+@_safe
+def dub_mix(project: str, voice_file: str) -> dict[str, Any]:
+    """After run_step cut: swap the live voice for a dubbed one with the same timing (e.g. ElevenLabs dubbing of
+    out/voice_stem.wav into English with the creator's cloned voice). Writes out/video_en.mp4 and
+    out/audio_original.m4a (upload it in YouTube Studio as a second language track)."""
+    p = st.resolve(project)
+    r = _run_cli("dub", str(p), voice_file, timeout=1800)
+    if r.returncode:
+        raise RuntimeError((r.stderr or r.stdout).strip()[-2000:])
+    lines = r.stdout.strip().splitlines()
+    return {"video_en": lines[0], "audio_original": lines[-1].split(": ", 1)[-1], "log": r.stderr[-1500:]}
+
+
+@mcp.tool()
 def footage_strip(project: str, src: str, start: float, duration: float = 12.0, fps: float = 2.0,
                   crop: str = "full") -> list:
     """A close look at one stretch of an imported recording: frames from `start` (seconds) at `fps`,
@@ -285,6 +320,7 @@ def run_step(project: str, step: Step, scene: str | None = None, wait_seconds: i
     """Run a pipeline step as a background job and wait up to wait_seconds for it (capped by the server).
 
     make = validate -> voice -> music -> mix -> build -> render -> qa (gameplay: build -> render -> qa);
+    cut / cut_draft = a live-commentary video from cut.json (render + stems + description + QA);
     make_draft / render_draft render at half resolution (faster, for a first look);
     render_scene re-renders one scene (scene=id) into review/scene_<id>.mp4;
     thumbnail renders out/thumbnail.png from the storyboard's "thumbnail" block.
