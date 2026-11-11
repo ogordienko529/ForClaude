@@ -1,8 +1,8 @@
 {
  "engine": "elevenlabs",
- "voice_id": "9Sj8ugvpK1DmcAXyvi3a",
- "public_owner_id": "dbbeef33b43029d58291e2a2a7f41160fd1350f1e04807099d9eadd482ec04e4",
- "voice_name": "uk · Alex Nekrasov",
+ "voice_id": "Ntd0iVwICtUtA6Fvx27M",
+ "public_owner_id": "9bc548f7824fc299d93320ebaad6767425ac43b4fd3380eb55a5d676de282884",
+ "voice_name": "uk · Evgeniy Shevchenko",
  "model": "eleven_multilingual_v2",
  "voice_settings": {
   "stability": 0.4,
@@ -31,7 +31,7 @@
   },
   {
    "id": "b05",
-   "text": "Друга: перепитай у новому чаті. Відповідь інша — факт сумнівний."
+   "text": "Друга: перепитай Claude у новому чаті. Відповідь інша — факт сумнівний."
   },
   {
    "id": "b06",
