@@ -21,7 +21,16 @@ def find_browser() -> str | None:
     env = os.environ.get("CONTENT_AGENT_BROWSER")
     if env:
         return env
-    return next((c for c in BROWSER_CANDIDATES if Path(c).exists()), None)
+    found = next((c for c in BROWSER_CANDIDATES if Path(c).exists()), None)
+    if found:
+        return found
+    # any other Playwright build: chromium_headless_shell-<n>/chrome-linux/headless_shell or
+    # .../chrome-headless-shell-linux64/chrome-headless-shell
+    for base in sorted(Path("/opt/pw-browsers").glob("chromium_headless_shell-*"), reverse=True):
+        for exe in ("chrome-linux/headless_shell", "chrome-headless-shell-linux64/chrome-headless-shell"):
+            if (base / exe).exists():
+                return str(base / exe)
+    return None
 
 
 def composition(timeline_path: Path) -> str:
