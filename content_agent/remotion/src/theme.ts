@@ -45,6 +45,11 @@ export const PALETTES: Record<string, Palette> = {
     bg1: '#101317', bg2: '#202833', text: '#eef1f4', muted: '#8d98a6', accent: '#ff6b4a', accent2: '#4ac6ff',
     land: '#242c37', landStroke: '#3a4655', grid: 'rgba(255,255,255,0.05)', panel: 'rgba(255,255,255,0.06)',
   },
+  // graphite with Claude-like clay orange accents: orange as the highlight, not the background
+  clay: {
+    bg1: '#141413', bg2: '#262624', text: '#faf9f5', muted: '#a8a59b', accent: '#d97757', accent2: '#e8b28f',
+    land: '#2b2a27', landStroke: '#3d3b37', grid: 'rgba(255,255,255,0.05)', panel: 'rgba(255,255,255,0.06)',
+  },
   // bright orange: dark text, navy highlights; for Shorts that should not look like the dark ones
   ember: {
     bg1: '#ff6a13', bg2: '#ff9a3c', text: '#1b1206', muted: '#5e3412', accent: '#14213d', accent2: '#ffffff',

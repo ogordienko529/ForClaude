@@ -184,11 +184,12 @@ STYLES = {
     "clean": "bright minimal, heavy sans, 2-3 big words at a time with the spoken word highlighted, white tags, slides",
     "comic": "halftone and rays, Bangers, speech-bubble captions and labels, zoom-burst transitions",
     "ember": "bright orange: heavy Montserrat on an orange background, navy highlights, slides",
+    "clay": "graphite with clay-orange highlights (Claude-like colours), heavy Montserrat, slides",
 }
 TRANSITIONS = ("fadePush", "wipe", "pixel", "glitch", "slide", "zoomBurst", "cut")
 FORMATS = ("explainer", "shorts", "review")
 
-PALETTES = ("midnight", "parchment", "slate", "ember")
+PALETTES = ("midnight", "parchment", "slate", "ember", "clay")
 # Product marks the chat and phone scenes can show to name the tool (remotion/src/logos.ts), never as the
 # channel's own brand.
 LOGOS = ("claude",)
