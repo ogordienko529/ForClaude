@@ -2,7 +2,8 @@
 
 run      one cycle (GitHub Actions calls it every 15 minutes). Reads TELEGRAM_BOT_TOKEN, TG_OWNER_CHAT_ID,
          TG_CHANNEL, TG_AUTO_PUBLISH ("1": giveaways go out without asking) and TG_GIVEAWAYS ("1": post free game
-         giveaways too) from the environment. The channel's own posts come from tg_content/posts.
+         giveaways too) from the environment. The channel's own posts come from tg_content/posts. TG_BURST=N
+         (a manual run) publishes the next N posts at once, silently, to fill a new channel.
 queue    check every post in tg_content/posts and list the ones still to go (with --state: minus the published
          ones). Exit code 1 when a post has a problem. --left prints only how many are left.
 preview  print the posts for the giveaways active now; no Telegram, no token.
@@ -62,20 +63,27 @@ def main(argv: list[str] | None = None) -> int:
     bot = Bot(Telegram(token), state, owner=int(owner) if owner.lstrip("-").isdigit() else None,
               channel=os.environ.get("TG_CHANNEL"), auto=os.environ.get("TG_AUTO_PUBLISH", "").strip() == "1",
               log=lambda m: print(m, file=sys.stderr), posts=feed.load(posts_dir),
-              giveaways=os.environ.get("TG_GIVEAWAYS", "").strip() == "1", profile=read_profile(posts_dir.parent))
+              giveaways=os.environ.get("TG_GIVEAWAYS", "").strip() == "1", profile=read_profile(posts_dir.parent),
+              burst=int(burst) if (burst := os.environ.get("TG_BURST", "").strip()).isdigit() else 0)
     report = bot.run(now, fetch_all)
     save_state(path, state)
     print(json.dumps(report, ensure_ascii=False))
     return 0
 
 
-def read_profile(folder: Path) -> dict[str, str] | None:
-    """tg_content/profile.json: {"title": ..., "description": ...}; the bot sets them on the channel."""
+def read_profile(folder: Path) -> dict | None:
+    """tg_content/profile.json: title, description, photo (a file next to it) and delete_messages (channel message
+    ids to delete once); the bot applies them to the channel."""
     try:
         data = json.loads((folder / "profile.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    return {k: str(data[k]) for k in ("title", "description") if data.get(k)} or None
+    out: dict = {k: str(data[k]) for k in ("title", "description") if data.get(k)}
+    if data.get("photo"):
+        out["photo"] = str(folder / str(data["photo"]))
+    if isinstance(data.get("delete_messages"), list):
+        out["delete_messages"] = [int(i) for i in data["delete_messages"] if str(i).isdigit()]
+    return out or None
 
 
 def queue(folder: Path, state_path: Path | None, only_count: bool, now: datetime) -> int:
@@ -99,6 +107,9 @@ def queue(folder: Path, state_path: Path | None, only_count: bool, now: datetime
     profile = read_profile(folder.parent)
     if profile and any(len(profile.get(k, "")) > n for k, n in (("title", 128), ("description", 255))):
         print("✗ profile.json: title at most 128 characters, description at most 255")
+        bad.append(None)
+    if profile and profile.get("photo") and not Path(profile["photo"]).is_file():
+        print(f"✗ profile.json: photo {profile['photo']} not found")
         bad.append(None)
     print(f"{len(posts)} posts, {len(published)} published, {len(left)} to go "
           f"(≈ {feed.days_left(posts, published, today):.1f} days at {len(feed.SLOTS)} a day), {len(bad)} with problems",

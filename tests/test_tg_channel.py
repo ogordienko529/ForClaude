@@ -418,3 +418,65 @@ def test_queue_cli(tmp_path, capsys):
     _write(posts, "0003-bad.md", "---\nrubric: nope\n---\nx")
     assert main(["queue", "--posts", str(posts)]) == 1
     assert "0003-bad" in capsys.readouterr().out
+
+
+def test_burst_fills_a_new_channel_silently_then_the_schedule_resumes(tmp_path):
+    for n in range(1, 6):
+        _write(tmp_path, f"000{n}-p.md", QUIZ_POST if n == 2 else TEXT_POST)
+    posts, tg, state, pauses = feed.load(tmp_path), FakeTG(), empty_state(), []
+    Bot(tg, state, owner=OWNER, channel=CHANNEL, log=lambda m: None, posts=posts, giveaways=False, burst=3,
+        pause=pauses.append).run(utc("2026-11-13T22:30:00"), fetch)          # 00:30 Kyiv: a burst ignores the hours
+    assert list(state["feed"]) == ["0001-p", "0002-p", "0003-p"] and len(pauses) == 2
+    sent = [p for m, p in tg.calls if m in ("sendMessage", "sendPoll")]
+    assert all(p["disable_notification"] is True for p in sent)
+    feed_bot(tg, state, posts).run(utc("2026-11-14T07:45:00"), fetch)     # the burst counted for that Kyiv day
+    assert len(state["feed"]) == 3
+    feed_bot(tg, state, posts).run(utc("2026-11-15T07:45:00"), fetch)     # the next morning: one, with a sound
+    assert list(state["feed"])[-1] == "0004-p" and tg.calls[-1][1].get("disable_notification") is None
+
+
+def test_profile_photo_and_one_time_cleanup(tmp_path):
+    photo = tmp_path / "avatar.png"
+    photo.write_bytes(b"\x89PNG fake")
+    tg, state, uploads = FakeTG(), empty_state(), []
+    tg.upload = lambda method, field, path, **p: uploads.append((method, field, str(path), p)) or True
+    profile = {"title": "ШІ без води", "photo": str(photo), "delete_messages": [2, 3, 4]}
+    for minute in (0, 15):
+        feed_bot(tg, state, [], profile).run(utc(f"2026-11-13T08:{minute:02d}:00"), fetch)
+    assert uploads == [("setChatPhoto", "photo", str(photo), {"chat_id": CHANNEL})]
+    assert [p["message_ids"] for m, p in tg.calls if m == "deleteMessages"] == [[2, 3, 4]]
+    photo.write_bytes(b"\x89PNG new")                                     # a new picture is uploaded again
+    feed_bot(tg, state, [], profile).run(utc("2026-11-13T08:30:00"), fetch)
+    assert len(uploads) == 2
+
+
+def test_cleanup_falls_back_to_one_by_one(tmp_path):
+    tg, state = FakeTG(), empty_state()
+    tg.fail = {"deleteMessages"}
+    feed_bot(tg, state, [], {"delete_messages": [2, 3]}).run(utc("2026-11-13T08:00:00"), fetch)
+    assert [p["message_id"] for m, p in tg.calls if m == "deleteMessage"] == [2, 3] and state["deleted"] == [2, 3]
+
+
+def test_with_giveaways_off_old_drafts_lose_their_buttons(tmp_path):
+    tg, state = FakeTG(), empty_state()
+    run(tg, state)                                                        # giveaway drafts sent to the owner
+    assert state["drafts"]
+    tg.press("p:1")
+    feed_bot(tg, state, []).run(NOW, fetch)
+    assert state["drafts"] == {} and not tg.sent(CHANNEL)
+    cleared = [p for m, p in tg.calls if m == "editMessageReplyMarkup"]
+    assert len(cleared) >= len(tg.drafts())
+
+
+def test_upload_sends_the_file_as_multipart():
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["type"] = request.headers["content-type"]
+        seen["body"] = request.content
+        return httpx.Response(200, json={"ok": True, "result": True})
+    tg = Telegram("1:x", httpx.Client(transport=httpx.MockTransport(handler)))
+    path = Path(__file__).parent / "conftest.py"
+    assert tg.upload("setChatPhoto", "photo", path, chat_id=-100) is True
+    assert seen["type"].startswith("multipart/form-data") and b'name="chat_id"' in seen["body"]
+    assert b'name="photo"; filename="conftest.py"' in seen["body"]

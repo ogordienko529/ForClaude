@@ -514,6 +514,12 @@ python -m tg_channel queue        # check every post; lists what is still to go 
 python -m tg_channel run          # one cycle; reads the variables above from the environment
 ```
 
+`tg_content/profile.json` holds the channel's `title`, `description`, `photo` (`avatar.png`, made from
+`avatar.html`; 640×640) and `delete_messages` (channel message ids to delete once). The bot applies a change on
+its next run. To open a new channel with more than one post, run the workflow by hand (Actions > Telegram channel
+bot > Run workflow) with **burst** = 10: the next ten posts go out at once without a notification, and the
+twice-a-day schedule continues the next day.
+
 **Writing posts by hand or with Claude:** follow `tg_content/GUIDE.md` (rubrics, Telegram HTML, the quiz format,
 the facts policy, the stop list of phrases that sound machine-written), add `tg_content/posts/NNNN-slug.md`
 with the next number, run `python -m tg_channel queue`, commit. Never rename a published file: its name is its id.

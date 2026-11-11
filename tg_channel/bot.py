@@ -8,8 +8,10 @@ is sent twice.
 
 from __future__ import annotations
 
+import hashlib
 import html
 import json
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable
@@ -31,7 +33,7 @@ Fetch = Callable[[datetime], tuple[list[Giveaway], list[str]]]
 
 def empty_state() -> dict[str, Any]:
     return {"version": 1, "offset": 0, "next_id": 1, "items": {}, "drafts": {}, "digests": {},
-            "feed": {}, "notes": {}, "channel": {}, "profile": ""}
+            "feed": {}, "notes": {}, "channel": {}, "profile": "", "deleted": []}
 
 
 def load_state(path: Path) -> dict[str, Any]:
@@ -69,9 +71,10 @@ def channel_id(value: str | None) -> str | None:
 class Bot:
     def __init__(self, tg: Telegram, state: dict[str, Any], owner: int | None, channel: str | None,
                  auto: bool = False, log: Callable[[str], None] = print, posts: list[Post] | None = None,
-                 giveaways: bool = True, profile: dict[str, str] | None = None):
+                 giveaways: bool = True, profile: dict[str, Any] | None = None, burst: int = 0,
+                 pause: Callable[[float], None] = time.sleep):
         self.tg, self.state, self.owner, self.channel, self.auto, self.log = tg, state, owner, channel_id(channel), auto, log
-        self.posts, self.giveaways, self.profile = posts, giveaways, profile
+        self.posts, self.giveaways, self.profile, self.burst, self.pause = posts, giveaways, profile, burst, pause
         self.report: dict[str, Any] = {"updates": 0, "drafts": 0, "published": 0, "rejected": 0, "errors": []}
 
     # ------------------------------------------------------------ the run
@@ -81,6 +84,8 @@ class Bot:
             self.report["note"] = "TG_OWNER_CHAT_ID is not set: send /start to the bot and add the id it replies with"
             return self.report
         self.resolve_channel()
+        if not self.giveaways:
+            self.drop_giveaway_drafts()
         if self.giveaways:
             giveaways, errors = fetch(now)
             self.report["errors"] += errors
@@ -89,8 +94,9 @@ class Bot:
                 item = self.state["items"].setdefault(g.key, {"status": "new", "reminded": False,
                                                               "first_seen": now.isoformat()})
                 item["giveaway"] = g.to_dict()            # Epic sometimes moves an end date: keep the latest
-        if self._active(now):
+        if self._active(now) or self.burst:
             self.apply_profile(now)
+            self.cleanup(now)
             if self.posts is not None:
                 self.feed(now)
             if self.giveaways:
@@ -158,6 +164,8 @@ class Bot:
         draft = self.state["drafts"].get(n)
         if not draft:
             return self._answer(cq, "Цю чернетку вже оброблено")
+        if not self.giveaways:
+            return self._answer(cq, "Роздачі ігор вимкнені, чернетку прибрано")
         if action == "p":
             mid = self.publish(draft["text"], draft.get("image"))
             if mid is None:
@@ -272,20 +280,49 @@ class Bot:
         return "pending" if self.draft(kind, key, text, image) else None
 
     # ------------------------------------------------------------ the channel's own posts
+    def drop_giveaway_drafts(self) -> None:
+        """With giveaways off, old drafts lose their buttons so a late press cannot post a game to the channel."""
+        for n in list(self.state["drafts"]):
+            d = self.state["drafts"].pop(n)
+            self._quiet("editMessageReplyMarkup", chat_id=self.owner, message_id=d.get("message_id"),
+                        reply_markup={"inline_keyboard": []})
+
+    def cleanup(self, now: datetime) -> None:
+        """Delete the channel messages listed in profile.json under delete_messages, once each."""
+        ids = [i for i in (self.profile or {}).get("delete_messages") or [] if i not in self.state["deleted"]]
+        if not ids or not self.channel:
+            return
+        try:
+            self.tg.call("deleteMessages", chat_id=self.target(), message_ids=ids)
+        except TelegramError:
+            for i in ids:
+                try:
+                    self.tg.call("deleteMessage", chat_id=self.target(), message_id=i)
+                except TelegramError as e:
+                    self.report["errors"].append(f"delete {i}: {e}")
+        self.state["deleted"] += ids
+        self.report["deleted"] = ids
+
     def apply_profile(self, now: datetime) -> None:
-        """Set the channel's name and description from tg_content/profile.json, once per change of the file."""
+        """Set the channel's name, description and photo from tg_content/profile.json, once per change."""
         if not self.profile or not self.channel:
             return
-        want = f"{self.profile.get('title', '')}\n{self.profile.get('description', '')}"
+        photo = Path(self.profile["photo"]) if self.profile.get("photo") else None
+        digest = hashlib.sha256(photo.read_bytes()).hexdigest()[:16] if photo and photo.is_file() else ""
+        want = f"{self.profile.get('title', '')}\n{self.profile.get('description', '')}\n{digest}"
         if self.state["profile"] == want:
             return
         ok = True
         for method, key, value in (("setChatTitle", "title", self.profile.get("title")),
-                                   ("setChatDescription", "description", self.profile.get("description"))):
+                                   ("setChatDescription", "description", self.profile.get("description")),
+                                   ("setChatPhoto", "photo", photo if digest else None)):
             if not value:
                 continue
             try:
-                self.tg.call(method, chat_id=self.target(), **{key: value})
+                if method == "setChatPhoto":
+                    self.tg.upload(method, "photo", value, chat_id=self.target())
+                else:
+                    self.tg.call(method, chat_id=self.target(), **{key: value})
             except TelegramError as e:
                 if "not modified" not in str(e):
                     ok = False
@@ -297,7 +334,10 @@ class Bot:
                                       "«Змінювати профіль каналу» (Change channel info) — я спробую ще раз сам.")
 
     def feed(self, now: datetime) -> None:
-        """At most one post per run: when a slot (09:30, 19:00 Kyiv) is due and today's count is behind."""
+        """At most one post per run: when a slot (09:30, 19:00 Kyiv) is due and today's count is behind. With burst=N
+        (a manual run), the next N posts go out now, without a notification, to fill a new channel."""
+        if self.burst:
+            return self.feed_burst(now)
         posts, log, today = self.posts or [], self.state["feed"], feed.kyiv_day(now)
         bad = [p for p in posts if p.problems and p.id not in log]
         if bad:
@@ -313,25 +353,38 @@ class Bot:
         last = max((datetime.fromisoformat(v["at"]) for v in log.values() if v.get("at")), default=None)
         if done_today >= feed.due_slots(now) or (last and now - last < feed.MIN_GAP) or not left or not self.channel:
             return
-        post = left[0]
+        self.send_post(left[0], now)
+
+    def feed_burst(self, now: datetime) -> None:
+        left = feed.ready(self.posts or [], self.state["feed"], feed.kyiv_day(now))
+        for i, post in enumerate(left[:self.burst]):
+            if i:
+                self.pause(3)                  # stay far below Telegram's limit of ~20 posts a minute per channel
+            if not self.send_post(post, now, silent=True):
+                break
+        self.report["queue"] = len(left) - self.report["published"]
+
+    def send_post(self, post: Post, now: datetime, silent: bool = False) -> bool:
+        quiet = True if silent else None
         try:
             if post.is_quiz:
                 msg = self.tg.call("sendPoll", chat_id=self.target(), question=post.question,
                                    options=[{"text": o} for o in post.options], type="quiz",
                                    correct_option_id=post.correct - 1, explanation=post.explanation or None,
-                                   is_anonymous=True)
+                                   is_anonymous=True, disable_notification=quiet)
             else:
                 msg = self.tg.call("sendMessage", chat_id=self.target(), text=post.text, parse_mode="HTML",
-                                   link_preview_options={"is_disabled": True})
+                                   link_preview_options={"is_disabled": True}, disable_notification=quiet)
         except TelegramError as e:
             self.report["errors"].append(f"{post.id}: {e}")
             self.note("feed_failed", now, f"⚠️ Не вдалося опублікувати {html.escape(post.id)}: перевір, що бот адмін "
                                           "каналу з правом публікувати. Спробую знову за 15 хвилин.")
-            return
-        log[post.id] = {"at": now.isoformat(), "day": today.isoformat(),
-                        "message_id": msg.get("message_id") if isinstance(msg, dict) else None}
+            return False
+        self.state["feed"][post.id] = {"at": now.isoformat(), "day": feed.kyiv_day(now).isoformat(),
+                                       "message_id": msg.get("message_id") if isinstance(msg, dict) else None}
         self.report["published"] += 1
-        self.report["feed_post"] = post.id
+        self.report.setdefault("feed_posts", []).append(post.id)
+        return True
 
     # ------------------------------------------------------------ the three kinds of giveaway post
     def send_new(self, now: datetime) -> None:

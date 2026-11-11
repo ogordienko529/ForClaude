@@ -11,6 +11,10 @@ on:
   schedule:
     - cron: "*/15 * * * *"
   workflow_dispatch:
+    inputs:
+      burst:
+        description: "Publish this many queued posts now, silently (fills a new channel)"
+        default: "0"
 
 permissions:
   contents: write
@@ -29,6 +33,7 @@ jobs:
       TG_CHANNEL: ${{ vars.TG_CHANNEL || '@novinigameua' }}
       TG_AUTO_PUBLISH: ${{ vars.TG_AUTO_PUBLISH || '1' }}
       TG_GIVEAWAYS: ${{ vars.TG_GIVEAWAYS || '0' }}
+      TG_BURST: ${{ inputs.burst || '0' }}
     steps:
       - name: Wait for the bot token
         if: env.TELEGRAM_BOT_TOKEN == ''

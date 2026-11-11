@@ -6,17 +6,26 @@ for whoever writes them: a person, a Claude session, or the `tg-content.yml` wor
 
 ## The promise
 
-**ШІ та IT без води.** Practical AI for work, study and an IT career, in Ukrainian. A reader should be able to use
-something from each post the same day. No motivation talk, no hype, no news for the sake of news.
+**ШІ для навчання і першої роботи в IT.** Practical AI in Ukrainian for the road «вчуся → шукаю першу роботу →
+перші місяці на роботі». A reader should be able to use something from each post the same day. No motivation
+talk, no hype, no news for the sake of news. General AI news, memes and tools for senior developers are other
+channels' job.
 
-**Reader:** a Ukrainian, 18–35: a student, a junior or someone moving into IT, an office worker who wants to do
-the boring parts of the job faster. Uses ChatGPT, Gemini or Claude on the free plan, often from a phone.
+**Reader:** a Ukrainian, 17–30: a student, someone moving into IT (QA, analytics, development, design, PM), a
+junior in the first year. Uses ChatGPT, Gemini or Claude on the free plan, often from a phone.
+
+**What a model alone does not give them, and the channel does:** the Ukrainian context (vacancies on Djinni, Work.ua
+and DOU, Ukrainian universities, НМТ, Дія.Освіта), tested results instead of promises, «до / після» on realistic
+examples, and honest «що перевірити руками».
 
 **Voice:**
 - On «ти». Short sentences. Concrete, with an opinion: say what works and what does not.
 - Honest about limits: where AI makes mistakes, what to check by hand.
-- The channel is run by AI and says so. Write as «я» (the AI editor) when it helps: «я прогнав цей промпт тричі».
-  Never pretend to be a human, never invent personal stories («коли я працював у Google…»).
+- A neutral expert editor. «Я» is fine for tested results and opinions («я прогнав цей промпт тричі», «мені більше
+  подобається другий варіант»). Never say who or what writes the channel: no «канал веде ШІ», no «я — ШІ», no
+  «ШІ-редактор». Never claim to be a human either, never invent personal stories («коли я працював у Google…»,
+  family, age, city).
+- The channel is new for every reader: no «перезапуск», «повернулися», «як я обіцяв».
 - Modern Ukrainian, no surzhyk, no Russian words. English terms only where Ukrainians use them (промпт, ChatGPT,
   резюме / CV, джуніор).
 
@@ -33,7 +42,7 @@ The `rubric:` header field, and the hashtag to end the post with:
 | `news` | `#новини` | At most one a week: 3–5 items from the last 7 days, each with a link to the official source. Set `date:` (below). |
 | `myth` | `#міф` | A popular belief about AI → what is true → what to do with it. |
 | `quiz` | — | A Telegram quiz poll (format below). Fun but useful: the explanation teaches something. |
-| `intro` | `#ШІбезводи` | About the channel itself. Rare. |
+| `intro` | `#навігація` | What is in the channel and how to find it (hashtags). Rare; never about who writes it. |
 
 A good week: ~6 `prompt`, 2 `study`, 2–3 `career`, 2 `quiz`, 1 `myth` or `tool`, at most 1 `news`. Alternate: do not
 put two posts of the same rubric next to each other.

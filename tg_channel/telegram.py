@@ -3,6 +3,8 @@ cut out of every error message, so it never reaches a log."""
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -23,9 +25,17 @@ class Telegram:
         return text.replace(self._token, "<token>")
 
     def call(self, method: str, **params: Any) -> Any:
+        return self._post(method, json={k: v for k, v in params.items() if v is not None})
+
+    def upload(self, method: str, field: str, path: Path, **params: Any) -> Any:
+        """A call with one file (e.g. setChatPhoto); the other parameters go as form fields."""
+        form = {k: v if isinstance(v, str) else json.dumps(v) for k, v in params.items() if v is not None}
+        with open(path, "rb") as f:
+            return self._post(method, data=form, files={field: (Path(path).name, f.read())})
+
+    def _post(self, method: str, **kwargs: Any) -> Any:
         try:
-            r = self._http.post(f"https://api.telegram.org/bot{self._token}/{method}",
-                                json={k: v for k, v in params.items() if v is not None})
+            r = self._http.post(f"https://api.telegram.org/bot{self._token}/{method}", **kwargs)
             data = r.json()
         except (httpx.HTTPError, ValueError) as e:
             raise TelegramError(self._redact(f"{method}: {type(e).__name__}: {e}")) from None
