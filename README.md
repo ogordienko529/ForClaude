@@ -484,7 +484,35 @@ Shorts (`edit.json` `"style"`) have six text styles: `meme`, `boxed`, `pixel`, `
 `clean`. Each comes with its own cut transition. Any beat or segment can override its transition.
 Run `python -m content_agent styles` to see the list.
 
-## 9. Project layout
+## 9. Telegram giveaway bot: `tg_channel`
+
+A Telegram channel in Ukrainian about free-to-keep games. The bot reads the Epic Games Store and
+GamerPower (public, no key), builds each post from a template so every name, price and date comes from
+the source, and sends it to you as a draft with **Publish / Reject** buttons. It also adds a
+"last day" reminder and a Sunday digest. GitHub Actions runs it every 15 minutes
+(`.github/workflows/tg-bot.yml`, free for a public repository). Its memory is a JSON file on the
+`tg-bot-state` branch.
+
+Setup, once:
+1. In Telegram: create a public channel, create a bot with @BotFather, make the bot an admin of the channel
+   with the right to post.
+2. GitHub, Settings > Secrets and variables > Actions:
+   - secret `TELEGRAM_BOT_TOKEN`: the token from @BotFather;
+   - send `/start` to your bot. Within 15 minutes it replies with your chat id: add it as the secret
+     `TG_OWNER_CHAT_ID`;
+   - variable `TG_CHANNEL`: the channel, e.g. `@my_free_games`;
+   - optional variable `TG_AUTO_PUBLISH` = `1`: publish without asking (start with drafts).
+
+```bash
+python -m tg_channel preview      # the posts for today's giveaways, no Telegram needed
+python -m tg_channel run          # one cycle; reads the variables above from the environment
+```
+
+Drafts and automatic posts go out between 08:00 and 23:00 Kyiv time; pressing a button publishes at once.
+A post with a number that is not in the source data is blocked, not sent. GitHub pauses scheduled runs
+in a repository with no activity for 60 days: re-enable them in the Actions tab.
+
+## 10. Project layout
 
 ```
 niche_core/          core library (all logic) + CLI (__main__.py)

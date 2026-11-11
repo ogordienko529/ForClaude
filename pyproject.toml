@@ -28,7 +28,7 @@ sleep-voice = "sleep_voice.__main__:main"
 content-agent = "content_agent.__main__:main"
 
 [tool.setuptools.packages.find]
-include = ["niche_core*", "niche_mcp*", "sleep_voice*", "content_agent*"]
+include = ["niche_core*", "niche_mcp*", "sleep_voice*", "content_agent*", "tg_channel*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

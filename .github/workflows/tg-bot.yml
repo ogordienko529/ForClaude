@@ -1,0 +1,74 @@
+# Telegram giveaway bot (tg_channel): one cycle every 15 minutes.
+# Needs the repository secret TELEGRAM_BOT_TOKEN; then TG_OWNER_CHAT_ID (the bot tells you the id after /start)
+# and the repository variable TG_CHANNEL (@channel). Until the token is added, every run just exits.
+# The bot's memory (state.json) lives on the tg-bot-state branch, one commit, overwritten when it changes.
+name: Telegram giveaway bot
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tg-bot
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TG_OWNER_CHAT_ID: ${{ secrets.TG_OWNER_CHAT_ID }}
+      TG_CHANNEL: ${{ vars.TG_CHANNEL }}
+      TG_AUTO_PUBLISH: ${{ vars.TG_AUTO_PUBLISH }}
+    steps:
+      - name: Wait for the bot token
+        if: env.TELEGRAM_BOT_TOKEN == ''
+        run: echo "TELEGRAM_BOT_TOKEN is not set (Settings > Secrets and variables > Actions); nothing to do."
+
+      - uses: actions/checkout@v4
+        if: env.TELEGRAM_BOT_TOKEN != ''
+
+      - uses: actions/setup-python@v5
+        if: env.TELEGRAM_BOT_TOKEN != ''
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        if: env.TELEGRAM_BOT_TOKEN != ''
+        run: pip install "httpx>=0.27"
+
+      - name: Load the bot's memory
+        if: env.TELEGRAM_BOT_TOKEN != ''
+        run: |
+          mkdir -p state
+          if git ls-remote --exit-code --heads origin tg-bot-state >/dev/null 2>&1; then
+            git fetch -q --depth 1 origin tg-bot-state
+            git show FETCH_HEAD:state.json > state/state.json
+            cp state/state.json state/before.json
+          fi
+
+      - name: Run one cycle
+        if: env.TELEGRAM_BOT_TOKEN != ''
+        run: python -m tg_channel run --state state/state.json
+
+      - name: Save the bot's memory
+        if: always() && env.TELEGRAM_BOT_TOKEN != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [ -f state/state.json ] || exit 0
+          if [ -f state/before.json ] && cmp -s state/state.json state/before.json; then exit 0; fi
+          dir="$(mktemp -d)"
+          cp state/state.json "$dir/"
+          cd "$dir"
+          git init -q
+          git config user.name "tg-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state.json
+          git commit -q -m "bot state"
+          git push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:refs/heads/tg-bot-state
