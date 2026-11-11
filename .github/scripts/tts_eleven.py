@@ -85,7 +85,16 @@ def duration(path: Path) -> float:
     return round(float(out or 0), 2)
 
 
+def pcm16k(path: Path):
+    """The audio as 16 kHz mono float32 via ffmpeg (faster-whisper's own decoder breaks on new PyAV)."""
+    import numpy as np
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-f", "s16le", "-ac", "1", "-ar", "16000", "-"],
+                         capture_output=True, check=True).stdout
+    return np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768
+
+
 def check(items: list[dict], folder: Path) -> None:
+    """Whisper hears each file; a failure here never loses the audio already paid for."""
     try:
         from faster_whisper import WhisperModel
         asr = WhisperModel("small", device="cpu", compute_type="int8")
@@ -93,9 +102,13 @@ def check(items: list[dict], folder: Path) -> None:
         print(f"whisper check skipped: {type(e).__name__}: {e}")
         return
     for it in items:
-        segs, _ = asr.transcribe(str(folder / it["file"]), language="uk", beam_size=5)
-        it["heard"] = " ".join(s.text.strip() for s in segs)
-        it["wer"] = round(wer(words(it["text"]), words(it["heard"])), 3)
+        try:
+            segs, _ = asr.transcribe(pcm16k(folder / it["file"]), language="uk", beam_size=5)
+            it["heard"] = " ".join(s.text.strip() for s in segs)
+            if it.get("text"):
+                it["wer"] = round(wer(words(it["text"]), words(it["heard"])), 3)
+        except Exception as e:
+            print(f"whisper on {it['file']}: {type(e).__name__}: {e}")
 
 
 # ---------------------------------------------------------------- samples
@@ -115,6 +128,32 @@ def samples(cfg: dict, out: Path, max_chars: int) -> None:
     for v in found[:12]:
         print(f"  {v.get('name')!r:32} {v.get('gender')} {v.get('age')} usage1y={v.get('usage_character_count_1y')} "
               f"cloned={v.get('cloned_by_count')} {(v.get('description') or '')[:60]!r}")
+    out.mkdir(parents=True, exist_ok=True)
+    listing = [{"name": v.get("name"), "gender": v.get("gender"), "age": v.get("age"), "voice_id": v.get("voice_id"),
+                "public_owner_id": v.get("public_owner_id"), "usage_1y": v.get("usage_character_count_1y"),
+                "cloned": v.get("cloned_by_count"), "description": v.get("description"),
+                "preview_url": v.get("preview_url")} for v in found[:12]]
+    (out / "voices.json").write_text(json.dumps(listing, ensure_ascii=False, indent=1), encoding="utf-8")
+    if not cfg.get("sample_tts"):
+        previews = []
+        for i, v in enumerate(listing[: int(cfg.get("samples", 6))], 1):
+            if not v["preview_url"]:
+                continue
+            f = f"preview_{i}.mp3"
+            try:
+                (out / f).write_bytes(httpx.get(v["preview_url"], timeout=60).content)
+            except Exception as e:
+                print(f"preview {v['name']}: {type(e).__name__}")
+                continue
+            previews.append({"n": i, "file": f, "name": v["name"], "gender": v["gender"], "voice_id": v["voice_id"],
+                             "seconds": duration(out / f)})
+        check(previews, out)
+        (out / "samples.json").write_text(json.dumps(previews, ensure_ascii=False, indent=1), encoding="utf-8")
+        for p_ in previews:
+            print(f"{p_['n']}. {p_['name']} {p_['seconds']}s | {p_.get('heard', '')[:160]}")
+        print("free previews only, no credits spent; set \"sample_tts\": true for custom-line samples")
+        print("after:", credits(http))
+        return
     want = int(cfg.get("samples", 3))
     picks = []                                    # the most used male and female voice first, then the next best
     for g in ("male", "female"):
@@ -124,7 +163,6 @@ def samples(cfg: dict, out: Path, max_chars: int) -> None:
     text = (cfg.get("sample_text") or spoken(cfg["lines"][0])).strip()
     if len(text) * len(picks) > max_chars:
         picks = picks[: max(max_chars // max(len(text), 1), 0)]
-    out.mkdir(parents=True, exist_ok=True)
     result = []
     for i, v in enumerate(picks, 1):
         if v.get("preview_url"):
@@ -141,6 +179,7 @@ def samples(cfg: dict, out: Path, max_chars: int) -> None:
         result.append({"n": i, "file": f, "name": v.get("name"), "gender": v.get("gender"), "age": v.get("age"),
                        "voice_id": voice_id, "usage_1y": v.get("usage_character_count_1y"),
                        "description": v.get("description"), "text": text, "seconds": duration(out / f)})
+        (out / "samples.json").write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding="utf-8")
     check(result, out)
     (out / "samples.json").write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding="utf-8")
     for s in result:
@@ -177,6 +216,9 @@ def render(cfg: dict, out: Path, cache: Path | None, max_chars: int) -> None:
     if need > max_chars:
         sys.exit(f"would spend {need} characters, more than --max-chars {max_chars}: nothing generated")
     http = client()
+    if todo and cfg.get("public_owner_id"):
+        a = http.post(f"/v1/voices/add/{cfg['public_owner_id']}/{cfg['voice_id']}", json={"new_name": cfg.get("voice_name", "uk voice")[:50]})
+        print(f"add voice to the library: {a.status_code} {a.text[:120]}")
     if todo:
         print("before:", credits(http))
     for line in todo:

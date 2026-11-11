@@ -45,6 +45,7 @@ jobs:
           MAX_CHARS: ${{ inputs.max_chars }}
         run: |
           slug="$(basename "$(dirname "$SCRIPT")")"
+          echo "slug=$slug" >> "$GITHUB_ENV"
           if [ "$MODE" = "samples" ]; then branch="tts-samples"; else branch="tts-$slug"; fi
           echo "branch=$branch" >> "$GITHUB_ENV"
           mkdir -p cache
@@ -56,10 +57,12 @@ jobs:
           echo "slug=$slug" >> "$GITHUB_ENV"
 
       - name: Save
+        if: always() && env.slug != ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           dir="$(mktemp -d)"
+          [ -d "out/$slug" ] || exit 0
           cp -r "out/$slug" "$dir/"
           cd "$dir"
           git init -q
