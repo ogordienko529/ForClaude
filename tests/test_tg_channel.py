@@ -145,12 +145,20 @@ def test_fetch_all_skips_a_failing_source():
 # ---------------------------------------------------------------- the bot
 def test_without_owner_it_replies_with_the_chat_id_and_fetches_nothing():
     tg, state = FakeTG(), empty_state()
-    tg.updates.append({"update_id": 7, "message": {"chat": {"id": OWNER, "type": "private"}, "from": {"id": OWNER},
-                                                   "text": "/start"}})
+    for uid in (7, 8, 9):                                                   # /start pressed three times
+        tg.updates.append({"update_id": uid, "message": {"chat": {"id": OWNER, "type": "private"},
+                                                         "from": {"id": OWNER}, "text": "/start"}})
     report = run(tg, state, owner=None, fetcher=lambda now: pytest.fail("must not fetch without an owner"))
-    reply = tg.sent(OWNER)[0]["text"]
-    assert str(OWNER) in reply and "TG_OWNER_CHAT_ID" in reply
-    assert state["offset"] == 8 and not state["items"] and "TG_OWNER_CHAT_ID" in report["note"]
+    replies = tg.sent(OWNER)
+    assert len(replies) == 1 and str(OWNER) in replies[0]["text"] and "TG_OWNER_CHAT_ID" in replies[0]["text"]
+    assert state["offset"] == 10 and not state["items"] and "TG_OWNER_CHAT_ID" in report["note"]
+
+
+def test_title_cleanup():
+    from tg_channel.sources import clean_title
+    assert clean_title("Dwarven Realms Key") == "Dwarven Realms"
+    assert clean_title("Cozy Farm (Steam) Key Giveaway") == "Cozy Farm"
+    assert clean_title("Keyboard Hero") == "Keyboard Hero"
 
 
 def test_drafts_once_then_publishes_what_the_owner_approves():
@@ -228,7 +236,9 @@ def test_publish_without_channel_keeps_the_draft():
     tg.press("p:1")
     run(tg, state, channel=None)
     assert "1" in state["drafts"] and state["items"]["epic:off1"]["status"] == "pending"
-    assert "Канал не налаштовано (TG_CHANNEL)" in [p["text"] for m, p in tg.calls if m == "answerCallbackQuery"]
+    assert any("TG_CHANNEL" in p["text"] for m, p in tg.calls if m == "answerCallbackQuery")
+    notes = [p["text"] for p in tg.sent(OWNER, ("sendMessage",)) if p["text"].startswith("⚠️")]
+    assert len(notes) == 1 and "TG_CHANNEL" in notes[0]                    # also said in the chat: the press is old
 
 
 def test_state_file_channel_id_and_cli(tmp_path, monkeypatch):

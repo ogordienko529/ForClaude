@@ -90,6 +90,7 @@ class Bot:
 
     # ------------------------------------------------------------ owner's buttons and commands
     def handle_updates(self) -> None:
+        self._replied: set[int] = set()              # one reply per chat per run, however many /start were sent
         try:
             updates = self.tg.call("getUpdates", offset=self.state["offset"], timeout=0,
                                    allowed_updates=["message", "callback_query"])
@@ -107,6 +108,9 @@ class Bot:
     def on_message(self, msg: dict) -> None:
         if (msg.get("chat") or {}).get("type") != "private" or not str(msg.get("text", "")).startswith(("/start", "/status")):
             return
+        if msg["chat"]["id"] in self._replied:
+            return
+        self._replied.add(msg["chat"]["id"])
         sender = (msg.get("from") or {}).get("id")
         if self.owner is None:
             text = (f"Твій chat id: <code>{sender}</code>\n\nДодай його в секрети репозиторію GitHub як "
@@ -131,8 +135,12 @@ class Bot:
         if action == "p":
             mid = self.publish(draft["text"], draft.get("image"))
             if mid is None:
-                return self._answer(cq, "Канал не налаштовано (TG_CHANNEL)" if not self.channel else
-                                    "Не вдалося опублікувати: чи бот адмін каналу з правом публікувати?")
+                why = ("Канал не налаштовано: додай змінну TG_CHANNEL (@адреса каналу) у GitHub" if not self.channel
+                       else "Не вдалося опублікувати: перевір, що бот адмін каналу з правом публікувати")
+                self._answer(cq, why)        # the press is usually minutes old by now, so say it in the chat too
+                self._quiet("sendMessage", chat_id=self.owner, text=f"⚠️ {why}. Чернетка чекає, натисни ще раз пізніше.",
+                            reply_to_message_id=draft["message_id"])
+                return None
             self._set_status(draft, "published")
             self.report["published"] += 1
             self._answer(cq, "Опубліковано")

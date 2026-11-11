@@ -23,7 +23,7 @@ jobs:
     env:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TG_OWNER_CHAT_ID: ${{ secrets.TG_OWNER_CHAT_ID }}
-      TG_CHANNEL: ${{ vars.TG_CHANNEL }}
+      TG_CHANNEL: ${{ vars.TG_CHANNEL || '@novinigameua' }}
       TG_AUTO_PUBLISH: ${{ vars.TG_AUTO_PUBLISH }}
     steps:
       - name: Wait for the bot token

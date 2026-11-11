@@ -68,6 +68,7 @@ def norm(title: str) -> str:
 def clean_title(title: str) -> str:
     t = re.sub(r"\s*\((?:steam|epic games?(?: store)?|gog(?:\.com)?|itch\.io|ubisoft|ea(?: app)?|pc)\)", "", title, flags=re.I)
     t = re.sub(r"\s+(?:free\s+)?giveaway\s*$", "", t, flags=re.I)
+    t = re.sub(r"\s+(?:steam\s+|gog\s+)?key\s*$", "", t, flags=re.I)
     return re.sub(r"\s{2,}", " ", t).strip(" -–")
 
 
