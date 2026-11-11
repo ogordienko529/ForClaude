@@ -112,7 +112,38 @@ def check(items: list[dict], folder: Path) -> None:
 
 
 # ---------------------------------------------------------------- samples
+def variants(cfg: dict, out: Path, max_chars: int) -> None:
+    """One voice, several models / settings, one short line each: compare by ear before a whole video."""
+    http = client()
+    print("before:", credits(http))
+    text = (cfg.get("sample_text") or spoken(cfg["lines"][0])).strip()
+    tries = cfg["sample_variants"]
+    if len(text) * len(tries) > max_chars:
+        sys.exit(f"{len(text) * len(tries)} characters for {len(tries)} variants, more than --max-chars {max_chars}")
+    out.mkdir(parents=True, exist_ok=True)
+    result = []
+    for i, v in enumerate(tries, 1):
+        f = f"variant_{i}.mp3"
+        model, settings = v.get("model", DEFAULT_MODEL), v.get("voice_settings", DEFAULT_SETTINGS)
+        body = {"text": text, "model_id": model, "voice_settings": settings}
+        r = http.post(f"/v1/text-to-speech/{cfg['voice_id']}", params={"output_format": "mp3_44100_128"}, json=body)
+        if r.status_code >= 400:                  # an unknown model costs nothing: note it and go on
+            print(f"{i}. {v.get('label', model)}: {r.status_code} {r.text[:200]}")
+            continue
+        (out / f).write_bytes(r.content)
+        result.append({"n": i, "file": f, "label": v.get("label", model), "model": model, "voice_settings": settings,
+                       "text": text, "seconds": duration(out / f)})
+        (out / "samples.json").write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding="utf-8")
+    check(result, out)
+    (out / "samples.json").write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding="utf-8")
+    for s_ in result:
+        print(f"{s_['n']}. {s_['label']} {s_['seconds']}s wer={s_.get('wer')} | {s_.get('heard', '')}")
+    print("after:", credits(http))
+
+
 def samples(cfg: dict, out: Path, max_chars: int) -> None:
+    if cfg.get("sample_variants"):
+        return variants(cfg, out, max_chars)
     http = client()
     print("before:", credits(http))
     try:
@@ -223,8 +254,9 @@ def render(cfg: dict, out: Path, cache: Path | None, max_chars: int) -> None:
         print("before:", credits(http))
     for line in todo:
         i = lines.index(line)
-        prev = " ".join(spoken(l) for l in lines[max(i - 2, 0):i])
-        nxt = spoken(lines[i + 1]) if i + 1 < len(lines) else ""
+        ctx = cfg.get("context", False)            # neighbouring lines as context: smoother, but it made lines stutter
+        prev = " ".join(spoken(l) for l in lines[max(i - 2, 0):i]) if ctx else ""
+        nxt = (spoken(lines[i + 1]) if i + 1 < len(lines) else "") if ctx else ""
         tts(http, cfg["voice_id"], spoken(line), cfg.get("model", DEFAULT_MODEL),
             cfg.get("voice_settings", DEFAULT_SETTINGS), out / f"{line['id']}.mp3", prev, nxt)
     if todo:
