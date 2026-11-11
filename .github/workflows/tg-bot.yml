@@ -1,6 +1,7 @@
 # Telegram giveaway bot (tg_channel): one cycle every 15 minutes.
 # Needs the repository secret TELEGRAM_BOT_TOKEN; then TG_OWNER_CHAT_ID (the bot tells you the id after /start)
-# and the repository variable TG_CHANNEL (@channel). Until the token is added, every run just exits.
+# and the channel (TG_CHANNEL, default @novinigameua). Posts go out without asking (TG_AUTO_PUBLISH, default 1;
+# set the variable to 0 to get drafts with Publish / Reject buttons). Until the token is added, every run just exits.
 # The bot's memory (state.json) lives on the tg-bot-state branch, one commit, overwritten when it changes.
 name: Telegram giveaway bot
 
@@ -24,7 +25,7 @@ jobs:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TG_OWNER_CHAT_ID: ${{ secrets.TG_OWNER_CHAT_ID }}
       TG_CHANNEL: ${{ vars.TG_CHANNEL || '@novinigameua' }}
-      TG_AUTO_PUBLISH: ${{ vars.TG_AUTO_PUBLISH }}
+      TG_AUTO_PUBLISH: ${{ vars.TG_AUTO_PUBLISH || '1' }}
     steps:
       - name: Wait for the bot token
         if: env.TELEGRAM_BOT_TOKEN == ''
