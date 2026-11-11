@@ -1,7 +1,7 @@
 # Telegram channel bot (tg_channel): one cycle every 15 minutes. Publishes the channel's own posts from
 # tg_content/posts at 09:30 and 19:00 Kyiv and sets the channel's name from tg_content/profile.json.
 # Needs the repository secret TELEGRAM_BOT_TOKEN; then TG_OWNER_CHAT_ID (the bot tells you the id after /start)
-# and the channel (TG_CHANNEL, default @novinigameua; the bot remembers its numeric id, so a new @address is fine).
+# and the channel (TG_CHANNEL, default @shi_start_ua; the bot remembers its numeric id, so a new @address is fine).
 # Free game giveaways are off; the variable TG_GIVEAWAYS=1 brings them back (TG_AUTO_PUBLISH=0: as drafts with
 # Publish / Reject buttons). Until the token is added, every run just exits.
 # The bot's memory (state.json) lives on the tg-bot-state branch, one commit, overwritten when it changes.
@@ -30,7 +30,7 @@ jobs:
     env:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TG_OWNER_CHAT_ID: ${{ secrets.TG_OWNER_CHAT_ID }}
-      TG_CHANNEL: ${{ vars.TG_CHANNEL || '@novinigameua' }}
+      TG_CHANNEL: ${{ vars.TG_CHANNEL || '@shi_start_ua' }}
       TG_AUTO_PUBLISH: ${{ vars.TG_AUTO_PUBLISH || '1' }}
       TG_GIVEAWAYS: ${{ vars.TG_GIVEAWAYS || '0' }}
       TG_BURST: ${{ inputs.burst || '0' }}
