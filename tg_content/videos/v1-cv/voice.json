@@ -3,13 +3,10 @@
  "voice_id": "Ntd0iVwICtUtA6Fvx27M",
  "public_owner_id": "9bc548f7824fc299d93320ebaad6767425ac43b4fd3380eb55a5d676de282884",
  "voice_name": "uk · Evgeniy Shevchenko",
- "model": "eleven_multilingual_v2",
+ "model": "eleven_v4",
  "voice_settings": {
-  "stability": 0.4,
-  "similarity_boost": 0.8,
-  "style": 0.3,
-  "use_speaker_boost": true,
-  "speed": 1.08
+  "stability": 0.5,
+  "similarity_boost": 0.75
  },
  "lines": [
   {
@@ -45,43 +42,25 @@
    "text": "І більше жодних вигаданих років досвіду."
   }
  ],
- "sample_text": "Стоп! Чат-бот щойно дописав у твоє резюме два роки досвіду.",
+ "sample_text": null,
  "sample_variants": [
   {
-   "label": "multilingual v2, stable",
-   "model": "eleven_multilingual_v2",
-   "voice_settings": {
-    "stability": 0.6,
-    "similarity_boost": 0.75,
-    "style": 0.0,
-    "use_speaker_boost": true
-   }
-  },
-  {
-   "label": "turbo v2.5, stable",
-   "model": "eleven_turbo_v2_5",
-   "voice_settings": {
-    "stability": 0.6,
-    "similarity_boost": 0.75,
-    "style": 0.0,
-    "use_speaker_boost": true
-   }
-  },
-  {
-   "label": "v3, natural",
-   "model": "eleven_v3",
-   "voice_settings": {
-    "stability": 0.5,
-    "similarity_boost": 0.75
-   }
-  },
-  {
-   "label": "v4",
+   "label": "v4, «ШІ»",
    "model": "eleven_v4",
    "voice_settings": {
     "stability": 0.5,
     "similarity_boost": 0.75
-   }
+   },
+   "text": "Стоп! ШІ щойно дописав у твоє резюме два роки досвіду. Більше — у каналі «ШІ на старті»."
+  },
+  {
+   "label": "v4, «Ші»",
+   "model": "eleven_v4",
+   "voice_settings": {
+    "stability": 0.5,
+    "similarity_boost": 0.75
+   },
+   "text": "Стоп! Ші щойно дописав у твоє резюме два роки досвіду. Більше — у каналі «Ші на старті»."
   }
  ]
 }

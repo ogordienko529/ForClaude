@@ -118,21 +118,23 @@ def variants(cfg: dict, out: Path, max_chars: int) -> None:
     print("before:", credits(http))
     text = (cfg.get("sample_text") or spoken(cfg["lines"][0])).strip()
     tries = cfg["sample_variants"]
-    if len(text) * len(tries) > max_chars:
-        sys.exit(f"{len(text) * len(tries)} characters for {len(tries)} variants, more than --max-chars {max_chars}")
+    need = sum(len((v.get("text") or text).strip()) for v in tries)    # a variant may bring its own line
+    if need > max_chars:
+        sys.exit(f"{need} characters for {len(tries)} variants, more than --max-chars {max_chars}")
     out.mkdir(parents=True, exist_ok=True)
     result = []
     for i, v in enumerate(tries, 1):
         f = f"variant_{i}.mp3"
         model, settings = v.get("model", DEFAULT_MODEL), v.get("voice_settings", DEFAULT_SETTINGS)
-        body = {"text": text, "model_id": model, "voice_settings": settings}
+        line = (v.get("text") or text).strip()
+        body = {"text": line, "model_id": model, "voice_settings": settings}
         r = http.post(f"/v1/text-to-speech/{cfg['voice_id']}", params={"output_format": "mp3_44100_128"}, json=body)
         if r.status_code >= 400:                  # an unknown model costs nothing: note it and go on
             print(f"{i}. {v.get('label', model)}: {r.status_code} {r.text[:200]}")
             continue
         (out / f).write_bytes(r.content)
         result.append({"n": i, "file": f, "label": v.get("label", model), "model": model, "voice_settings": settings,
-                       "text": text, "seconds": duration(out / f)})
+                       "text": line, "seconds": duration(out / f)})
         (out / "samples.json").write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding="utf-8")
     check(result, out)
     (out / "samples.json").write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding="utf-8")
