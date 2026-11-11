@@ -299,3 +299,15 @@ def test_missing_renderer_packages_are_detected(tmp_path, monkeypatch):
     (tmp_path / "package.json").write_text(json.dumps({"dependencies": {"remotion": "1", "@fontsource/jetbrains-mono": "5"}}))
     monkeypatch.setattr(render, "REMOTION_DIR", tmp_path)
     assert render.missing_node_modules() == ["@fontsource/jetbrains-mono"]
+
+
+def test_phone_can_show_the_claude_mark_on_purpose():
+    from content_agent.schema import Storyboard, validate
+    def issues(props):
+        sb = Storyboard({"title": "t", "format": "shorts", "beats": [
+            {"id": "b01", "narration": "Ось промпт для Claude.", "visual": {"template": "phone", "props": props}}]})
+        return [str(i) for i in validate(sb)]
+    base = {"prompt": "Поясни помилку", "answer": ["Добре"]}
+    assert any("product name" in i for i in issues({**base, "app_name": "Claude"}))
+    assert not any("product name" in i or "app_logo" in i for i in issues({**base, "app_name": "Claude", "app_logo": "claude"}))
+    assert any("app_logo must be one of" in i for i in issues({**base, "app_logo": "openai"}))

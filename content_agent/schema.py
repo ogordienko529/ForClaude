@@ -119,7 +119,7 @@ TEMPLATES: dict[str, dict[str, Any]] = {
         "doc": "Review verdict: big score (e.g. 8.5 / 10) with pros and cons revealed on narration cues.",
     },
     "chat": {
-        "required": {"prompt": str, "answer": list}, "optional": {"title": str, "highlight": list},
+        "required": {"prompt": str, "answer": list}, "optional": {"title": str, "highlight": list, "app_logo": str},
         "limits": {"prompt": 280, "answer": 6, "answer_line": 90, "title": 30, "highlight": 6},
         "doc": "Messenger-style AI chat (no brand look, for AI-tip Shorts, 9:16 and 16:9): `prompt` types into a "
                "user bubble, a typing indicator, then 1-6 short `answer` lines appear one by one (line i on cue i); "
@@ -127,7 +127,8 @@ TEMPLATES: dict[str, dict[str, Any]] = {
     },
     "phone": {
         "required": {"prompt": str, "answer": list},
-        "optional": {"app_name": str, "highlight": list, "focus": str, "focus_cue": str, "tool_chips": list},
+        "optional": {"app_name": str, "app_logo": str, "highlight": list, "focus": str, "focus_cue": str,
+                     "tool_chips": list},
         "limits": {"prompt": 160, "answer": 4, "answer_line": 70, "app_name": 20, "highlight": 6, "focus": 60,
                    "tool_chips": 4, "chip": 14},
         "doc": "A floating smartphone with a generic AI chat app (9:16 first): `prompt` types into the composer, a "
@@ -188,6 +189,9 @@ TRANSITIONS = ("fadePush", "wipe", "pixel", "glitch", "slide", "zoomBurst", "cut
 FORMATS = ("explainer", "shorts", "review")
 
 PALETTES = ("midnight", "parchment", "slate", "ember")
+# Product marks the chat and phone scenes can show to name the tool (remotion/src/logos.ts), never as the
+# channel's own brand.
+LOGOS = ("claude",)
 MUSIC_MOODS = ("calm", "tense", "uplifting", "hype", "phonk", "none")  # hype/phonk: beat music (sound.py)
 
 
@@ -502,9 +506,12 @@ def _check_phone(bid: str, props: dict, limits: dict) -> list[Issue]:
     name = props.get("app_name")
     if _too_long(name, limits["app_name"]):
         warn(f"app_name longer than {limits['app_name']} characters")
-    if isinstance(name, str) and any(b in name.lower() for b in BRAND_NAMES):
+    logo = props.get("app_logo")
+    if logo is not None and logo not in LOGOS:
+        out.append(Issue("error", bid, f"phone: app_logo must be one of {', '.join(LOGOS)}"))
+    if isinstance(name, str) and any(b in name.lower() for b in BRAND_NAMES) and not (logo and logo in name.lower()):
         warn(f"app_name {name!r} is a product name: the phone shows a generic app, so give it a generic label "
-             f"(«ШІ-чат») and name the tools in tool_chips")
+             f"(«ШІ-чат») and name the tools in tool_chips, or show that product on purpose with app_logo")
     chips = props.get("tool_chips")
     if chips is not None:
         if not isinstance(chips, list) or not all(isinstance(c, str) and c.strip() for c in chips):

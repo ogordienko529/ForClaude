@@ -4,6 +4,7 @@
  * Colours come from the palette, corners and borders from the style, so the window fits every style.
  */
 import React, {useEffect, useMemo, useState} from 'react';
+import {LOGOS} from '../logos';
 import {AbsoluteFill, continueRender, delayRender, interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
 import {progress, rise} from '../anim';
 import {PREROLL, Sfx, uiZone} from '../motion';
@@ -241,7 +242,23 @@ export const lineCount = (text: string, weight: number, size: number, family: st
   return lines;
 };
 
-export const Avatar: React.FC<{size: number; bg: string; fg: string; square: boolean}> = ({size, bg, fg, square}) => (
+export const Avatar: React.FC<{size: number; bg: string; fg: string; square: boolean; logo?: string}> = ({size, bg, fg, square, logo}) => {
+  const mark = logo ? LOGOS[logo] : undefined;
+  if (mark) {
+    // the tool's own mark on a white disc, so the viewer sees which assistant this is
+    return (
+      <svg width={size} height={size} viewBox="0 0 100 100" style={{flexShrink: 0}}>
+        {square ? <rect width={100} height={100} fill="#ffffff" /> : <circle cx={50} cy={50} r={50} fill="#ffffff" />}
+        <g transform="translate(20 20) scale(2.5)">
+          <path d={mark.path} fill={mark.color} />
+        </g>
+      </svg>
+    );
+  }
+  return <BotFace size={size} bg={bg} fg={fg} square={square} />;
+};
+
+const BotFace: React.FC<{size: number; bg: string; fg: string; square: boolean}> = ({size, bg, fg, square}) => (
   <svg width={size} height={size} viewBox="0 0 100 100" style={{flexShrink: 0}}>
     {square ? <rect width={100} height={100} fill={bg} /> : <circle cx={50} cy={50} r={50} fill={bg} />}
     <line x1={50} y1={20} x2={50} y2={32} stroke={fg} strokeWidth={5} strokeLinecap="round" />
@@ -410,7 +427,7 @@ export const Chat: React.FC<SceneProps> = ({props, duration, speech, cues}) => {
             borderRadius: `${st.radius * 2 * u}px ${st.radius * 2 * u}px 0 0`,
           }}
         >
-          <Avatar size={avatar} bg={c.avatar} fg={c.avatarFace} square={st.radius === 0} />
+          <Avatar size={avatar} bg={c.avatar} fg={c.avatarFace} square={st.radius === 0} logo={props.app_logo} />
           {title ? (
             <div style={{fontFamily: family, fontWeight: 800, fontSize: (vertical ? 38 : 32) * u, color: p.text, lineHeight: 1.1}}>{title}</div>
           ) : null}

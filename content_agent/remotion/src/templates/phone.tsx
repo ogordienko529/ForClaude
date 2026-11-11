@@ -468,7 +468,7 @@ export const Phone: React.FC<SceneProps> = ({props, duration, speech, cues, mark
               <svg width={16 * q} height={28 * q} viewBox="0 0 16 28">
                 <path d="M12 3 L3 14 L12 25" stroke={ink} strokeWidth={3.2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              <Avatar size={46 * q} bg={c.avatar} fg={c.avatarFace} square={st.radius === 0} />
+              <Avatar size={46 * q} bg={c.avatar} fg={c.avatarFace} square={st.radius === 0} logo={props.app_logo} />
               <div style={{flex: 1, minWidth: 0}}>
                 <div style={{fontFamily: family, fontWeight: 800, fontSize: 25 * q, color: ink, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
                   {appName}
@@ -502,7 +502,7 @@ export const Phone: React.FC<SceneProps> = ({props, duration, speech, cues, mark
                 transform: `translateY(${-emptyOut * 40 * q}px)`,
               }}
             >
-              <Avatar size={92 * q} bg={c.avatar} fg={c.avatarFace} square={st.radius === 0} />
+              <Avatar size={92 * q} bg={c.avatar} fg={c.avatarFace} square={st.radius === 0} logo={props.app_logo} />
               <div style={{fontFamily: family, fontWeight: 800, fontSize: 32 * q, color: ink}}>{greeting}</div>
             </div>
 
