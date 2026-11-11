@@ -1,4 +1,5 @@
-"""Telegram giveaway bot: sources, Ukrainian posts, the owner's approval buttons, quiet hours, reminders, digest."""
+"""Telegram channel bot: scheduled posts and quizzes, the channel profile, and the free-games mode (sources, Ukrainian
+posts, the owner's approval buttons, quiet hours, reminders, digest)."""
 
 from __future__ import annotations
 
@@ -265,3 +266,155 @@ def test_token_never_appears_in_errors():
         with pytest.raises(TelegramError) as e:
             tg.call(method, chat_id=1, text="x")
         assert token not in str(e.value) and "SECRET" not in str(e.value)
+
+
+# ---------------------------------------------------------------- the channel's own posts (tg_content/posts)
+from pathlib import Path
+
+from tg_channel import feed
+
+
+def _write(folder, name, body):
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / name).write_text(body, encoding="utf-8")
+
+
+TEXT_POST = "---\nrubric: prompt\n---\n<b>Промпт дня</b>\n\n<pre>Склади план на [тиждень]</pre>\n\n#промпт\n"
+QUIZ_POST = ("---\nrubric: quiz\nquestion: Що ШІ не знає без пошуку?\noptions:\n- Таблицю множення\n"
+             "- Сьогоднішній курс\ncorrect: 2\nexplanation: Модель знає світ лише до дати навчання.\n---\n")
+
+
+def feed_bot(tg, state, posts, profile=None):
+    return Bot(tg, state, owner=OWNER, channel=CHANNEL, auto=True, log=lambda m: None, posts=posts,
+               giveaways=False, profile=profile)
+
+
+def test_repo_posts_are_all_valid():
+    posts = feed.load(Path(__file__).resolve().parents[1] / "tg_content" / "posts")
+    assert posts, "tg_content/posts is empty"
+    assert [p.id for p in posts if p.problems] == [], {p.id: p.problems for p in posts if p.problems}
+    numbers = [p.id.split("-")[0] for p in posts]
+    assert all(n.isdigit() and len(n) == 4 for n in numbers) and len(set(numbers)) == len(numbers)
+
+
+def test_post_checks_catch_what_telegram_would_reject(tmp_path):
+    _write(tmp_path, "0001-ok.md", TEXT_POST)
+    _write(tmp_path, "0002-quiz.md", QUIZ_POST)
+    _write(tmp_path, "0003-bad.md", "---\nrubric: prompt\n---\n<b>Тест <i>криво</b></i> 5 < 6 & ще <div>x</div>\n")
+    _write(tmp_path, "0004-ai.md", "---\nrubric: myth\n---\nУ сучасному світі ШІ відіграє ключову роль.\n#міф\n")
+    _write(tmp_path, "0005-quiz-bad.md", "---\nrubric: quiz\nquestion: Q?\noptions:\n- A\n- A\ncorrect: 3\n---\nтекст\n")
+    _write(tmp_path, "0006-nohead.md", "просто текст #промпт")
+    _write(tmp_path, "0007-long.md", "---\nrubric: career\n---\n" + "слово " * 600 + "#робота")
+    posts = {p.id: p for p in feed.load(tmp_path)}
+    assert posts["0001-ok"].problems == [] and posts["0002-quiz"].problems == []
+    assert posts["0002-quiz"].correct == 2 and posts["0002-quiz"].options[1] == "Сьогоднішній курс"
+    bad = " | ".join(posts["0003-bad"].problems)
+    assert "does not close" in bad and "<div>" in bad and "bare <" in bad and "bare &" in bad and "hashtag" in bad
+    assert any("у сучасному світі" in p for p in posts["0004-ai"].problems)
+    quiz = " | ".join(posts["0005-quiz-bad"].problems)
+    assert "same" in quiz and "correct" in quiz and "no text" in quiz
+    assert "no header" in posts["0006-nohead"].problems[0]
+    assert any("too long" in p for p in posts["0007-long"].problems)
+    assert feed.html_problems('<a href="https://x.ua">x</a> <pre><code class="language-sql">a &lt; b</code></pre>') == []
+    assert feed.html_problems("<pre><b>x</b></pre>")
+
+
+def test_two_posts_a_day_in_order_quiz_as_a_poll(tmp_path):
+    _write(tmp_path, "0001-a.md", TEXT_POST)
+    _write(tmp_path, "0002-b.md", QUIZ_POST)
+    _write(tmp_path, "0003-c.md", TEXT_POST)
+    posts, tg, state = feed.load(tmp_path), FakeTG(), empty_state()
+    feed_bot(tg, state, posts).run(utc("2026-11-13T05:00:00"), fetch)     # 07:00 Kyiv: quiet hours
+    feed_bot(tg, state, posts).run(utc("2026-11-13T07:00:00"), fetch)     # 09:00: before the morning slot
+    assert not tg.sent(CHANNEL) and not [c for c in tg.calls if c[0] == "sendPoll"]
+    feed_bot(tg, state, posts).run(utc("2026-11-13T07:45:00"), fetch)     # 09:45: the morning post
+    feed_bot(tg, state, posts).run(utc("2026-11-13T08:00:00"), fetch)     # 10:00: nothing more until evening
+    sent = tg.sent(CHANNEL)
+    assert len(sent) == 1 and sent[0]["text"].startswith("<b>Промпт дня</b>") and sent[0]["parse_mode"] == "HTML"
+    assert list(state["feed"]) == ["0001-a"]
+    feed_bot(tg, state, posts).run(utc("2026-11-13T17:15:00"), fetch)     # 19:15: the evening quiz
+    polls = [p for m, p in tg.calls if m == "sendPoll"]
+    assert len(polls) == 1 and polls[0]["type"] == "quiz" and polls[0]["correct_option_id"] == 1
+    assert polls[0]["options"] == [{"text": "Таблицю множення"}, {"text": "Сьогоднішній курс"}]
+    feed_bot(tg, state, posts).run(utc("2026-11-13T20:30:00"), fetch)     # 22:30: both slots done today
+    assert len(state["feed"]) == 2
+    feed_bot(tg, state, posts).run(utc("2026-11-14T07:31:00"), fetch)     # next morning: the third one
+    assert list(state["feed"]) == ["0001-a", "0002-b", "0003-c"]
+    feed_bot(tg, state, posts).run(utc("2026-11-14T17:31:00"), fetch)     # queue low: the owner hears once a day
+    feed_bot(tg, state, posts).run(utc("2026-11-14T18:31:00"), fetch)
+    notes = [p["text"] for p in tg.sent(OWNER) if p["text"].startswith("⚠️ Постів у черзі")]
+    assert len(notes) == 2 and "допиши пости" in notes[-1]                 # 13th and 14th
+
+
+def test_a_late_start_does_not_fire_two_posts_back_to_back(tmp_path):
+    for n in range(1, 4):
+        _write(tmp_path, f"000{n}-p.md", TEXT_POST)
+    posts, tg, state = feed.load(tmp_path), FakeTG(), empty_state()
+    for minute in (0, 15, 30):                                          # 22:00-22:30 Kyiv, both slots "due"
+        feed_bot(tg, state, posts).run(utc(f"2026-11-13T20:{minute:02d}:00"), fetch)
+    assert len(state["feed"]) == 1
+
+
+def test_dated_posts_wait_then_jump_the_queue_and_go_stale(tmp_path):
+    _write(tmp_path, "0001-a.md", TEXT_POST)
+    _write(tmp_path, "0002-news.md", TEXT_POST.replace("rubric: prompt", "rubric: news\ndate: 2026-11-14"))
+    _write(tmp_path, "0003-old.md", TEXT_POST.replace("rubric: prompt", "rubric: news\ndate: 2026-11-01"))
+    posts = feed.load(tmp_path)
+    assert [p.id for p in feed.ready(posts, {}, feed.date(2026, 11, 13))] == ["0001-a"]
+    assert [p.id for p in feed.ready(posts, {}, feed.date(2026, 11, 14))] == ["0002-news", "0001-a"]
+    assert [p.id for p in feed.stale(posts, {}, feed.date(2026, 11, 14))] == ["0003-old"]
+
+
+def test_bad_posts_are_skipped_and_reported_once_a_day(tmp_path):
+    _write(tmp_path, "0001-bad.md", "---\nrubric: prompt\n---\n<b>криво\n#промпт")
+    _write(tmp_path, "0002-ok.md", TEXT_POST)
+    posts, tg, state = feed.load(tmp_path), FakeTG(), empty_state()
+    feed_bot(tg, state, posts).run(utc("2026-11-13T07:45:00"), fetch)
+    feed_bot(tg, state, posts).run(utc("2026-11-13T08:00:00"), fetch)
+    assert list(state["feed"]) == ["0002-ok"]
+    notes = [p["text"] for p in tg.sent(OWNER) if "з помилками" in p["text"]]
+    assert len(notes) == 1 and "0001-bad" in notes[0]
+
+
+def test_channel_name_is_set_once_and_the_numeric_id_survives_a_new_address(tmp_path):
+    _write(tmp_path, "0001-a.md", TEXT_POST)
+    posts, tg, state = feed.load(tmp_path), FakeTG(), empty_state()
+    real = tg.call
+
+    def call(method, **p):
+        if method == "getChat":
+            tg.calls.append((method, p))
+            return {"id": -100123, "title": "Old name"}
+        return real(method, **p)
+    tg.call = call
+    profile = {"title": "ШІ без води", "description": "Опис"}
+    feed_bot(tg, state, posts, profile).run(utc("2026-11-13T07:45:00"), fetch)
+    feed_bot(tg, state, posts, profile).run(utc("2026-11-13T08:00:00"), fetch)
+    assert [p["title"] for m, p in tg.calls if m == "setChatTitle"] == ["ШІ без води"]
+    assert [p["description"] for m, p in tg.calls if m == "setChatDescription"] == ["Опис"]
+    assert len([c for c in tg.calls if c[0] == "getChat"]) == 1
+    assert state["channel"]["id"] == -100123 and tg.sent(-100123)          # posts go to the id, not the @address
+
+
+def test_channel_name_without_the_right_tells_the_owner_once(tmp_path):
+    tg, state = FakeTG(), empty_state()
+    tg.fail = {"setChatTitle"}
+    for minute in (0, 15):
+        feed_bot(tg, state, [], {"title": "ШІ без води"}).run(utc(f"2026-11-13T08:{minute:02d}:00"), fetch)
+    assert state["profile"] == ""
+    assert len([p for p in tg.sent(OWNER) if "назву" in p["text"]]) == 1
+
+
+def test_queue_cli(tmp_path, capsys):
+    posts = tmp_path / "c" / "posts"
+    _write(posts, "0001-a.md", TEXT_POST)
+    _write(posts, "0002-b.md", QUIZ_POST)
+    state = empty_state()
+    state["feed"]["0001-a"] = {"at": "2026-11-13T07:45:00+00:00", "day": "2026-11-13"}
+    save_state(tmp_path / "state.json", state)
+    assert main(["queue", "--posts", str(posts)]) == 0
+    assert main(["queue", "--posts", str(posts), "--state", str(tmp_path / "state.json"), "--left"]) == 0
+    assert capsys.readouterr().out.strip().splitlines()[-1] == "1"
+    _write(posts, "0003-bad.md", "---\nrubric: nope\n---\nx")
+    assert main(["queue", "--posts", str(posts)]) == 1
+    assert "0003-bad" in capsys.readouterr().out

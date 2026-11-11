@@ -12,7 +12,7 @@ questions ("не запитуй, а роби").
 | `niche_mcp` | the same as an MCP server (stdio) | `python -m niche_mcp` | README section 4 |
 | `sleep_voice` | long, calm sleep narration (Kokoro TTS, free) | `python -m sleep_voice …` | README section 7 |
 | `content_agent` | video maker: narrated explainers, fast gameplay Shorts, mod reviews | `python -m content_agent …` | README section 8, `docs/CONTENT_AGENT.md`, `docs/GAMEPLAY_EDITING.md` |
-| `tg_channel` | Telegram channel bot: free game giveaways in Ukrainian, drafts for the owner's approval; GitHub Actions runs it every 15 min | `python -m tg_channel run` / `preview` | README section 9, `.github/workflows/tg-bot.yml` |
+| `tg_channel` | Telegram channel «ШІ без води» (AI and IT in Ukrainian): publishes `tg_content/posts/` twice a day; a GitHub Actions writer adds the next week when the queue runs low; free-games mode behind `TG_GIVEAWAYS=1` | `python -m tg_channel run` / `queue` | README section 9, `tg_content/GUIDE.md`, `.github/workflows/tg-bot.yml`, `tg-content.yml` |
 
 **content-maker** is the autonomous producer on top of `content_agent`:
 - **Director prompt:** `.claude/agents/content-maker.md`.
@@ -87,7 +87,8 @@ The repo is public.
 - `YOUTUBE_API_KEY`: niche research.
 - `ELEVENLABS_API_KEY`: ElevenLabs voices.
 - `OPENAI_API_KEY`: OpenAI voices.
-- `TELEGRAM_BOT_TOKEN`, `TG_OWNER_CHAT_ID`: the Telegram bot; GitHub repository secrets only.
+- `TELEGRAM_BOT_TOKEN`, `TG_OWNER_CHAT_ID`, `CLAUDE_CODE_OAUTH_TOKEN`: the Telegram bot and its writer; GitHub
+  repository secrets only.
 
 Read all of these from environment variables only. Never ask the user to paste a key into the chat,
 and never write one to a file. If one is missing, tell the user how to set it:

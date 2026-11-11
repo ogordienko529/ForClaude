@@ -24,7 +24,8 @@ class Telegram:
 
     def call(self, method: str, **params: Any) -> Any:
         try:
-            r = self._http.post(f"https://api.telegram.org/bot{self._token}/{method}", json=params)
+            r = self._http.post(f"https://api.telegram.org/bot{self._token}/{method}",
+                                json={k: v for k, v in params.items() if v is not None})
             data = r.json()
         except (httpx.HTTPError, ValueError) as e:
             raise TelegramError(self._redact(f"{method}: {type(e).__name__}: {e}")) from None

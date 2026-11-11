@@ -484,33 +484,48 @@ Shorts (`edit.json` `"style"`) have six text styles: `meme`, `boxed`, `pixel`, `
 `clean`. Each comes with its own cut transition. Any beat or segment can override its transition.
 Run `python -m content_agent styles` to see the list.
 
-## 9. Telegram giveaway bot: `tg_channel`
+## 9. Telegram channel bot: `tg_channel`
 
-A Telegram channel in Ukrainian about free-to-keep games. The bot reads the Epic Games Store and
-GamerPower (public, no key), builds each post from a template so every name, price and date comes from
-the source, and sends it to you as a draft with **Publish / Reject** buttons. It also adds a
-"last day" reminder and a Sunday digest. GitHub Actions runs it every 15 minutes
-(`.github/workflows/tg-bot.yml`, free for a public repository). Its memory is a JSON file on the
-`tg-bot-state` branch.
+The Ukrainian Telegram channel «ШІ без води» (practical AI for work, study and an IT career), run with almost no
+owner work. GitHub Actions does everything (free for a public repository):
+
+- **`.github/workflows/tg-bot.yml`, every 15 minutes:** publishes the channel's own posts from
+  `tg_content/posts/` at 09:30 and 19:00 Kyiv (text posts and quiz polls, in file-name order), sets the
+  channel's name and description from `tg_content/profile.json`, answers the owner's `/start` and `/status`.
+  Its memory is a JSON file on the `tg-bot-state` branch.
+- **`.github/workflows/tg-content.yml`, every morning:** when fewer than five days of posts are left, Claude Code
+  writes the next week from the brief `tg_content/GUIDE.md`, the check below must pass, and the new files are
+  committed. It runs on your Claude subscription.
 
 Setup, once:
-1. In Telegram: create a public channel, create a bot with @BotFather, make the bot an admin of the channel
-   with the right to post.
+1. In Telegram: a public channel and a bot from @BotFather; make the bot an admin of the channel with the
+   rights to post and to change the channel's info.
 2. GitHub, Settings > Secrets and variables > Actions:
    - secret `TELEGRAM_BOT_TOKEN`: the token from @BotFather;
    - send `/start` to your bot. Within 15 minutes it replies with your chat id: add it as the secret
      `TG_OWNER_CHAT_ID`;
-   - variable `TG_CHANNEL`: the channel, e.g. `@my_free_games`;
-   - optional variable `TG_AUTO_PUBLISH` = `1`: publish without asking (start with drafts).
+   - variable `TG_CHANNEL`: the channel's @address (the bot remembers its numeric id, so renaming the address
+     later is fine);
+   - secret `CLAUDE_CODE_OAUTH_TOKEN`: run `claude setup-token` on a computer with Claude Code and paste what it
+     prints. Without it the writer does nothing and the bot tells you when the queue runs low.
 
 ```bash
-python -m tg_channel preview      # the posts for today's giveaways, no Telegram needed
+python -m tg_channel queue        # check every post; lists what is still to go (exit code 1 on a problem)
 python -m tg_channel run          # one cycle; reads the variables above from the environment
 ```
 
-Drafts and automatic posts go out between 08:00 and 23:00 Kyiv time; pressing a button publishes at once.
-A post with a number that is not in the source data is blocked, not sent. GitHub pauses scheduled runs
-in a repository with no activity for 60 days: re-enable them in the Actions tab.
+**Writing posts by hand or with Claude:** follow `tg_content/GUIDE.md` (rubrics, Telegram HTML, the quiz format,
+the facts policy, the stop list of phrases that sound machine-written), add `tg_content/posts/NNNN-slug.md`
+with the next number, run `python -m tg_channel queue`, commit. Never rename a published file: its name is its id.
+`pytest` checks every post in the repository too.
+
+The old free-games mode is still there: variable `TG_GIVEAWAYS` = `1` adds Epic Games Store and GamerPower
+giveaways (each post built from a template, so every name, price and date comes from the source; numbers not in
+the source block the post), a "last day" reminder and a Sunday digest; `TG_AUTO_PUBLISH` = `0` sends them to you
+as drafts with **Publish / Reject** buttons. `python -m tg_channel preview` prints today's giveaways.
+
+Posts go out between 08:00 and 23:00 Kyiv time. GitHub pauses scheduled runs in a repository with no activity
+for 60 days: re-enable them in the Actions tab.
 
 ## 10. Project layout
 
@@ -535,6 +550,9 @@ content_agent/       local video maker: storyboard checks, voice/music/mix, time
   mcp_server.py      the agent's MCP tools; jobs.py runs long steps in the background
   status.py          project state and next step; doctor.py checks the machine
   remotion/          React video templates (maps, timelines, stats, text, footage, styles) rendered by Remotion
+tg_channel/          Telegram channel bot: feed.py (scheduled posts, checks), bot.py (one run), giveaway sources
+tg_content/          the channel: GUIDE.md (brief for writers), profile.json, posts/NNNN-*.md
+.github/workflows/   tg-bot.yml (the bot, every 15 min), tg-content.yml (the writer, every morning)
 .claude/skills/      make-video, edit-gameplay and review-video playbooks that Claude Code follows
 .claude/agents/      content-maker: the autonomous producer's director prompt
 tests/               fixture-based tests (no network)

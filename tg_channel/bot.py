@@ -1,16 +1,21 @@
-"""One run of the channel bot: the owner's button presses, new giveaways, drafts or posts, reminders, the digest.
+"""One run of the channel bot: the owner's button presses, the channel's own posts (tg_content/posts) on their
+schedule, and, when switched on, free game giveaways with drafts or posts, reminders and a digest.
 
-State (a JSON file) remembers every giveaway seen, its status (new, pending, published, rejected, blocked), the
-drafts waiting for a button press and the last Telegram update read, so nothing is sent twice.
+State (a JSON file) remembers the posts already published, every giveaway seen and its status (new, pending,
+published, rejected, blocked), the drafts waiting for a button press and the last Telegram update read, so nothing
+is sent twice.
 """
 
 from __future__ import annotations
 
+import html
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable
 
+from . import feed
+from .feed import Post
 from .posts import CAPTION_MAX, KYIV, digest_post, ending_post, new_post, unsupported_numbers
 from .sources import Giveaway
 from .telegram import Telegram, TelegramError
@@ -25,7 +30,8 @@ Fetch = Callable[[datetime], tuple[list[Giveaway], list[str]]]
 
 
 def empty_state() -> dict[str, Any]:
-    return {"version": 1, "offset": 0, "next_id": 1, "items": {}, "drafts": {}, "digests": {}}
+    return {"version": 1, "offset": 0, "next_id": 1, "items": {}, "drafts": {}, "digests": {},
+            "feed": {}, "notes": {}, "channel": {}, "profile": ""}
 
 
 def load_state(path: Path) -> dict[str, Any]:
@@ -62,8 +68,10 @@ def channel_id(value: str | None) -> str | None:
 
 class Bot:
     def __init__(self, tg: Telegram, state: dict[str, Any], owner: int | None, channel: str | None,
-                 auto: bool = False, log: Callable[[str], None] = print):
+                 auto: bool = False, log: Callable[[str], None] = print, posts: list[Post] | None = None,
+                 giveaways: bool = True, profile: dict[str, str] | None = None):
         self.tg, self.state, self.owner, self.channel, self.auto, self.log = tg, state, owner, channel_id(channel), auto, log
+        self.posts, self.giveaways, self.profile = posts, giveaways, profile
         self.report: dict[str, Any] = {"updates": 0, "drafts": 0, "published": 0, "rejected": 0, "errors": []}
 
     # ------------------------------------------------------------ the run
@@ -72,16 +80,23 @@ class Bot:
         if self.owner is None:
             self.report["note"] = "TG_OWNER_CHAT_ID is not set: send /start to the bot and add the id it replies with"
             return self.report
-        giveaways, errors = fetch(now)
-        self.report["errors"] += errors
-        self.report["active_giveaways"] = len(giveaways)
-        for g in giveaways:
-            item = self.state["items"].setdefault(g.key, {"status": "new", "reminded": False, "first_seen": now.isoformat()})
-            item["giveaway"] = g.to_dict()            # Epic sometimes moves an end date: keep the latest
+        self.resolve_channel()
+        if self.giveaways:
+            giveaways, errors = fetch(now)
+            self.report["errors"] += errors
+            self.report["active_giveaways"] = len(giveaways)
+            for g in giveaways:
+                item = self.state["items"].setdefault(g.key, {"status": "new", "reminded": False,
+                                                              "first_seen": now.isoformat()})
+                item["giveaway"] = g.to_dict()            # Epic sometimes moves an end date: keep the latest
         if self._active(now):
-            self.send_new(now)
-            self.reminders(now)
-            self.digest(now)
+            self.apply_profile(now)
+            if self.posts is not None:
+                self.feed(now)
+            if self.giveaways:
+                self.send_new(now)
+                self.reminders(now)
+                self.digest(now)
         self.prune(now)
         return self.report
 
@@ -116,10 +131,21 @@ class Bot:
             text = (f"Твій chat id: <code>{sender}</code>\n\nДодай його в секрети репозиторію GitHub як "
                     f"<b>TG_OWNER_CHAT_ID</b>, і я почну надсилати тобі чернетки постів.")
         elif sender == self.owner:
-            pending = sum(1 for i in self.state["items"].values() if i["status"] == "pending")
-            published = sum(1 for i in self.state["items"].values() if i["status"] == "published")
-            text = (f"Бот працює. Чернеток чекає: {pending}. Опубліковано роздач: {published}. "
-                    f"Канал: {self.channel or 'не налаштовано (TG_CHANNEL)'}.")
+            text = f"Бот працює. Канал: {self.channel or 'не налаштовано (TG_CHANNEL)'}."
+            if self.posts is not None:
+                today = feed.kyiv_day(datetime.now(KYIV))
+                left = feed.ready(self.posts, self.state["feed"], today)
+                bad = [p.id for p in self.posts if p.problems]
+                text += (f"\nПостів опубліковано: {len(self.state['feed'])}. У черзі: {len(left)} "
+                         f"(≈ {feed.days_left(self.posts, self.state['feed'], today):.0f} дн.).")
+                if left:
+                    text += f"\nНаступний: {html.escape(left[0].preview(), quote=False)}"
+                if bad:
+                    text += f"\n⚠️ З помилками (не підуть): {', '.join(bad)}"
+            if self.giveaways:
+                pending = sum(1 for i in self.state["items"].values() if i["status"] == "pending")
+                published = sum(1 for i in self.state["items"].values() if i["status"] == "published")
+                text += f"\nРоздачі: чернеток чекає {pending}, опубліковано {published}."
         else:
             text = "Це службовий бот каналу."
         self._quiet("sendMessage", chat_id=msg["chat"]["id"], text=text, parse_mode="HTML")
@@ -182,11 +208,35 @@ class Bot:
                 self.log(f"photo failed, sending text: {e}")
         return self.tg.call("sendMessage", chat_id=chat, text=text, parse_mode="HTML", **extra)
 
+    def target(self) -> int | str | None:
+        """The channel's numeric id once known, so renaming the channel's @address does not break posting."""
+        known = self.state["channel"]
+        return known["id"] if self.channel and known.get("ref") == self.channel and known.get("id") else self.channel
+
+    def resolve_channel(self) -> None:
+        if not self.channel or self.state["channel"].get("ref") == self.channel:
+            return
+        try:
+            chat = self.tg.call("getChat", chat_id=self.channel)
+        except TelegramError as e:
+            self.log(f"getChat: {e}")
+            return
+        if isinstance(chat, dict) and chat.get("id"):
+            self.state["channel"] = {"ref": self.channel, "id": chat["id"], "title": chat.get("title", "")}
+
+    def note(self, kind: str, now: datetime, text: str) -> None:
+        """A message to the owner, at most once a day for each kind of problem."""
+        day = feed.kyiv_day(now).isoformat()
+        if self.owner is None or self.state["notes"].get(kind) == day:
+            return
+        if self._quiet("sendMessage", chat_id=self.owner, text=text, parse_mode="HTML") is not None:
+            self.state["notes"][kind] = day
+
     def publish(self, text: str, image: str | None) -> int | None:
         if not self.channel:
             return None
         try:
-            return self.send(self.channel, text, image)["message_id"]
+            return self.send(self.target(), text, image)["message_id"]
         except TelegramError as e:
             self.report["errors"].append(str(e))
             return None
@@ -221,7 +271,69 @@ class Bot:
             return "published"
         return "pending" if self.draft(kind, key, text, image) else None
 
-    # ------------------------------------------------------------ the three kinds of post
+    # ------------------------------------------------------------ the channel's own posts
+    def apply_profile(self, now: datetime) -> None:
+        """Set the channel's name and description from tg_content/profile.json, once per change of the file."""
+        if not self.profile or not self.channel:
+            return
+        want = f"{self.profile.get('title', '')}\n{self.profile.get('description', '')}"
+        if self.state["profile"] == want:
+            return
+        ok = True
+        for method, key, value in (("setChatTitle", "title", self.profile.get("title")),
+                                   ("setChatDescription", "description", self.profile.get("description"))):
+            if not value:
+                continue
+            try:
+                self.tg.call(method, chat_id=self.target(), **{key: value})
+            except TelegramError as e:
+                if "not modified" not in str(e):
+                    ok = False
+                    self.report["errors"].append(str(e))
+        if ok:
+            self.state["profile"] = want
+        else:
+            self.note("profile", now, "⚠️ Не вдалося змінити назву чи опис каналу. Дай боту в адмінах каналу право "
+                                      "«Змінювати профіль каналу» (Change channel info) — я спробую ще раз сам.")
+
+    def feed(self, now: datetime) -> None:
+        """At most one post per run: when a slot (09:30, 19:00 Kyiv) is due and today's count is behind."""
+        posts, log, today = self.posts or [], self.state["feed"], feed.kyiv_day(now)
+        bad = [p for p in posts if p.problems and p.id not in log]
+        if bad:
+            self.report["errors"] += [f"{p.id}: {'; '.join(p.problems)}" for p in bad]
+            self.note("bad_posts", now, "⚠️ Пости з помилками, я їх пропускаю: " + ", ".join(p.id for p in bad))
+        left = feed.ready(posts, log, today)
+        self.report["queue"] = len(left)
+        if feed.days_left(posts, log, today) < feed.LOW_DAYS:
+            self.note("low_queue", now, f"⚠️ Постів у черзі лишилося на {feed.days_left(posts, log, today):.0f} дн. "
+                                        "Автописьменник (tg-content.yml) допише сам, якщо є секрет "
+                                        "CLAUDE_CODE_OAUTH_TOKEN; інакше напиши Claude «допиши пости».")
+        done_today = sum(1 for v in log.values() if v.get("day") == today.isoformat())
+        last = max((datetime.fromisoformat(v["at"]) for v in log.values() if v.get("at")), default=None)
+        if done_today >= feed.due_slots(now) or (last and now - last < feed.MIN_GAP) or not left or not self.channel:
+            return
+        post = left[0]
+        try:
+            if post.is_quiz:
+                msg = self.tg.call("sendPoll", chat_id=self.target(), question=post.question,
+                                   options=[{"text": o} for o in post.options], type="quiz",
+                                   correct_option_id=post.correct - 1, explanation=post.explanation or None,
+                                   is_anonymous=True)
+            else:
+                msg = self.tg.call("sendMessage", chat_id=self.target(), text=post.text, parse_mode="HTML",
+                                   link_preview_options={"is_disabled": True})
+        except TelegramError as e:
+            self.report["errors"].append(f"{post.id}: {e}")
+            self.note("feed_failed", now, f"⚠️ Не вдалося опублікувати {html.escape(post.id)}: перевір, що бот адмін "
+                                          "каналу з правом публікувати. Спробую знову за 15 хвилин.")
+            return
+        log[post.id] = {"at": now.isoformat(), "day": today.isoformat(),
+                        "message_id": msg.get("message_id") if isinstance(msg, dict) else None}
+        self.report["published"] += 1
+        self.report["feed_post"] = post.id
+
+    # ------------------------------------------------------------ the three kinds of giveaway post
     def send_new(self, now: datetime) -> None:
         sent = 0
         for key, item in self.state["items"].items():
