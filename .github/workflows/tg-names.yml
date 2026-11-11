@@ -1,0 +1,27 @@
+# Which Telegram @usernames look free: a taken one has a public t.me page with a title. A name that looks free can
+# still be reserved (Fragment, deleted accounts); Telegram's own "Public link" field has the last word.
+name: Telegram username check
+
+on:
+  workflow_dispatch:
+    inputs:
+      names:
+        description: "Usernames separated by spaces"
+        required: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check
+        env:
+          NAMES: ${{ inputs.names }}
+        run: |
+          for n in $NAMES; do
+            n="${n#@}"
+            page="$(curl -sL --max-time 20 -A 'Mozilla/5.0' "https://t.me/$n")"
+            frag="$(curl -sL --max-time 20 -A 'Mozilla/5.0' "https://fragment.com/username/$n" | grep -o 'tm-section-header-status[^<]*<[^>]*>[^<]*' | head -1)"
+            if echo "$page" | grep -q 'tgme_page_title'; then echo "TAKEN  @$n"; else echo "FREE?  @$n  fragment: ${frag:-none}"; fi
+            sleep 1
+          done
