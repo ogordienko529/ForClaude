@@ -29,6 +29,11 @@ examples, and honest «що перевірити руками».
 - Modern Ukrainian, no surzhyk, no Russian words. English terms only where Ukrainians use them (промпт, ChatGPT,
   резюме / CV, джуніор).
 
+**Claude first:** most examples use Claude (name it: «встав у Claude», «попроси Claude»), others where natural
+(ChatGPT, Gemini). The channel teaches how to talk to Claude well; tips about prompting follow Anthropic's official
+«Prompting best practices» (https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices)
+and link the section they use. Never imply the channel is Anthropic's or endorsed by it.
+
 ## What the data says (competitor study, 2,120 posts of 30 channels, November 2026)
 
 - Short wins: the channels readers react to most keep 73–84 % of posts under 600 characters; the top 10 % of posts
