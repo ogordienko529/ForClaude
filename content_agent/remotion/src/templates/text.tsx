@@ -12,9 +12,9 @@ const useUnit = () => {
 
 export const TitleCard: React.FC<SceneProps> = ({props, speech}) => {
   const frame = useCurrentFrame();
-  const {fps} = useVideoConfig();
+  const {fps, width, height} = useVideoConfig();
   const p = usePalette();
-  const u = useUnit();
+  const u = useUnit() * (height > width ? 1.2 : 1);        // 9:16: phone-sized text
   const words = String(props.title || '').split(' ');
   const start = Math.max(speech - 6, 4);
   const line = progress(frame, start + 10, start + 40);
@@ -69,13 +69,15 @@ export const TitleCard: React.FC<SceneProps> = ({props, speech}) => {
   );
 };
 
+const norm = (w: string) => w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+
 export const Kinetic: React.FC<SceneProps> = ({props, speech, duration, cues}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const p = usePalette();
   const u = useUnit();
   const lines: string[] = props.lines || [];
-  const emph = new Set((props.emphasis || []).map((w: string) => w.toLowerCase().replace(/[^a-z0-9]/g, '')));
+  const emph = new Set((props.emphasis || []).map((w: string) => norm(w)).filter(Boolean));
   const all = lines.flatMap((l, li) => l.split(' ').map((w) => ({w, li})));
   const size = (lines.length >= 3 ? 74 : lines.length === 2 ? 88 : 104) * u;
   let k = 0;
@@ -93,7 +95,7 @@ export const Kinetic: React.FC<SceneProps> = ({props, speech, duration, cues}) =
               ? stagger(idx, all.length, speech, duration, 0.5)
               : (li === 0 ? Math.min(lineStart, speech) : lineStart) + wi * 3;
             const r = rise(frame, fps, start);
-            const isEm = emph.has(w.toLowerCase().replace(/[^a-z0-9]/g, ''));
+            const isEm = emph.has(norm(w));
             return (
               <span
                 key={wi}
@@ -121,12 +123,12 @@ export const Kinetic: React.FC<SceneProps> = ({props, speech, duration, cues}) =
 
 export const FactCard: React.FC<SceneProps> = ({props, speech, duration}) => {
   const frame = useCurrentFrame();
-  const {fps} = useVideoConfig();
+  const {fps, width, height} = useVideoConfig();
   const p = usePalette();
-  const u = useUnit();
+  const u = useUnit() * (height > width ? 1.25 : 1);       // 9:16: phone-sized text
   const words = String(props.text || '').split(' ');
   return (
-    <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', padding: 160 * u}}>
+    <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', padding: (height > width ? 56 : 160) * u}}>
       <div
         style={{
           position: 'relative',
@@ -161,12 +163,12 @@ export const FactCard: React.FC<SceneProps> = ({props, speech, duration}) => {
 
 export const ListCard: React.FC<SceneProps> = ({props, speech, duration, cues}) => {
   const frame = useCurrentFrame();
-  const {fps} = useVideoConfig();
+  const {fps, width, height} = useVideoConfig();
   const p = usePalette();
-  const u = useUnit();
+  const u = useUnit() * (height > width ? 1.32 : 1);       // 9:16 has the room: phone-sized text
   const items: string[] = props.items || [];
   return (
-    <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', padding: `0 ${160 * u}px`}}>
+    <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', padding: `0 ${(height > width ? 70 : 160) * u}px`}}>
       <div style={{maxWidth: 1500 * u}}>
       {props.title && (
         <div style={{fontFamily: FONTS.serif, fontWeight: 700, fontSize: 76 * u, color: p.text, marginBottom: 46 * u, opacity: rise(frame, fps, speech - 8)}}>
