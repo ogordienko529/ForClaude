@@ -237,7 +237,7 @@ def check(post: Post) -> list[str]:
         out.append("empty post")
         return out
     out += html_problems(post.text)
-    out += [f"«{h}» tells who writes the channel: use «🧪 Прогін», «🧪 Результат» or the present tense"
+    out += [f"«{h}» tells who writes the channel: use the present tense («перевіряю») or no «я» at all"
             for h in author_hints(post.text)]
     n = len(visible(post.text))
     limit = MYTH_MAX if post.rubric == "myth" else TEXT_MAX

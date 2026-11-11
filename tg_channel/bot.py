@@ -60,6 +60,10 @@ def still_open(g: Giveaway, now: datetime) -> bool:
     return g.ends.date() >= now.astimezone(KYIV).date()
 
 
+def text_hash(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
 def channel_id(value: str | None) -> str | None:
     """«name», «@name» or a numeric id (-100...) as Telegram's chat_id."""
     v = (value or "").strip()
@@ -98,6 +102,7 @@ class Bot:
             self.apply_profile(now)
             self.cleanup(now)
             if self.posts is not None:
+                self.update_published(now)
                 self.feed(now)
             if self.giveaways:
                 self.send_new(now)
@@ -372,6 +377,26 @@ class Bot:
             return
         self.send_post(left[0], now)
 
+    def update_published(self, now: datetime) -> None:
+        """A published text post whose file changed is edited in the channel, so a fix reaches the readers too
+        (a quiz poll cannot be edited). Entries from before this existed have no hash: they are edited once."""
+        for post in self.posts or []:
+            entry = self.state["feed"].get(post.id)
+            if not entry or post.is_quiz or post.problems or not entry.get("message_id"):
+                continue
+            h = text_hash(post.text)
+            if entry.get("hash") == h:
+                continue
+            try:
+                self.tg.call("editMessageText", chat_id=self.target(), message_id=entry["message_id"], text=post.text,
+                             parse_mode="HTML", link_preview_options={"is_disabled": True})
+            except TelegramError as e:
+                if "not modified" not in str(e):
+                    self.report["errors"].append(f"edit {post.id}: {e}")
+                    continue
+            entry["hash"] = h
+            self.report.setdefault("edited", []).append(post.id)
+
     def feed_burst(self, now: datetime) -> None:
         left = feed.ready(self.posts or [], self.state["feed"], feed.kyiv_day(now))
         for i, post in enumerate(left[:self.burst]):
@@ -399,7 +424,8 @@ class Bot:
                                           "каналу з правом публікувати. Спробую знову за 15 хвилин.")
             return False
         mid = msg.get("message_id") if isinstance(msg, dict) else None
-        self.state["feed"][post.id] = {"at": now.isoformat(), "day": feed.kyiv_day(now).isoformat(), "message_id": mid}
+        self.state["feed"][post.id] = {"at": now.isoformat(), "day": feed.kyiv_day(now).isoformat(), "message_id": mid,
+                                       "hash": text_hash(post.text)}
         if post.pin and mid:
             self._quiet("pinChatMessage", chat_id=self.target(), message_id=mid, disable_notification=True)
         self.report["published"] += 1

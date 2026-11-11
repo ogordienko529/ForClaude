@@ -566,7 +566,7 @@ def test_author_voice_hints_are_caught_outside_prompts_and_quotes(tmp_path):
     _write(tmp_path, "0001-a.md", body)
     problems = " | ".join(feed.load(tmp_path)[0].problems)
     assert "«я прогнав»" in problems and "«в мене теж»" in problems
-    assert "відповів" not in problems and "підготувала" not in problems and "перевіряю" not in problems
+    assert "відповів" not in problems and "підготувала" not in problems and "«перевіряю на" not in problems
 
 
 def test_rename_and_photo_notices_in_the_channel_are_deleted():
@@ -603,3 +603,23 @@ def test_study_limits_title_prompt_length_quiz_spacing_and_pin(tmp_path):
         burst=1, pause=lambda s: None).run(utc("2026-11-13T08:00:00"), fetch)
     pins = [p for m, p in tg.calls if m == "pinChatMessage"]
     assert len(pins) == 1 and pins[0]["message_id"] == state["feed"]["0006-pin"]["message_id"]
+
+
+def test_a_changed_published_post_is_edited_in_the_channel(tmp_path):
+    _write(tmp_path, "0001-a.md", TEXT_POST)
+    _write(tmp_path, "0002-q.md", QUIZ_POST)
+    tg, state = FakeTG(), empty_state()
+    Bot(tg, state, owner=OWNER, channel=CHANNEL, log=lambda m: None, posts=feed.load(tmp_path), giveaways=False,
+        burst=2, pause=lambda s: None).run(utc("2026-11-13T08:00:00"), fetch)
+    feed_bot(tg, state, feed.load(tmp_path)).run(utc("2026-11-13T08:15:00"), fetch)
+    assert not [c for c in tg.calls if c[0] == "editMessageText"]                 # unchanged: nothing to edit
+    _write(tmp_path, "0001-a.md", TEXT_POST.replace("План тижня за хвилину", "План тижня: як зробити"))
+    feed_bot(tg, state, feed.load(tmp_path)).run(utc("2026-11-13T08:30:00"), fetch)
+    feed_bot(tg, state, feed.load(tmp_path)).run(utc("2026-11-13T08:45:00"), fetch)
+    edits = [p for m, p in tg.calls if m == "editMessageText"]
+    assert len(edits) == 1 and "як зробити" in edits[0]["text"]
+    assert edits[0]["message_id"] == state["feed"]["0001-a"]["message_id"]
+    del state["feed"]["0001-a"]["hash"]                                            # an entry from before hashes
+    tg.fail = {"editMessageText"}
+    feed_bot(tg, state, feed.load(tmp_path)).run(utc("2026-11-13T09:00:00"), fetch)
+    assert "hash" not in state["feed"]["0001-a"]                                   # a failed edit is retried
