@@ -1,5 +1,6 @@
 import React, {useEffect, useState} from 'react';
 import {AbsoluteFill, Audio, continueRender, delayRender, Sequence, staticFile} from 'remotion';
+import {Chat} from './templates/chat';
 import {Bars, Comparison, Stat, Timeline} from './templates/data';
 import {Footage, Verdict} from './templates/footage';
 import {MapPoint, MapRoute} from './templates/maps';
@@ -22,6 +23,7 @@ export const TEMPLATES: Record<string, React.FC<SceneProps>> = {
   map_point: MapPoint,
   footage: Footage,
   verdict: Verdict,
+  chat: Chat,
 };
 
 const useFonts = (loads: string[]) => {

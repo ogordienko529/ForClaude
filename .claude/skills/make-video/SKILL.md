@@ -11,7 +11,7 @@ render in headless Chromium, and technical QA. No paid APIs, no uploads.
 
 Default format: **animated explainer**, 16:9, 3-8 minutes, a calm documentary narrator, with maps,
 timelines, stat counters, charts, kinetic text and fact cards. Shorts (9:16) are supported by
-`--format shorts` but the templates are tuned for 16:9 first.
+`--format shorts` but the templates are tuned for 16:9 first (`chat` is laid out for both).
 
 Commands (run from the repo root with the venv's Python):
 
@@ -51,12 +51,15 @@ Edit `content_projects/<slug>/storyboard.json`. One beat = one scene = one idea.
 - Beat 1-2: the hook (a surprising concrete fact or question). Title card by beat 3.
 - The visual must show what the narration says *at that moment*: places -> `map_route` /
   `map_point`, dates -> `timeline`, one number -> `stat`, two numbers -> `comparison`, several ->
-  `bars`, reasons/steps -> `list`, a sourced claim -> `fact`, a punchline -> `kinetic`.
+  `bars`, reasons/steps -> `list`, a sourced claim -> `fact`, a punchline -> `kinetic`, a prompt
+  and what the AI answers (AI tips, also in Shorts) -> `chat` (`prompt` up to 280 characters,
+  1-6 short `answer` lines, optional `title` header label and `highlight` phrases).
 - Never the same template three times in a row; aim for 5+ different templates per video.
 - **Sync reveals to the words** with `"cues"`: phrases copied from the narration, one per item
-  (list items, bars, timeline events, comparison sides, kinetic lines; the first cue also starts a
-  stat counter or map animation). Item *i* appears when cue *i* is spoken. Cues are matched in
-  order; repeat a phrase to reveal several items together. Without cues, items are spread evenly.
+  (list items, bars, timeline events, comparison sides, kinetic lines, chat answer lines; the first
+  cue also starts a stat counter or map animation). Item *i* appears when cue *i* is spoken. Cues
+  are matched in order; repeat a phrase to reveal several items together. Without cues, items are
+  spread evenly.
   Example: narration "...Pan Am cancelled... the oil crisis... the noise..." with list items
   `["1973: Pan Am pulls out", "The oil crisis", "Noise and the sonic boom"]` ->
   `"cues": ["Pan Am", "oil crisis", "noise"]`.

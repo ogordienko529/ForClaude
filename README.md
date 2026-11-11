@@ -377,7 +377,9 @@ An example is in `examples/content/concorde/`.
 
 **Visual templates:** `title`, `kinetic` (animated text), `map_route` (great-circle route with a
 plane or ship), `map_point` (zoom to a place), `timeline`, `stat` (counter), `comparison`, `bars`,
-`fact` (sourced quote or fact card), `list`. There are three palettes (midnight, parchment and slate)
+`fact` (sourced quote or fact card), `list`, `chat` (a generic messenger-style AI chat for AI-tip
+Shorts: the prompt types into a bubble, a typing indicator, then the answer line by line, on cues;
+laid out for 9:16 and 16:9, Cyrillic-safe). There are three palettes (midnight, parchment and slate)
 and music moods calm, tense and uplifting. The map is Natural Earth (public domain) and the fonts
 are Inter and Playfair Display (OFL), all bundled, so rendering works offline.
 

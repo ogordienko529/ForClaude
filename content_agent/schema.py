@@ -112,6 +112,13 @@ TEMPLATES: dict[str, dict[str, Any]] = {
         "limits": {"items": 4, "item": 40, "title": 40},
         "doc": "Review verdict: big score (e.g. 8.5 / 10) with pros and cons revealed on narration cues.",
     },
+    "chat": {
+        "required": {"prompt": str, "answer": list}, "optional": {"title": str, "highlight": list},
+        "limits": {"prompt": 280, "answer": 6, "answer_line": 90, "title": 30, "highlight": 6},
+        "doc": "Messenger-style AI chat (no brand look, for AI-tip Shorts, 9:16 and 16:9): `prompt` types into a "
+               "user bubble, a typing indicator, then 1-6 short `answer` lines appear one by one (line i on cue i); "
+               "optional `title` is a small header label, `highlight` lists phrases of the prompt or answer to mark.",
+    },
 }
 
 VOICE_ENGINES = ("recording", "kokoro", "elevenlabs", "openai", "chatterbox")
@@ -322,6 +329,31 @@ def _check_limits(bid: str, tname: str, props: dict, limits: dict) -> list[Issue
             for it in items:
                 if _too_long(it, limits["item"]):
                     warn(f"{key} item longer than {limits['item']} characters")
+    if tname == "chat":
+        prompt = props.get("prompt")
+        if isinstance(prompt, str) and not prompt.strip():
+            out.append(Issue("error", bid, "chat: prompt is empty"))
+        elif _too_long(prompt, limits["prompt"]):
+            warn(f"prompt longer than {limits['prompt']} characters (hard to read on screen)")
+        answer = props.get("answer")
+        if isinstance(answer, list):
+            if not 1 <= len(answer) <= limits["answer"]:
+                warn(f"use 1-{limits['answer']} answer lines")
+            if not all(isinstance(a, str) for a in answer):
+                out.append(Issue("error", bid, "chat: answer must be a list of strings, one per line"))
+            for a in answer:
+                if _too_long(a, limits["answer_line"]):
+                    warn(f"answer line longer than {limits['answer_line']} characters")
+        hl = props.get("highlight", [])
+        if not isinstance(hl, list) or not all(isinstance(h, str) and h.strip() for h in hl):
+            out.append(Issue("error", bid, "chat: highlight must be a list of phrases from the prompt or answer"))
+        else:
+            if len(hl) > limits["highlight"]:
+                warn(f"use at most {limits['highlight']} highlights")
+            texts = [t.lower() for t in [prompt, *(answer if isinstance(answer, list) else [])] if isinstance(t, str)]
+            for h in hl:
+                if not any(h.strip().lower() in t for t in texts):
+                    warn(f"highlight {h!r} does not occur in the prompt or answer")
     if tname == "footage":
         f = props.get("focus", [0.5, 0.5])
         if not (isinstance(f, list) and len(f) == 2 and all(isinstance(v, (int, float)) and 0 <= v <= 1 for v in f)):
