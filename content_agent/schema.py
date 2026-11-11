@@ -58,10 +58,11 @@ TEMPLATES: dict[str, dict[str, Any]] = {
         "doc": "Opening or chapter card: big serif title, optional kicker above and subtitle below.",
     },
     "kinetic": {
-        "required": {"lines": list}, "optional": {"emphasis": list, "sticker": str},
+        "required": {"lines": list}, "optional": {"emphasis": list, "sticker": str, "fast": bool},
         "limits": {"lines": 3, "line": 42, "sticker": 8},
         "doc": "1-3 short lines of animated text; words in `emphasis` are highlighted; optional `sticker` (one emoji, "
-               "e.g. \"🤯\") pops in beside the text once it is on screen.",
+               "e.g. \"🤯\") pops in beside the text once it is on screen; `fast`: true puts the whole text on "
+               "screen within ~0.4 s (hooks, calls to action).",
     },
     "map_route": {
         "required": {"from": dict, "to": dict}, "optional": {"label": str, "vehicle": str},

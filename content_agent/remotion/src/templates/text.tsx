@@ -102,7 +102,10 @@ export const Kinetic: React.FC<SceneProps> = ({props, speech, duration, cues}) =
     l.split(' ').map((_, wi) => {
       const c = cues[li];
       const lineStart = typeof c === 'number' ? Math.max(c - 4, 0) : null;
-      const start = lineStart === null
+      // `fast`: a hook or a call to action, the whole text on screen within ~0.4 s
+      const start = props.fast
+        ? idx * 2
+        : lineStart === null
         ? stagger(idx, total, speech, duration, 0.5)
         : (li === 0 ? Math.min(lineStart, speech) : lineStart) + wi * 3;
       return idx++ === 0 ? Math.min(start, 2 - PREROLL) : start;
@@ -124,7 +127,7 @@ export const Kinetic: React.FC<SceneProps> = ({props, speech, duration, cues}) =
                   key={wi}
                   style={{
                     display: 'inline-block',
-                    marginRight: '0.26em',
+                    marginRight: '0.34em',
                     opacity: r,
                     transform: `translateY(${(1 - r) * 30 * u}px) scale(${isEm ? 1 + 0.06 * r : 1})`,
                     fontFamily: FONTS.impact,
