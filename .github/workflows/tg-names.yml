@@ -22,8 +22,9 @@ jobs:
             n="${n#@}"
             page="$(curl -sL --max-time 20 -A 'Mozilla/5.0' "https://t.me/$n")"
             frag="$(curl -sL --max-time 20 -A 'Mozilla/5.0' "https://fragment.com/username/$n" | grep -o 'tm-section-header-status[^<]*<[^>]*>[^<]*' | head -1)"
-            title="$(echo "$page" | grep -o '<div class="tgme_page_title"[^>]*><span[^>]*>[^<]*' | sed 's/.*>//' | head -1)"
+            title="$(echo "$page" | grep -o '<meta property="og:title" content="[^"]*' | sed 's/.*content="//' | head -1)"
+            desc="$(echo "$page" | grep -o '<meta property="og:description" content="[^"]*' | sed 's/.*content="//' | head -1 | cut -c1-160)"
             extra="$(echo "$page" | grep -o '<div class="tgme_page_extra">[^<]*' | sed 's/.*>//' | head -1)"
-            if echo "$page" | grep -q 'tgme_page_title'; then echo "TAKEN  @$n  «$title»  $extra"; else echo "FREE?  @$n  fragment: ${frag:-none}"; fi
+            if echo "$page" | grep -q 'tgme_page_title'; then echo "TAKEN  @$n  «$title»  $extra  | $desc"; else echo "FREE?  @$n  fragment: ${frag:-none}"; fi
             sleep 1
           done
