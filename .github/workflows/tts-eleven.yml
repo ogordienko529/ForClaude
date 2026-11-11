@@ -1,0 +1,70 @@
+# ElevenLabs voice-over for the channel's short videos (repository secret ELEVENLABS_API_KEY).
+# mode "samples": try the most used native Ukrainian voices on one short line (saved to the branch tts-samples).
+# mode "render": read every line of a voice.json; unchanged lines are reused from the branch tts-<slug>, and a run
+# that would spend more than max_chars characters stops before generating anything.
+name: ElevenLabs voice-over
+
+on:
+  workflow_dispatch:
+    inputs:
+      script:
+        description: "Path of the voice.json, e.g. tg_content/videos/v1-cv/voice.json"
+        required: true
+      mode:
+        description: "samples or render"
+        default: "render"
+      max_chars:
+        description: "Most characters (credits) this run may spend"
+        default: "1500"
+
+permissions:
+  contents: write
+
+jobs:
+  tts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          sudo apt-get install -y -qq ffmpeg >/dev/null
+          pip install "httpx>=0.27" "faster-whisper>=1.1"
+
+      - name: Generate
+        env:
+          SCRIPT: ${{ inputs.script }}
+          MODE: ${{ inputs.mode }}
+          MAX_CHARS: ${{ inputs.max_chars }}
+        run: |
+          slug="$(basename "$(dirname "$SCRIPT")")"
+          if [ "$MODE" = "samples" ]; then branch="tts-samples"; else branch="tts-$slug"; fi
+          echo "branch=$branch" >> "$GITHUB_ENV"
+          mkdir -p cache
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+            git fetch -q --depth 1 origin "$branch" && git archive FETCH_HEAD | tar -x -C cache
+            [ -d "cache/$slug" ] && cp -r "cache/$slug/." cache/ || true
+          fi
+          python .github/scripts/tts_eleven.py "$MODE" "$SCRIPT" "out/$slug" --cache cache --max-chars "$MAX_CHARS"
+          echo "slug=$slug" >> "$GITHUB_ENV"
+
+      - name: Save
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          dir="$(mktemp -d)"
+          cp -r "out/$slug" "$dir/"
+          cd "$dir"
+          git init -q
+          git config user.name "tts"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -q -m "voice-over $slug"
+          git push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/$branch"

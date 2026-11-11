@@ -1,4 +1,9 @@
 {
+ "engine": "elevenlabs",
+ "voice_id": "",
+ "model": "eleven_multilingual_v2",
+ "sample_text": "Стоп. Не проси ші покращити резюме: він охоче допише досвід, якого не було.",
+ "samples": 3,
  "speaker": "mykyta",
  "length_scale": 0.88,
  "lines": [
