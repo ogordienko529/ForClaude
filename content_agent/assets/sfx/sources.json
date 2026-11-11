@@ -162,5 +162,139 @@
       "seconds": 0.703,
       "note": "A single low, soft note: a quiet no. Format: WAV 48 kHz 24-bit stereo."
     }
-  ]
+  ],
+  "variants": {
+    "whoosh_2": {
+      "file": "variants/whoosh_2.wav",
+      "kit_sound": "whoosh-fast-medium",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/whooshes/whoosh-fast-medium.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/whooshes/whoosh-fast-medium.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 0.252,
+      "sync_at": 0.096,
+      "sync_meets": "move-peak",
+      "lufs": -20.5,
+      "note": "A quick, clean swish of air with a defined middle."
+    },
+    "whoosh_3": {
+      "file": "variants/whoosh_3.wav",
+      "kit_sound": "swipe-medium-firm",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/swipes/swipe-medium-firm.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/swipes/swipe-medium-firm.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 0.279,
+      "sync_at": 0,
+      "sync_meets": "action-start",
+      "lufs": -24.5,
+      "note": "A clear swipe across glass, with a crisp touch."
+    },
+    "whoosh_4": {
+      "file": "variants/whoosh_4.wav",
+      "kit_sound": "zip-in-medium",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/swishes-and-zips/zip-in-medium.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/swishes-and-zips/zip-in-medium.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 0.349,
+      "sync_at": 0.233,
+      "sync_meets": "arrival",
+      "lufs": -21,
+      "note": "A quick zip in: rising to a stop."
+    },
+    "click_2": {
+      "file": "variants/click_2.wav",
+      "kit_sound": "click-mouse-medium",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/interface/click-mouse-medium.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/interface/click-mouse-medium.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 0.091,
+      "sync_at": 0.009,
+      "sync_meets": "instant",
+      "lufs": -27,
+      "note": "A natural mouse click: the press and its release."
+    },
+    "click_3": {
+      "file": "variants/click_3.wav",
+      "kit_sound": "click-toggle-on-medium",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/interface/click-toggle-on-medium.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/interface/click-toggle-on-medium.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 0.034,
+      "sync_at": 0.025,
+      "sync_meets": "instant",
+      "lufs": -27,
+      "note": "A switch flipping on: tick, then a bright snap above it."
+    },
+    "keys_2": {
+      "file": "variants/keys_2.wav",
+      "kit_sound": "keyboard-typing-quick-long",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/keyboard/keyboard-typing-quick-long.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/keyboard/keyboard-typing-quick-long.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 3.151,
+      "sync_at": 0,
+      "sync_meets": "action-start",
+      "lufs": -27,
+      "note": "Quick typing for a full line of text."
+    },
+    "keys_3": {
+      "file": "variants/keys_3.wav",
+      "kit_sound": "keyboard-typing-steady-long",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/keyboard/keyboard-typing-steady-long.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/keyboard/keyboard-typing-steady-long.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 3.076,
+      "sync_at": 0,
+      "sync_meets": "action-start",
+      "lufs": -27,
+      "note": "Steady typing for a full line of text."
+    },
+    "riser": {
+      "file": "variants/riser.wav",
+      "kit_sound": "riser-2s-soft",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/risers-and-fallers/riser-2s-soft.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/risers-and-fallers/riser-2s-soft.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 2.188,
+      "sync_at": 1.994,
+      "sync_meets": "arrival",
+      "lufs": -24,
+      "note": "A 2-second soft, airy rise that builds to its peak at the end."
+    },
+    "impact": {
+      "file": "variants/impact.wav",
+      "kit_sound": "impact-heavy-soft",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/impacts/impact-heavy-soft.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/impacts/impact-heavy-soft.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 0.32,
+      "sync_at": 0.018,
+      "sync_meets": "instant",
+      "lufs": -19,
+      "note": "A heavy, muffled thump: weight landing on something soft."
+    },
+    "shutter": {
+      "file": "variants/shutter.wav",
+      "kit_sound": "mechanical-shutter-light",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/mechanical/mechanical-shutter-light.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/mechanical/mechanical-shutter-light.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 0.11,
+      "sync_at": 0.01,
+      "sync_meets": "instant",
+      "lufs": -25,
+      "note": "A compact camera shutter: a quick ka-chik."
+    },
+    "notify": {
+      "file": "variants/notify.wav",
+      "kit_sound": "notification-message-in-soft",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/notifications/notification-message-in-soft.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/notifications/notification-message-in-soft.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 0.423,
+      "sync_at": 0.046,
+      "sync_meets": "instant",
+      "lufs": -24,
+      "note": "A little bubble and a warm note: a new message."
+    }
+  }
 }

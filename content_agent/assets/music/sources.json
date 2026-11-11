@@ -1,0 +1,74 @@
+[
+  {
+    "file": "upbeat_electronic_arpent.mp3",
+    "title": "Arpent",
+    "author": "FreePD (Kevin MacLeod and contributors)",
+    "url": "https://github.com/OlegTestov/clipwright-music/releases/download/v1/freepd-arpent.mp3",
+    "page": "https://freepd.com/electronic.php",
+    "license": "CC0 1.0 (as stated by the clipwright-music library, which cites the FreePD / Free Music Archive page; no attribution required)",
+    "seconds": 110.0,
+    "bpm_guess": 117.5,
+    "mood": "upbeat-electronic; driving, bright electronic pop-ish bed; punchy, works under voice",
+    "note": "Mirrored in OlegTestov/clipwright-music release v1 (github.com release asset); re-encoded to mp3 128k stereo and trimmed to <=110 s with a 3 s fade-out. Content ID may still claim it."
+  },
+  {
+    "file": "upbeat_fresh_focus.mp3",
+    "title": "Fresh Focus",
+    "author": "FreePD (Kevin MacLeod and contributors)",
+    "url": "https://github.com/OlegTestov/clipwright-music/releases/download/v1/freepd-fresh-focus.mp3",
+    "page": "https://freepd.com/upbeat.php",
+    "license": "CC0 1.0 (as stated by the clipwright-music library, which cites the FreePD / Free Music Archive page; no attribution required)",
+    "seconds": 110.0,
+    "bpm_guess": 103.4,
+    "mood": "corporate-upbeat; crisp light corporate/tech upbeat",
+    "note": "Mirrored in OlegTestov/clipwright-music release v1 (github.com release asset); re-encoded to mp3 128k stereo and trimmed to <=110 s with a 3 s fade-out. Content ID may still claim it."
+  },
+  {
+    "file": "playful_pop_inspiration.mp3",
+    "title": "Inspiration",
+    "author": "FreePD (Kevin MacLeod and contributors)",
+    "url": "https://github.com/OlegTestov/clipwright-music/releases/download/v1/freepd-inspiration.mp3",
+    "page": "https://freepd.com/upbeat.php",
+    "license": "CC0 1.0 (as stated by the clipwright-music library, which cites the FreePD / Free Music Archive page; no attribution required)",
+    "seconds": 110.0,
+    "bpm_guess": 117.5,
+    "mood": "light pop, playful; friendly light pop",
+    "note": "Mirrored in OlegTestov/clipwright-music release v1 (github.com release asset); re-encoded to mp3 128k stereo and trimmed to <=110 s with a 3 s fade-out. Content ID may still claim it."
+  },
+  {
+    "file": "minimal_tech_pond.mp3",
+    "title": "Pond",
+    "author": "FreePD (Kevin MacLeod and contributors)",
+    "url": "https://github.com/OlegTestov/clipwright-music/releases/download/v1/freepd-pond.mp3",
+    "page": "https://freepd.com/romantic.php",
+    "license": "CC0 1.0 (as stated by the clipwright-music library, which cites the FreePD / Free Music Archive page; no attribution required)",
+    "seconds": 110.0,
+    "bpm_guess": 117.5,
+    "mood": "chill electronic, minimal tech; sleek, quiet minimal-tech bed",
+    "note": "Mirrored in OlegTestov/clipwright-music release v1 (github.com release asset); re-encoded to mp3 128k stereo and trimmed to <=110 s with a 3 s fade-out. Content ID may still claim it."
+  },
+  {
+    "file": "lofi_infinite_echoes.mp3",
+    "title": "Infinite Echoes (Lofi, Dreamy, Soft)",
+    "author": "HoliznaCC0",
+    "url": "https://github.com/OlegTestov/clipwright-music/releases/download/v1/fma-holiznacc0-infinite-echoes-lofi-dreamy-soft.mp3",
+    "page": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/infinite-echoes-lofi-dreamy-soft/",
+    "license": "CC0 1.0 (as stated by the clipwright-music library, which cites the FreePD / Free Music Archive page; no attribution required)",
+    "seconds": 110.0,
+    "bpm_guess": 129.2,
+    "mood": "lofi, dreamy; lofi beat; BPM may be half-time (~65)",
+    "note": "Mirrored in OlegTestov/clipwright-music release v1 (github.com release asset); re-encoded to mp3 128k stereo and trimmed to <=110 s with a 3 s fade-out. Content ID may still claim it."
+  },
+  {
+    "file": "lofi_doodles.mp3",
+    "title": "Doodles (LoFi, Happy)",
+    "author": "HoliznaCC0",
+    "url": "https://github.com/OlegTestov/clipwright-music/releases/download/v1/fma-holiznacc0-doodles-lofi-happy-mp3.mp3",
+    "page": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/doodles-lofi-happy-mp3/",
+    "license": "CC0 1.0 (as stated by the clipwright-music library, which cites the FreePD / Free Music Archive page; no attribution required)",
+    "seconds": 110.0,
+    "bpm_guess": 86.1,
+    "mood": "lofi, happy chill hip-hop; lofi hip-hop, below the 95 BPM floor",
+    "note": "Mirrored in OlegTestov/clipwright-music release v1 (github.com release asset); re-encoded to mp3 128k stereo and trimmed to <=110 s with a 3 s fade-out. Content ID may still claim it."
+  }
+]

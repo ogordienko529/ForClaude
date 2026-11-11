@@ -235,7 +235,8 @@ def test_sfx_bank_is_written(tmp_path):
 
     assert set(SFX_BANK) <= set(SFX_NAMES)
     paths = write_sfx_bank(tmp_path / SFX_DIR)
-    assert sorted(p.stem for p in paths) == sorted(SFX_BANK)
+    from content_agent.sound import SFX_VARIANTS
+    assert sorted(p.stem for p in paths) == sorted([*SFX_BANK, *SFX_VARIANTS])
     for p in paths:
         y, sr = sf.read(p)
         assert sr == 48_000 and np.isfinite(y).all() and 0 < np.max(np.abs(y)) <= 1.0
@@ -244,15 +245,17 @@ def test_sfx_bank_is_written(tmp_path):
 
 
 def test_renderer_sfx_names_match_the_bank():
-    from content_agent.sound import SFX_BANK
+    from content_agent.sound import SFX_BANK, SFX_VARIANTS
 
     motion = (REMOTION / "motion.tsx").read_text()
     names = set(re.findall(r"'(\w+)'", re.search(r"export type SfxName = ([^;]+);", motion).group(1)))
-    assert names == set(SFX_BANK)
+    assert names <= set(SFX_BANK) | set(SFX_VARIANTS)
+    files = set(re.findall(r"\['(\w+)', [\d.]+\]", motion))              # every file a sound may play
+    assert files and files <= set(SFX_BANK) | set(SFX_VARIANTS)
     used = set()
     for f in [*REMOTION.glob("*.tsx"), *(REMOTION / "templates").glob("*.tsx")]:
         used |= set(re.findall(r'<Sfx[^>]*name="(\w+)"', f.read_text()))
-    assert used and used <= set(SFX_BANK)
+    assert used and used <= names
 
 
 def test_new_templates_are_in_the_renderer():

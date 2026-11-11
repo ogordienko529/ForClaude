@@ -141,6 +141,7 @@ SFX_NAMES = ("boom", "whoosh", "pop", "tick", "riser", "hit", "ding", "click", "
 # a tap or a mouse click -> click, a scene change -> whoosh, a sticker or a stamp -> pop.
 SFX_BANK = ("whoosh", "pop", "click", "keys")
 SFX_ASSETS = __import__("pathlib").Path(__file__).parent / "assets" / "sfx"   # see assets/sfx/README.md
+SFX_VARIANTS = ("whoosh_2", "whoosh_4", "click_2", "keys_2", "keys_3", "impact")
 
 
 def write_sfx_bank(folder, sr: int = SR) -> list:
@@ -161,6 +162,19 @@ def write_sfx_bank(folder, sr: int = SR) -> list:
             shutil.copyfile(recorded, path)
         else:
             sf.write(path, sfx(name, sr), sr, subtype="PCM_16")
+        out.append(path)
+    # variants the renderer rotates through (SFX_FILES in remotion/src/motion.tsx); a missing one falls back to
+    # its base sound, so every file the renderer may ask for exists
+    for variant in SFX_VARIANTS:
+        base = folder / f"{variant.split('_')[0]}.wav"
+        src = SFX_ASSETS / "variants" / f"{variant}.wav"
+        path = folder / f"{variant}.wav"
+        if src.exists():
+            shutil.copyfile(src, path)
+        elif base.exists():
+            shutil.copyfile(base, path)
+        else:
+            sf.write(path, sfx("hit" if variant == "impact" else variant.split("_")[0], sr), sr, subtype="PCM_16")
         out.append(path)
     return out
 

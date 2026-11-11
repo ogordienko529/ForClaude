@@ -89,6 +89,8 @@ export const Video: React.FC<TimelineData> = (t) => {
             {t.scenes.slice(1).map((s) => (
               <Sfx key={`w${s.id}`} name="whoosh" at={s.from - 5} />
             ))}
+            {/* a soft hit under the hook on the very first frame (Shorts only) */}
+            {t.format === 'shorts' && t.scenes.length ? <Sfx name="impact" at={2} /> : null}
             {/* 9:16 keeps the captions above the platform's title and buttons; reviews lift them above the hotbar */}
             {t.showCaptions && <StyledCaptions captions={t.captions} lift={CAPTION_LIFT[t.format] ?? 0.06} top={CAPTION_TOP[t.format]} />}
             {t.progressBar ? <ProgressBar total={t.durationInFrames} /> : null}
