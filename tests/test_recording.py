@@ -174,3 +174,21 @@ def test_retention_warnings_on_long_form():
     assert any("b02: one footage clip for 30s" in x for x in w)
     assert any("Re-hook every 40s" in x for x in w)
     assert retention_warnings({**tl, "format": "shorts"}) == []
+
+
+def test_a_per_beat_file_keeps_its_soft_last_syllable(tmp_path):
+    """A synthetic line that fades out quietly must not lose its ending to the silence trim."""
+    import numpy as np
+    import soundfile as sf
+    from content_agent.recording import assemble_recording
+    sr = 24000
+    t = np.arange(int(sr * 1.0)) / sr
+    loud = 0.3 * np.sin(2 * np.pi * 220 * t)
+    soft = 0.006 * np.sin(2 * np.pi * 220 * t[: int(sr * 0.5)])        # about -47 dB: a breathy ending
+    y = np.concatenate([np.zeros(int(sr * 0.2)), loud, soft, np.zeros(int(sr * 0.3))]).astype(np.float32)
+    (tmp_path / "voice").mkdir()
+    sf.write(tmp_path / "voice" / "b01.wav", y, sr)
+    beats = [{"id": "b01", "narration": "Один рядок тексту.", "audio": "voice/b01.wav"}]
+    info = assemble_recording(beats, {}, tmp_path, tmp_path / "voice.wav", sr=sr, log=lambda m: None)
+    kept = info["beats"][0]["source"]["end"] - info["beats"][0]["source"]["start"]
+    assert kept >= 1.5 - 0.02                                             # the loud second and the soft half

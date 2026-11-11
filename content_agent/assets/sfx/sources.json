@@ -1,0 +1,166 @@
+{
+  "whoosh": [
+    {
+      "name": "whoosh-medium-soft",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/whooshes/whoosh-medium-soft.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/whooshes/whoosh-medium-soft.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 0.543,
+      "note": "A smooth, gentle sweep of air that rises and fades without an edge. Format: WAV 48 kHz 24-bit stereo."
+    },
+    {
+      "name": "whoosh-fast-soft",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/whooshes/whoosh-fast-soft.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/whooshes/whoosh-fast-soft.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 0.25,
+      "note": "A quick, gentle puff of air with a soft edge and no weight. Format: WAV 48 kHz 24-bit stereo."
+    },
+    {
+      "name": "whoosh-medium-medium",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/whooshes/whoosh-medium-medium.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/whooshes/whoosh-medium-medium.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 0.517,
+      "note": "A balanced swish of air: a clear rise, a defined peak and a smooth fade. Format: WAV 48 kHz 24-bit stereo."
+    },
+    {
+      "name": "swipe-medium-soft",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/swipes/swipe-medium-soft.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/swipes/swipe-medium-soft.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 0.293,
+      "note": "A soft fingertip swipe across a screen. Format: WAV 48 kHz 24-bit stereo."
+    }
+  ],
+  "pop": [
+    {
+      "name": "pop-medium-in",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/pops/pop-medium-in.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/pops/pop-medium-in.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 0.06,
+      "note": "A round, friendly pop that lifts into place. Format: WAV 48 kHz 24-bit stereo."
+    },
+    {
+      "name": "pop-small-bubble",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/pops/pop-small-bubble.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/pops/pop-small-bubble.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 0.081,
+      "note": "A tiny water-bubble blip, light and quick. Format: WAV 48 kHz 24-bit stereo."
+    },
+    {
+      "name": "pop-medium-bubble",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/pops/pop-medium-bubble.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/pops/pop-medium-bubble.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 0.126,
+      "note": "A clean bubble plip with a small one after it. Format: WAV 48 kHz 24-bit stereo."
+    }
+  ],
+  "click": [
+    {
+      "name": "click-tap-soft",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/interface/click-tap-soft.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/interface/click-tap-soft.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 0.016,
+      "note": "A soft fingertip tap on glass. Format: WAV 48 kHz 24-bit stereo."
+    },
+    {
+      "name": "click-button-soft",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/interface/click-button-soft.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/interface/click-button-soft.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 0.016,
+      "note": "A gentle, soft press of a small button. Format: WAV 48 kHz 24-bit stereo."
+    },
+    {
+      "name": "click-tap-medium",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/interface/click-tap-medium.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/interface/click-tap-medium.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 0.022,
+      "note": "A clear tap on a screen, with a faint glassy tick. Format: WAV 48 kHz 24-bit stereo."
+    }
+  ],
+  "keys": [
+    {
+      "name": "keyboard-typing-steady-medium",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/keyboard/keyboard-typing-steady-medium.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/keyboard/keyboard-typing-steady-medium.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 1.532,
+      "note": "Steady typing, about a short phrase. Format: WAV 48 kHz 24-bit stereo. Loopable? not guaranteed; loop or chain with crossfade."
+    },
+    {
+      "name": "keyboard-typing-steady-long",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/keyboard/keyboard-typing-steady-long.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/keyboard/keyboard-typing-steady-long.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 3.076,
+      "note": "Steady typing for a full line of text. Format: WAV 48 kHz 24-bit stereo. Loopable? not guaranteed; loop or chain with crossfade."
+    },
+    {
+      "name": "keyboard-typing-quick-medium",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/keyboard/keyboard-typing-quick-medium.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/keyboard/keyboard-typing-quick-medium.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 1.656,
+      "note": "Quick, fluent typing, about a short phrase. Format: WAV 48 kHz 24-bit stereo. Loopable? not guaranteed; loop or chain with crossfade."
+    }
+  ],
+  "ding": [
+    {
+      "name": "notification-success-clear",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/notifications/notification-success-clear.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/notifications/notification-success-clear.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 0.606,
+      "note": "A bright, rising three-note chime: success. Format: WAV 48 kHz 24-bit stereo."
+    },
+    {
+      "name": "tone-ding-high",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/tones/tone-ding-high.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/tones/tone-ding-high.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 0.812,
+      "note": "A small bell's clear ding (E, high). Format: WAV 48 kHz 24-bit stereo."
+    },
+    {
+      "name": "notification-success-soft",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/notifications/notification-success-soft.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/notifications/notification-success-soft.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 0.53,
+      "note": "A warm, rising three-note marimba arpeggio: done. Format: WAV 48 kHz 24-bit stereo."
+    }
+  ],
+  "buzz": [
+    {
+      "name": "notification-error-soft",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/notifications/notification-error-soft.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/notifications/notification-error-soft.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 0.567,
+      "note": "A soft, falling two-note marimba: something's not right, gently. Format: WAV 48 kHz 24-bit stereo."
+    },
+    {
+      "name": "notification-failure-knock",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/notifications/notification-failure-knock.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/notifications/notification-failure-knock.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 0.318,
+      "note": "Two wooden knocks, the second lower: nope. Format: WAV 48 kHz 24-bit stereo."
+    },
+    {
+      "name": "notification-failure-low",
+      "url": "https://raw.githubusercontent.com/wyzowl/sfx-kit/main/sounds/notifications/notification-failure-low.wav",
+      "page": "https://github.com/wyzowl/sfx-kit/blob/main/sounds/notifications/notification-failure-low.wav",
+      "license": "CC0 1.0 Universal (public domain dedication, no attribution required; SFX Kit by Wyzowl)",
+      "seconds": 0.703,
+      "note": "A single low, soft note: a quiet no. Format: WAV 48 kHz 24-bit stereo."
+    }
+  ]
+}

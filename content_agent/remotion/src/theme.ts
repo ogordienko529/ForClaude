@@ -5,6 +5,8 @@ import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/700.css';
 import '@fontsource/playfair-display/700.css';
 import '@fontsource/archivo-black/400.css';
+import '@fontsource/montserrat/800.css';
+import '@fontsource/montserrat/900.css';
 import '@fontsource/bangers/400.css';
 import '@fontsource/dm-serif-display/400.css';
 import '@fontsource/orbitron/800.css';
@@ -42,6 +44,11 @@ export const PALETTES: Record<string, Palette> = {
   slate: {
     bg1: '#101317', bg2: '#202833', text: '#eef1f4', muted: '#8d98a6', accent: '#ff6b4a', accent2: '#4ac6ff',
     land: '#242c37', landStroke: '#3a4655', grid: 'rgba(255,255,255,0.05)', panel: 'rgba(255,255,255,0.06)',
+  },
+  // bright orange: dark text, navy highlights; for Shorts that should not look like the dark ones
+  ember: {
+    bg1: '#ff6a13', bg2: '#ff9a3c', text: '#1b1206', muted: '#5e3412', accent: '#14213d', accent2: '#ffffff',
+    land: '#ff8a2e', landStroke: '#e05a00', grid: 'rgba(0,0,0,0.06)', panel: 'rgba(0,0,0,0.10)',
   },
 };
 

@@ -69,6 +69,14 @@ export const STYLES: Record<string, StyleDef> = {
     fontLoads: ['400 80px "Archivo Black"', '400 40px Inter', '600 40px Inter', '800 40px Inter'],
     background: 'clean', caption: 'bold', label: 'tag', transition: 'slide', radius: 22,
   },
+  // bright orange Shorts look: the clean style's type on an orange background, white highlights
+  ember: {
+    name: 'ember',
+    palette: P.ember,
+    fonts: {display: 'Montserrat, Arial, sans-serif', body: 'Inter, Arial, sans-serif', caption: 'Montserrat, Arial, sans-serif', impact: 'Montserrat, Arial, sans-serif'},
+    fontLoads: ['900 80px Montserrat', '800 40px Montserrat', '400 40px Inter', '600 40px Inter', '800 40px Inter'],
+    background: 'clean', caption: 'bold', label: 'tag', transition: 'slide', radius: 22,
+  },
   comic: {
     name: 'comic',
     palette: {bg1: '#ffd84a', bg2: '#ffe680', text: '#111111', muted: '#3a3a3a', accent: '#e8242b', accent2: '#1e5bd8',

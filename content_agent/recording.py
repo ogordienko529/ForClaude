@@ -235,9 +235,11 @@ def assemble_recording(beats: list[dict], storyboard: dict, project: Path, out_w
             if not path.exists():
                 raise RecordingError(f"beat {beats[i]['id']}: audio file not found: {path}")
             z = decode(path, sr)
-            segs_i = segments(z, sr, min_gap=0.5)
-            if segs_i:   # trim the leading/trailing silence of a single-line file
-                z = z[int(segs_i[0][0] * sr):int(segs_i[-1][1] * sr)]
+            # trim only real silence at the ends of a single-line file: a threshold relative to the file's own
+            # quiet parts cut the soft last syllable of synthetic voices (ElevenLabs lines lost 0.25-0.6 s)
+            segs_i = segments(z, sr, min_gap=0.5, threshold_db=-50.0, pad=0.15)
+            if segs_i:
+                z = z[int(segs_i[0][0] * sr):min(int(segs_i[-1][1] * sr), z.size)]
             sources[i] = (z, {"file": a, "start": 0.0, "end": round(len(z) / sr, 3)})
 
     chunks: list[np.ndarray] = [np.zeros(int(sr * p.lead_in), dtype=np.float32)]

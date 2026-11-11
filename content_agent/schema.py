@@ -182,11 +182,12 @@ STYLES = {
     "neon": "synthwave grid and sun, Orbitron, karaoke captions that glow word by word, neon frame labels, glitch cuts",
     "clean": "bright minimal, heavy sans, 2-3 big words at a time with the spoken word highlighted, white tags, slides",
     "comic": "halftone and rays, Bangers, speech-bubble captions and labels, zoom-burst transitions",
+    "ember": "bright orange: heavy Montserrat on an orange background, navy highlights, slides",
 }
 TRANSITIONS = ("fadePush", "wipe", "pixel", "glitch", "slide", "zoomBurst", "cut")
 FORMATS = ("explainer", "shorts", "review")
 
-PALETTES = ("midnight", "parchment", "slate")
+PALETTES = ("midnight", "parchment", "slate", "ember")
 MUSIC_MOODS = ("calm", "tense", "uplifting", "hype", "phonk", "none")  # hype/phonk: beat music (sound.py)
 
 

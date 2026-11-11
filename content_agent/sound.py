@@ -140,6 +140,7 @@ SFX_NAMES = ("boom", "whoosh", "pop", "tick", "riser", "hit", "ding", "click", "
 # The sounds the long-form renderer plays on animation events (remotion/src/motion.tsx): typing -> keys,
 # a tap or a mouse click -> click, a scene change -> whoosh, a sticker or a stamp -> pop.
 SFX_BANK = ("whoosh", "pop", "click", "keys")
+SFX_ASSETS = __import__("pathlib").Path(__file__).parent / "assets" / "sfx"   # see assets/sfx/README.md
 
 
 def write_sfx_bank(folder, sr: int = SR) -> list:
@@ -148,12 +149,18 @@ def write_sfx_bank(folder, sr: int = SR) -> list:
 
     import soundfile as sf
 
+    import shutil
+
     folder = Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
     out = []
     for name in SFX_BANK:
         path = folder / f"{name}.wav"
-        sf.write(path, sfx(name, sr), sr, subtype="PCM_16")
+        recorded = SFX_ASSETS / f"{name}.wav"        # real CC0 sounds; the generated ones sounded harsh
+        if recorded.exists():
+            shutil.copyfile(recorded, path)
+        else:
+            sf.write(path, sfx(name, sr), sr, subtype="PCM_16")
         out.append(path)
     return out
 

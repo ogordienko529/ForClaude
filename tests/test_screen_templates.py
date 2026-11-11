@@ -240,7 +240,7 @@ def test_sfx_bank_is_written(tmp_path):
         y, sr = sf.read(p)
         assert sr == 48_000 and np.isfinite(y).all() and 0 < np.max(np.abs(y)) <= 1.0
     keys, _ = sf.read(tmp_path / SFX_DIR / "keys.wav")
-    assert len(keys) == 3 * 48_000  # loops under a typing animation of any length
+    assert len(keys) >= 48_000  # a recorded typing run (assets/sfx), looped under any typing animation
 
 
 def test_renderer_sfx_names_match_the_bank():

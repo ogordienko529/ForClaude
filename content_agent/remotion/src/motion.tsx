@@ -92,8 +92,11 @@ export const ProgressBar: React.FC<{total: number}> = ({total}) => {
 // ------------------------------------------------------------------ sound effects
 export type SfxName = 'whoosh' | 'pop' | 'click' | 'keys';
 // linear gains: quiet under the voice (the voice mix keeps 3 dB of headroom for them, see `mix`)
-const SFX_GAIN: Record<SfxName, number> = {whoosh: 0.16, pop: 0.26, click: 0.3, keys: 0.2};
-const SFX_FRAMES: Record<SfxName, number> = {whoosh: 14, pop: 4, click: 3, keys: 90};
+// recorded CC0 sounds (content_agent/assets/sfx): loudness-matched, so the gains only set their place in the mix
+const SFX_GAIN: Record<SfxName, number> = {whoosh: 0.32, pop: 0.38, click: 0.42, keys: 0.16};
+const SFX_FRAMES: Record<SfxName, number> = {whoosh: 18, pop: 4, click: 3, keys: 90};
+// seconds from the start of the file to its sync point (the whoosh peaks 0.23 s in): started that much earlier
+const SFX_LEAD: Record<SfxName, number> = {whoosh: 0.229, pop: 0.011, click: 0.009, keys: 0};
 
 /** The project folder with the sound files (timeline "sfx"), or null when sound effects are off. */
 export const SfxContext = createContext<string | null>(null);
@@ -101,10 +104,11 @@ export const SfxContext = createContext<string | null>(null);
 /** One sound effect `at` frames into the current sequence; `keys` loops for `dur` frames (typing). */
 export const Sfx: React.FC<{name: SfxName; at: number; dur?: number; gain?: number}> = ({name, at, dur, gain = 1}) => {
   const dir = useContext(SfxContext);
+  const {fps} = useVideoConfig();
   if (!dir || !Number.isFinite(at)) return null;
   const len = Math.max(Math.round(dur ?? SFX_FRAMES[name]), 1);
   return (
-    <Sequence from={Math.max(Math.round(at), 0)} durationInFrames={len} layout="none" name={`sfx ${name}`}>
+    <Sequence from={Math.max(Math.round(at - SFX_LEAD[name] * fps), 0)} durationInFrames={len} layout="none" name={`sfx ${name}`}>
       <Audio src={staticFile(`${dir}/${name}.wav`)} volume={SFX_GAIN[name] * gain} loop={name === 'keys'} />
     </Sequence>
   );
