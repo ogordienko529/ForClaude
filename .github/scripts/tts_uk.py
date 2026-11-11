@@ -3,8 +3,11 @@ then an intelligibility check that transcribes each WAV with Whisper and compare
 
     python .github/scripts/tts_uk.py tg_content/videos/<slug>/voice.json out/<slug>
 
-voice.json: {"speaker": "mykyta" | "lada" | "tetiana", "length_scale": 1.0, "lines": [{"id": "b01", "text": "..."}]}
-Write numbers as words: the voice reads digits poorly.
+voice.json: {"speaker": "mykyta" | "lada" | "tetiana", "length_scale": 1.0, "stress": true,
+             "lines": [{"id": "b01", "text": "...", "say": "optional spelling for the voice"}]}
+The voice reads lower-case letters only (it was trained on them), so the text is lower-cased; quotes and other
+symbols it does not know are dropped. Stress marks come from ukrainian-word-stress. Write numbers as words, and use
+"say" for anything it should pronounce differently («ШІ» → "ші").
 """
 
 from __future__ import annotations
@@ -26,6 +29,16 @@ def fetch(name: str, dest: Path) -> Path:
         dest.mkdir(parents=True, exist_ok=True)
         urllib.request.urlretrieve(BASE + name, path)
     return path
+
+
+def prepare(text: str, known: set[str], stressify) -> str:
+    t = text.lower().replace("’", "'").replace("ʼ", "'")
+    if stressify:
+        t = stressify(t)
+    if "+" in known and "\u0301" not in known:      # the dataset marks stress with "+" before the vowel
+        t = re.sub(r"([аеєиіїоуюя])\u0301", r"+\1", t)
+    t = t.replace("«", "").replace("»", "").replace("—", ",").replace("–", ",")
+    return "".join(ch for ch in t if ch in known or ch == " ")
 
 
 def words(text: str) -> list[str]:
@@ -53,6 +66,16 @@ def main(script: str, out_dir: str) -> int:
     ls = float(cfg.get("length_scale", 1.0))
     print(f"voice {VOICE}, speakers {speakers}, using {cfg.get('speaker')} = {sid}, length_scale {ls}")
 
+    known = set((meta.get("phoneme_id_map") or {}).keys())
+    print(f"phoneme type {meta.get('phoneme_type')}, symbols: {''.join(sorted(k for k in known if len(k) == 1))}")
+    stressify = None
+    if cfg.get("stress", True):
+        try:
+            from ukrainian_word_stress import Stressifier, StressSymbol
+            stressify = Stressifier(stress_symbol=StressSymbol.CombiningAcuteAccent)
+        except Exception as e:
+            print(f"no stress marks: {type(e).__name__}: {e}")
+
     from piper import PiperVoice
     voice = PiperVoice.load(str(model))
     try:
@@ -68,8 +91,10 @@ def main(script: str, out_dir: str) -> int:
     report = []
     for line in cfg["lines"]:
         path = out / f"{line['id']}.wav"
+        spoken = prepare(line.get("say") or line["text"], known, stressify)
+        print(f"{line['id']}: {spoken}")
         with wave.open(str(path), "wb") as wf:
-            synth(line["text"], wf)
+            synth(spoken, wf)
         with wave.open(str(path), "rb") as wf:
             dur = wf.getnframes() / wf.getframerate()
         report.append({"id": line["id"], "text": line["text"], "seconds": round(dur, 2)})
@@ -77,8 +102,13 @@ def main(script: str, out_dir: str) -> int:
     try:
         from faster_whisper import WhisperModel
         asr = WhisperModel("small", device="cpu", compute_type="int8")
+        import numpy as np
         for r in report:
-            segs, _ = asr.transcribe(str(out / f"{r['id']}.wav"), language="uk", beam_size=5)
+            with wave.open(str(out / f"{r['id']}.wav"), "rb") as wf:
+                sr, raw = wf.getframerate(), wf.readframes(wf.getnframes())
+            x = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768
+            x16 = np.interp(np.arange(0, len(x), sr / 16000), np.arange(len(x)), x).astype(np.float32)
+            segs, _ = asr.transcribe(x16, language="uk", beam_size=5)
             heard = " ".join(s.text.strip() for s in segs)
             r["heard"] = heard
             r["wer"] = round(wer(words(r["text"]), words(heard)), 3)
