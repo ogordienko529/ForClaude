@@ -1,4 +1,4 @@
-# Writing for «ШІ без води» (Telegram)
+# Writing for «ШІ на старті» (Telegram)
 
 The channel posts twice a day (09:30 and 19:00 Kyiv) from the files in `tg_content/posts/`. The bot publishes them
 in file-name order; nobody reviews them first. So every post you write here goes out as is. This file is the brief

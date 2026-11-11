@@ -557,3 +557,27 @@ def test_snowball_follows_channels_the_seeds_link_to(tmp_path):
     names = [c["name"] for c in result["channels"]]
     assert names == ["aaaa", "bbbb", "popular"]                         # «single» is linked by one channel only
     assert result["channels"][2]["found_via"] == "linked by 2 studied channels"
+
+
+def test_author_voice_hints_are_caught_outside_prompts_and_quotes(tmp_path):
+    body = ("---\nrubric: prompt\n---\n<b>Промпт дня</b>\n\nЯ прогнав його на прикладі, і в мене теж вийшло.\n"
+            "<pre>Задай питання, на яке я відповів найслабше</pre>\n<blockquote>Я підготувала звіт</blockquote>\n"
+            "🧪 Прогін: перевіряю на трьох прикладах.\n#промпт\n")
+    _write(tmp_path, "0001-a.md", body)
+    problems = " | ".join(feed.load(tmp_path)[0].problems)
+    assert "«я прогнав»" in problems and "«в мене теж»" in problems
+    assert "відповів" not in problems and "підготувала" not in problems and "перевіряю" not in problems
+
+
+def test_rename_and_photo_notices_in_the_channel_are_deleted():
+    tg, state = FakeTG(), empty_state()
+    state["channel"] = {"ref": CHANNEL, "id": -100123}
+    tg.updates += [
+        {"update_id": 1, "channel_post": {"message_id": 7, "chat": {"id": -100123}, "new_chat_title": "Нова назва"}},
+        {"update_id": 2, "channel_post": {"message_id": 8, "chat": {"id": -100123}, "new_chat_photo": [{}]}},
+        {"update_id": 3, "channel_post": {"message_id": 9, "chat": {"id": -100123}, "text": "звичайний пост"}},
+        {"update_id": 4, "channel_post": {"message_id": 3, "chat": {"id": -100999}, "new_chat_title": "чужий"}},
+    ]
+    feed_bot(tg, state, []).run(utc("2026-11-13T08:00:00"), fetch)
+    assert [(p["chat_id"], p["message_id"]) for m, p in tg.calls if m == "deleteMessage"] == [(-100123, 7), (-100123, 8)]
+    assert state["offset"] == 5

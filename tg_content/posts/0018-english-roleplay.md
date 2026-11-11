@@ -14,7 +14,7 @@ rubric: study
 - Якщо я пишу українською, підкажи, як сказати це англійською, і попроси повторити.
 Почни з «Tell me about yourself».</pre>
 
-<b>Що вийшло в мене</b> на навмисно кривій відповіді «I am work as frontend developer since two years»:
+<b>🧪 Прогін</b> на навмисно кривій відповіді «I am work as frontend developer since two years»:
 <blockquote>• I am work → I work / I have been working. Після am дієслово не стоїть у базовій формі.
 • since two years → for two years. For означає тривалість, since вказує момент початку.
 Як сказав би носій: "I've been working as a front-end developer for two years."</blockquote>

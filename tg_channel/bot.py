@@ -114,7 +114,7 @@ class Bot:
         self._replied: set[int] = set()              # one reply per chat per run, however many /start were sent
         try:
             updates = self.tg.call("getUpdates", offset=self.state["offset"], timeout=0,
-                                   allowed_updates=["message", "callback_query"])
+                                   allowed_updates=["message", "callback_query", "channel_post"])
         except TelegramError as e:
             self.report["errors"].append(str(e))
             return
@@ -125,6 +125,8 @@ class Bot:
                 self.on_button(u["callback_query"])
             elif "message" in u:
                 self.on_message(u["message"])
+            elif "channel_post" in u:
+                self.on_channel_post(u["channel_post"])
 
     def on_message(self, msg: dict) -> None:
         if (msg.get("chat") or {}).get("type") != "private" or not str(msg.get("text", "")).startswith(("/start", "/status")):
@@ -155,6 +157,18 @@ class Bot:
         else:
             text = "Це службовий бот каналу."
         self._quiet("sendMessage", chat_id=msg["chat"]["id"], text=text, parse_mode="HTML")
+
+    SERVICE = ("new_chat_title", "new_chat_photo", "delete_chat_photo", "pinned_message")
+
+    def on_channel_post(self, post: dict) -> None:
+        """The notices Telegram adds when the bot renames the channel, changes its photo or pins a post: deleted, so
+        the channel's feed shows only posts."""
+        chat = post.get("chat") or {}
+        ours = chat.get("id") == self.state["channel"].get("id") or (
+            self.channel and f"@{chat.get('username', '')}".lower() == str(self.channel).lower())
+        if ours and any(k in post for k in self.SERVICE):
+            self._quiet("deleteMessage", chat_id=chat["id"], message_id=post.get("message_id"))
+            self.report.setdefault("deleted_notices", []).append(post.get("message_id"))
 
     def on_button(self, cq: dict) -> None:
         sender, data = (cq.get("from") or {}).get("id"), str(cq.get("data", ""))

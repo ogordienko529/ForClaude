@@ -486,7 +486,7 @@ Run `python -m content_agent styles` to see the list.
 
 ## 9. Telegram channel bot: `tg_channel`
 
-The Ukrainian Telegram channel «ШІ без води» (practical AI for work, study and an IT career), run with almost no
+The Ukrainian Telegram channel «ШІ на старті» (practical AI for work, study and an IT career), run with almost no
 owner work. GitHub Actions does everything (free for a public repository):
 
 - **`.github/workflows/tg-bot.yml`, every 15 minutes:** publishes the channel's own posts from

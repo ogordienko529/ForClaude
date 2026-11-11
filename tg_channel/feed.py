@@ -183,6 +183,17 @@ def _bare(chunk: str) -> list[str]:
     return out
 
 
+# The author's «я» in the past tense has a gender in Ukrainian («я прогнав / прогнала») and says who writes the channel;
+# so does «в мене теж». Prompts (<pre>) and quoted results (<blockquote>) speak for the reader or the example.
+AUTHOR_HINTS = re.compile(r"(?<![\w'ʼ])я\s+(?:[а-яіїєґʼ'-]+\s+)?[а-яіїєґʼ'-]{2,}(?:в|ла)(?![\w'ʼ])"
+                          r"|(?:в|у) мене теж|як і я(?![\w'ʼ])", re.I)
+
+
+def author_hints(text: str) -> list[str]:
+    own = re.sub(r"<(pre|blockquote)\b[^>]*>.*?</\1>", " ", text, flags=re.S | re.I)
+    return sorted({m[0].lower() for m in AUTHOR_HINTS.finditer(visible(own))})
+
+
 def check(post: Post) -> list[str]:
     out = []
     if post.rubric not in RUBRICS:
@@ -214,6 +225,8 @@ def check(post: Post) -> list[str]:
         out.append("empty post")
         return out
     out += html_problems(post.text)
+    out += [f"«{h}» tells who writes the channel: use «🧪 Прогін», «🧪 Результат» or the present tense"
+            for h in author_hints(post.text)]
     n = len(visible(post.text))
     if n > TEXT_MAX:
         out.append(f"too long: {n} characters, at most {TEXT_MAX}")

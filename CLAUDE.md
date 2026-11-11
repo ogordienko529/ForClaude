@@ -12,7 +12,7 @@ questions ("не запитуй, а роби").
 | `niche_mcp` | the same as an MCP server (stdio) | `python -m niche_mcp` | README section 4 |
 | `sleep_voice` | long, calm sleep narration (Kokoro TTS, free) | `python -m sleep_voice …` | README section 7 |
 | `content_agent` | video maker: narrated explainers, fast gameplay Shorts, mod reviews | `python -m content_agent …` | README section 8, `docs/CONTENT_AGENT.md`, `docs/GAMEPLAY_EDITING.md` |
-| `tg_channel` | Telegram channel «ШІ без води» (AI and IT in Ukrainian): publishes `tg_content/posts/` twice a day; a GitHub Actions writer adds the next week when the queue runs low; free-games mode behind `TG_GIVEAWAYS=1` | `python -m tg_channel run` / `queue` | README section 9, `tg_content/GUIDE.md`, `.github/workflows/tg-bot.yml`, `tg-content.yml` |
+| `tg_channel` | Telegram channel «ШІ на старті» (AI and IT in Ukrainian): publishes `tg_content/posts/` twice a day; a GitHub Actions writer adds the next week when the queue runs low; free-games mode behind `TG_GIVEAWAYS=1` | `python -m tg_channel run` / `queue` | README section 9, `tg_content/GUIDE.md`, `.github/workflows/tg-bot.yml`, `tg-content.yml` |
 
 **content-maker** is the autonomous producer on top of `content_agent`:
 - **Director prompt:** `.claude/agents/content-maker.md`.
