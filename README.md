@@ -490,7 +490,7 @@ The Ukrainian Telegram channel «ШІ на старті» (practical AI for work
 owner work. GitHub Actions does everything (free for a public repository):
 
 - **`.github/workflows/tg-bot.yml`, every 15 minutes:** publishes the channel's own posts from
-  `tg_content/posts/` at 09:30 and 19:00 Kyiv (text posts and quiz polls, in file-name order), sets the
+  `tg_content/posts/` at 09:30 and 17:15 Kyiv (text posts and quiz polls, in file-name order), sets the
   channel's name and description from `tg_content/profile.json`, answers the owner's `/start` and `/status`.
   Its memory is a JSON file on the `tg-bot-state` branch.
 - **`.github/workflows/tg-content.yml`, every morning:** when fewer than five days of posts are left, Claude Code

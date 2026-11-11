@@ -280,7 +280,7 @@ def _write(folder, name, body):
     (folder / name).write_text(body, encoding="utf-8")
 
 
-TEXT_POST = "---\nrubric: prompt\n---\n<b>Промпт дня</b>\n\n<pre>Склади план на [тиждень]</pre>\n\n#промпт\n"
+TEXT_POST = "---\nrubric: prompt\n---\n<b>План тижня за хвилину</b>\n\n<pre>Склади план на [тиждень]</pre>\n\n#промпт\n"
 QUIZ_POST = ("---\nrubric: quiz\nquestion: Що ШІ не знає без пошуку?\noptions:\n- Таблицю множення\n"
              "- Сьогоднішній курс\ncorrect: 2\nexplanation: Модель знає світ лише до дати навчання.\n---\n")
 
@@ -331,7 +331,7 @@ def test_two_posts_a_day_in_order_quiz_as_a_poll(tmp_path):
     feed_bot(tg, state, posts).run(utc("2026-11-13T07:45:00"), fetch)     # 09:45: the morning post
     feed_bot(tg, state, posts).run(utc("2026-11-13T08:00:00"), fetch)     # 10:00: nothing more until evening
     sent = tg.sent(CHANNEL)
-    assert len(sent) == 1 and sent[0]["text"].startswith("<b>Промпт дня</b>") and sent[0]["parse_mode"] == "HTML"
+    assert len(sent) == 1 and sent[0]["text"].startswith("<b>План тижня за хвилину</b>") and sent[0]["parse_mode"] == "HTML"
     assert list(state["feed"]) == ["0001-a"]
     feed_bot(tg, state, posts).run(utc("2026-11-13T17:15:00"), fetch)     # 19:15: the evening quiz
     polls = [p for m, p in tg.calls if m == "sendPoll"]
@@ -560,7 +560,7 @@ def test_snowball_follows_channels_the_seeds_link_to(tmp_path):
 
 
 def test_author_voice_hints_are_caught_outside_prompts_and_quotes(tmp_path):
-    body = ("---\nrubric: prompt\n---\n<b>Промпт дня</b>\n\nЯ прогнав його на прикладі, і в мене теж вийшло.\n"
+    body = ("---\nrubric: prompt\n---\n<b>Тест</b>\n\nЯ прогнав його на прикладі, і в мене теж вийшло.\n"
             "<pre>Задай питання, на яке я відповів найслабше</pre>\n<blockquote>Я підготувала звіт</blockquote>\n"
             "🧪 Прогін: перевіряю на трьох прикладах.\n#промпт\n")
     _write(tmp_path, "0001-a.md", body)
@@ -581,3 +581,25 @@ def test_rename_and_photo_notices_in_the_channel_are_deleted():
     feed_bot(tg, state, []).run(utc("2026-11-13T08:00:00"), fetch)
     assert [(p["chat_id"], p["message_id"]) for m, p in tg.calls if m == "deleteMessage"] == [(-100123, 7), (-100123, 8)]
     assert state["offset"] == 5
+
+
+def test_study_limits_title_prompt_length_quiz_spacing_and_pin(tmp_path):
+    long_prompt = "x" * 360
+    _write(tmp_path, "0001-a.md", f"---\nrubric: prompt\n---\n<b>Промпт дня: резюме</b>\n<pre>{long_prompt}</pre>\n#промпт\n")
+    _write(tmp_path, "0002-b.md", "---\nrubric: myth\n---\n<b>Міф</b>\n" + "слово " * 110 + "\n#міф\n")
+    _write(tmp_path, "0003-c.md", "---\nrubric: career\n---\n<b>" + "Дуже довгий заголовок " * 4 + "</b>\nтекст\n#робота\n")
+    _write(tmp_path, "0004-q.md", QUIZ_POST)
+    _write(tmp_path, "0005-q.md", QUIZ_POST)
+    _write(tmp_path, "0006-pin.md", "---\nrubric: intro\npin: yes\n---\n<b>Що тут є</b>\n#навігація\n")
+    posts = {p.id: p for p in feed.load(tmp_path)}
+    a = " | ".join(posts["0001-a"].problems)
+    assert "Промпт дня" in a and "prompt too long" in a
+    assert any("at most 600 for myth" in x for x in posts["0002-b"].problems)
+    assert any("title line too long" in x for x in posts["0003-c"].problems)
+    assert feed.queue_problems(list(posts.values())) == ["0005-q: a second quiz within 14 posts (after 0004-q)"]
+    assert posts["0006-pin"].pin and posts["0006-pin"].problems == []
+    tg, state = FakeTG(), empty_state()
+    Bot(tg, state, owner=OWNER, channel=CHANNEL, log=lambda m: None, posts=[posts["0006-pin"]], giveaways=False,
+        burst=1, pause=lambda s: None).run(utc("2026-11-13T08:00:00"), fetch)
+    pins = [p for m, p in tg.calls if m == "pinChatMessage"]
+    assert len(pins) == 1 and pins[0]["message_id"] == state["feed"]["0006-pin"]["message_id"]

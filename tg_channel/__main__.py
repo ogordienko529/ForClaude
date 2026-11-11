@@ -110,9 +110,12 @@ def queue(folder: Path, state_path: Path | None, only_count: bool, now: datetime
     if only_count:
         print(len([p for p in left if not p.date]))
         return 0
-    bad = [p for p in posts if p.problems]
+    bad: list = [p for p in posts if p.problems]
     for p in bad:
         print(f"✗ {p.id}: " + "; ".join(p.problems))
+    for line in feed.queue_problems([p for p in posts if p.id not in published]):
+        print(f"✗ {line}")
+        bad.append(None)
     for p in left:
         print(f"  {p.preview()}")
     for p in feed.stale(posts, published, today):

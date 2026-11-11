@@ -20,7 +20,12 @@ A quiz is a Telegram quiz poll and has no text, only header fields:
     ---
 
 `date: 2026-11-20` holds a post until that day (Kyiv) and then puts it before the others; two days later it counts as
-stale and is skipped. A post's id is its file name, so a published file must never be renamed.
+stale and is skipped. `pin: yes` pins the post once it is published. A post's id is its file name, so a published file
+must never be renamed.
+
+The limits come from a study of 2,120 posts of 30 Ukrainian and Russian-language AI and IT-career channels (November
+2026): the channels whose readers react most write one idea per post, mostly under 600 characters, with a title line
+that tells the whole story.
 """
 
 from __future__ import annotations
@@ -35,11 +40,15 @@ from .posts import KYIV
 
 POSTS_DIR = Path("tg_content/posts")
 RUBRICS = ("intro", "prompt", "study", "career", "tool", "news", "myth", "quiz")
-SLOTS = ((9, 30), (19, 0))          # Kyiv time: a morning and an evening post
+SLOTS = ((9, 30), (17, 15))         # Kyiv time: 19:00 was the weakest hour in the competitor study
 MIN_GAP = timedelta(hours=3)        # a late run never fires two posts back to back
 STALE_DAYS = 2
 LOW_DAYS = 4                        # tell the owner when fewer days than this are left in the queue
-TEXT_MAX = 2500                     # visible characters; Telegram allows 4096, but people read short posts
+TEXT_MAX = 1000                     # visible characters; the best-reacted posts have a median of ~550
+MYTH_MAX = 600
+PROMPT_MAX = 350                    # characters inside <pre>: one task per prompt
+TITLE_MAX = 60                      # the first line; shorter first lines get more reactions
+QUIZ_EVERY = 14                     # at most one quiz in any 14 posts in a row
 QUESTION_MAX, OPTION_MAX, EXPLANATION_MAX = 300, 100, 200      # Telegram's poll limits
 
 TAGS = {"b", "strong", "i", "em", "u", "ins", "s", "strike", "del", "a", "code", "pre", "blockquote",
@@ -68,6 +77,7 @@ class Post:
     options: list[str] = field(default_factory=list)
     correct: int | None = None          # 1-based, as written in the file
     explanation: str = ""
+    pin: bool = False
     problems: list[str] = field(default_factory=list)
 
     @property
@@ -122,6 +132,8 @@ def parse(path: Path) -> Post:
                 post.problems.append(f"correct must be the option number: {v}")
         elif key == "explanation":
             post.explanation = v
+        elif key == "pin":
+            post.pin = v.lower() in ("yes", "true", "1", "так")
         else:
             post.problems.append(f"unknown header field: {key}")
     post.text = "\n".join(lines[end + 1:]).strip()
@@ -228,8 +240,17 @@ def check(post: Post) -> list[str]:
     out += [f"«{h}» tells who writes the channel: use «🧪 Прогін», «🧪 Результат» or the present tense"
             for h in author_hints(post.text)]
     n = len(visible(post.text))
-    if n > TEXT_MAX:
-        out.append(f"too long: {n} characters, at most {TEXT_MAX}")
+    limit = MYTH_MAX if post.rubric == "myth" else TEXT_MAX
+    if n > limit:
+        out.append(f"too long: {n} characters, at most {limit} for {post.rubric}")
+    for block in re.findall(r"<pre\b[^>]*>(.*?)</pre>", post.text, flags=re.S):
+        if len(visible(block)) > PROMPT_MAX:
+            out.append(f"prompt too long: {len(visible(block))} characters in <pre>, at most {PROMPT_MAX}")
+    title = visible(post.text).strip().splitlines()[0].strip() if post.text.strip() else ""
+    if len(title) > TITLE_MAX:
+        out.append(f"title line too long: {len(title)} characters, at most {TITLE_MAX}")
+    if re.match(r"\W*промпт дня\b", title, flags=re.I):
+        out.append("do not open with the label «Промпт дня»: the title states the outcome and one concrete detail")
     if not re.search(r"#\w", visible(post.text)):
         out.append("end with the rubric's hashtag, e.g. #промпт")
     return out
@@ -254,6 +275,17 @@ def ready(posts: list[Post], published: dict, today: date) -> list[Post]:
 
 def stale(posts: list[Post], published: dict, today: date) -> list[Post]:
     return [p for p in posts if p.id not in published and p.date and today - p.date > timedelta(days=STALE_DAYS)]
+
+
+def queue_problems(posts: list[Post]) -> list[str]:
+    """Checks across the queue: quizzes spaced out."""
+    out, last = [], None
+    for i, p in enumerate(posts):
+        if p.is_quiz:
+            if last is not None and i - last < QUIZ_EVERY:
+                out.append(f"{p.id}: a second quiz within {QUIZ_EVERY} posts (after {posts[last].id})")
+            last = i
+    return out
 
 
 def days_left(posts: list[Post], published: dict, today: date) -> float:

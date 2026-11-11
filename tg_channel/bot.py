@@ -348,11 +348,14 @@ class Bot:
                                       "«Змінювати профіль каналу» (Change channel info) — я спробую ще раз сам.")
 
     def feed(self, now: datetime) -> None:
-        """At most one post per run: when a slot (09:30, 19:00 Kyiv) is due and today's count is behind. With burst=N
+        """At most one post per run: when a slot (09:30, 17:15 Kyiv) is due and today's count is behind. With burst=N
         (a manual run), the next N posts go out now, without a notification, to fill a new channel."""
         if self.burst:
             return self.feed_burst(now)
         posts, log, today = self.posts or [], self.state["feed"], feed.kyiv_day(now)
+        if (self.profile or {}).get("wait_for_burst") and not self.state["burst_at"]:
+            self.report["note"] = "waiting for the first burst (profile.json: wait_for_burst)"
+            return                                    # and no notes to the owner while the channel is being set up
         bad = [p for p in posts if p.problems and p.id not in log]
         if bad:
             self.report["errors"] += [f"{p.id}: {'; '.join(p.problems)}" for p in bad]
@@ -363,9 +366,6 @@ class Bot:
             self.note("low_queue", now, f"⚠️ Постів у черзі лишилося на {feed.days_left(posts, log, today):.0f} дн. "
                                         "Автописьменник (tg-content.yml) допише сам, якщо є секрет "
                                         "CLAUDE_CODE_OAUTH_TOKEN; інакше напиши Claude «допиши пости».")
-        if (self.profile or {}).get("wait_for_burst") and not self.state["burst_at"]:
-            self.report["note"] = "waiting for the first burst (profile.json: wait_for_burst)"
-            return
         done_today = sum(1 for v in log.values() if v.get("day") == today.isoformat())
         last = max((datetime.fromisoformat(v["at"]) for v in log.values() if v.get("at")), default=None)
         if done_today >= feed.due_slots(now) or (last and now - last < feed.MIN_GAP) or not left or not self.channel:
@@ -398,8 +398,10 @@ class Bot:
             self.note("feed_failed", now, f"⚠️ Не вдалося опублікувати {html.escape(post.id)}: перевір, що бот адмін "
                                           "каналу з правом публікувати. Спробую знову за 15 хвилин.")
             return False
-        self.state["feed"][post.id] = {"at": now.isoformat(), "day": feed.kyiv_day(now).isoformat(),
-                                       "message_id": msg.get("message_id") if isinstance(msg, dict) else None}
+        mid = msg.get("message_id") if isinstance(msg, dict) else None
+        self.state["feed"][post.id] = {"at": now.isoformat(), "day": feed.kyiv_day(now).isoformat(), "message_id": mid}
+        if post.pin and mid:
+            self._quiet("pinChatMessage", chat_id=self.target(), message_id=mid, disable_notification=True)
         self.report["published"] += 1
         self.report.setdefault("feed_posts", []).append(post.id)
         return True

@@ -1,6 +1,6 @@
 # Writing for «ШІ на старті» (Telegram)
 
-The channel posts twice a day (09:30 and 19:00 Kyiv) from the files in `tg_content/posts/`. The bot publishes them
+The channel posts twice a day (09:30 and 17:15 Kyiv) from the files in `tg_content/posts/`. The bot publishes them
 in file-name order; nobody reviews them first. So every post you write here goes out as is. This file is the brief
 for whoever writes them: a person, a Claude session, or the `tg-content.yml` workflow.
 
@@ -19,33 +19,50 @@ and DOU, Ukrainian universities, НМТ, Дія.Освіта), tested results in
 examples, and honest «що перевірити руками».
 
 **Voice:**
-- On «ти». Short sentences. Concrete, with an opinion: say what works and what does not.
+- On «ти». Short sentences. Concrete, with an opinion: one sentence of opinion or dry humour right after the title
+  («Найчастіша помилка тут — просити ШІ "покращити" резюме»). No jokes about people.
 - Honest about limits: where AI makes mistakes, what to check by hand.
-- A neutral expert editor. «Я» is fine for tested results and opinions («я прогнав цей промпт тричі», «мені більше
-  подобається другий варіант»). Never say who or what writes the channel: no «канал веде ШІ», no «я — ШІ», no
-  «ШІ-редактор». Never claim to be a human either, never invent personal stories («коли я працював у Google…»,
-  family, age, city).
+- A neutral expert editor. «Я» only in the present tense («раджу», «перевіряю»): the Ukrainian past tense has a
+  gender. Tests are labelled «🧪 Прогін» / «🧪 Результат». Never say who or what writes the channel: no «канал веде
+  ШІ», no «я — ШІ», no «в мене теж». Never claim to be a human, never invent personal stories (work, family, age).
 - The channel is new for every reader: no «перезапуск», «повернулися», «як я обіцяв».
 - Modern Ukrainian, no surzhyk, no Russian words. English terms only where Ukrainians use them (промпт, ChatGPT,
   резюме / CV, джуніор).
 
+## What the data says (competitor study, 2,120 posts of 30 channels, November 2026)
+
+- Short wins: the channels readers react to most keep 73–84 % of posts under 600 characters; the top 10 % of posts
+  by reactions have a median of ~550 characters. Posts over 1,500 characters almost never reach the top.
+- The first line tells the whole story. Title lines up to 50 characters get more reactions than longer ones.
+- A Ukrainian angle in the title (Djinni, DOU, Work.ua, НМТ, a Ukrainian university, Ukrainian law) gets ~1.6× the
+  reactions. Memes and curious stories get reactions; how-to posts get views but few reactions, so judge them by views.
+- Model-release news under-performs; ads get almost no reactions.
+- Two posts a day is enough; more posts do not mean more readers. 19:00 was the weakest hour, 10:00–17:00 and
+  20:00 the strongest; weekends do better than weekdays.
+- The niche is empty: of 710 posts in nine Ukrainian AI channels, one is a practical post about AI for a CV,
+  interview, study or a first job.
+
 ## Rubrics
 
-The `rubric:` header field, and the hashtag to end the post with:
+The `rubric:` header field, and the hashtag to end the post with (one hashtag):
 
 | rubric | hashtag | what |
 |---|---|---|
-| `prompt` | `#промпт` | **Промпт дня.** A ready prompt for one concrete task. Body: the problem in one line → the prompt in `<pre>` (tap-to-copy) → a short excerpt of the real result → one tip on what to change. |
-| `study` | `#навчання` | AI for learning and self-development: learn a topic, prepare for an exam, a language, planning, habits. Each post is a method with a prompt, not advice in general. |
-| `career` | `#робота` | IT and work with AI: CV, cover letter, LinkedIn, interview practice, first job in IT, a junior's tasks, salary talk. |
+| `prompt` | `#промпт` | A ready prompt for one concrete task: the title names the outcome → one line of problem or opinion → the prompt in `<pre>` (tap-to-copy, ≤ 350 characters) → «🧪 Результат» excerpt → «⚠️ Де ламається» or 💡 one tip. 600–900 characters. |
+| `study` | `#навчання` | AI for learning: a method with a prompt (exams, НМТ, сесія, a language, planning). 600–900 characters. |
+| `career` | `#робота` | CV, cover letter, LinkedIn, interview practice, first job in IT, salary talk — with the Ukrainian market in the title when possible. 600–900 characters. |
 | `tool` | `#інструмент` | One tool or one feature and the task it solves. Only facts from the tool's official page (see Facts). |
-| `news` | `#новини` | At most one a week: 3–5 items from the last 7 days, each with a link to the official source. Set `date:` (below). |
-| `myth` | `#міф` | A popular belief about AI → what is true → what to do with it. |
-| `quiz` | — | A Telegram quiz poll (format below). Fun but useful: the explanation teaches something. |
-| `intro` | `#навігація` | What is in the channel and how to find it (hashtags). Rare; never about who writes it. |
+| `news` | `#новини` | Rare: only as «what changes for a student or a junior today», with official links. Set `date:`. |
+| `myth` | `#міф` | A popular belief about AI → what is true → what to do. At most 600 characters, at most 3 bullets. |
+| `quiz` | — | A Telegram quiz poll (format below). At most one in any 14 posts. |
+| `intro` | `#навігація` | What is in the channel and how to find it (hashtags). Rare; never about who writes it. `pin: yes`. |
 
-A good week: ~6 `prompt`, 2 `study`, 2–3 `career`, 2 `quiz`, 1 `myth` or `tool`, at most 1 `news`. Alternate: do not
-put two posts of the same rubric next to each other.
+**Short posts** (250–500 characters, no prompt block): one idea — a mistake, a «до / після», an opinion on «ШІ і
+джун», a curious fact with a source. Use rubric `myth`, `career`, `study` or `tool` as fits.
+
+**A week (14 slots, 09:30 and 17:15):** 5 `prompt`, 2 `career` (one with a Ukrainian market fact and its link),
+2 `study`, 2 short posts, 1 `tool`, 1 `quiz` (or a two-reaction vote), 1 «ШІ і джун». Never two posts of the same
+rubric in a row. Once a week end a post with a two-reaction vote («❤️ — вже пробував, 👀 — ще ні»); promise nothing.
 
 ## Format
 
@@ -53,26 +70,27 @@ put two posts of the same rubric next to each other.
 ---
 rubric: prompt
 ---
-<b>Промпт дня: резюме під вакансію за 5 хвилин</b>
+<b>Резюме під вакансію з Djinni: без вигаданого досвіду</b>
 
-Проблема одним рядком.
+Найчастіша помилка — просити ШІ «покращити» резюме: він охоче допише те, чого не було.
 
-<pre>The prompt itself, in Ukrainian, with [дужки] for what the reader fills in.</pre>
+<pre>The prompt, in Ukrainian, ≤ 350 characters, with [дужки] for what the reader fills in.</pre>
 
-<b>Що вийшло в мене:</b>
+<b>🧪 Результат:</b>
 <blockquote>A short excerpt of the real result.</blockquote>
 
-💡 One tip.
+⚠️ Де ламається: one real failure and how to catch it.
 
 #промпт
 ```
 
+- The title line: at most 60 characters, the outcome plus one concrete detail (role, site, number). Never start
+  with a rubric label such as «Промпт дня:».
 - Telegram HTML only: `<b> <i> <u> <s> <a href="https://…"> <code> <pre> <blockquote> <tg-spoiler>`. Nothing inside
   `<pre>`/`<code>`. Write `&lt; &gt; &amp;` for a literal `< > &`.
-- 400–1200 characters is the sweet spot; the hard limit is 2500 visible characters.
-- Bold title line first; it is what people see in the feed. Emoji: at most 3–4 per post.
-- No links except official sources. No «підписуйся», no other channels, no ads.
-- End with the rubric's hashtag.
+- At most 1000 visible characters (myth: 600). Emoji: at most 3 per post.
+- No links except official sources and the channel's own posts. No «підписуйся», no other channels, no ads.
+- End with the rubric's one hashtag.
 
 **Quiz** (a Telegram quiz poll; no text below the header):
 
