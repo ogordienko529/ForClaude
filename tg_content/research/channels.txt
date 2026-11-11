@@ -1,0 +1,32 @@
+# A: UA AI
+shtuchka_intelekt    # Штучка Інтелект — source: https://ujournal.com.ua/p/dilemosia-telegram-kanalami-pro-si-na-kotri-pidpisani
+ai_dvizh    # AI Dvizh (given by owner; seen in) — source: https://telegramadsarchive.com/channels/ai_dvizh
+mykmelnyk    # Myk Melnyk — source: https://ujournal.com.ua/p/dilemosia-telegram-kanalami-pro-si-na-kotri-pidpisani
+aihouse    # AI HOUSE (chat aihousechat is a group, excluded) — source: https://t.me/aihouse
+oooneuro    # Ооо нейромережеве — source: https://ujournal.com.ua/p/dilemosia-telegram-kanalami-pro-si-na-kotri-pidpisani
+beerphp    # Beer::Code (AI for developers) — source: https://ujournal.com.ua/p/dilemosia-telegram-kanalami-pro-si-na-kotri-pidpisani
+aiukraine_wetrust    # AI Ukraine — source: https://itexpert.work/uk/shho-pochytaty-pro-ukrayinske-it-velyka-dobirka-telegram-kanaliv/
+chatgptua    # ChatGPT (UA catalog) — source: https://tglist.com.ua/en/chanel/chatgptua
+NetWorking_AI    # AILabUA — source: https://ujournal.com.ua/p/dilemosia-telegram-kanalami-pro-si-na-kotri-pidpisani (search snippet)
+minshifra    # МінШІфра (UNSURE: handle from search summary, ~31.6k subs) — source: web search result for t.me AI HOUSE/МінШІфра query
+ai_samurai    # That's AI, samurai (UNSURE: handle from a YouTube description) — source: https://www.youtube.com/watch?v=i63YNI_o0F4
+co_media    # нейрокомедія: ІТ, ШІ та (UNSURE: slug from telemetr.io) — source: https://telemetr.io/en/channels/1842848488-co_media
+MagnumGrizzly    # ML || DL (UNSURE: handle in DOU forum list) — source: https://dou.ua/forums/topic/52297/
+# B: UA IT careers / first job
+junior_dou_ua    # Junior дайджест DOU — source: https://dou.ua/calendar/46141/
+dou_remote    # DOU Remote — source: https://dou.ua/telegram/
+dou_odesa    # DOU Odesa (city channel) — source: https://telemetr.me/content/dou_odesa
+Job_IT_Junior    # Don't Panic Junior IT Jobs — source: https://t.me/s/Job_IT_Junior?before=4756
+jobforukrainians    # JOB for Ukrainians — source: https://uk.tgstat.com/en/career
+uasourcing    # Ukrainian Sourcing Community (recruiters; low relevance) — source: https://uk.tgstat.com/en/channel/@uasourcing
+# C: UA study / self-development / productivity
+vstup_education_ua    # Вступ 2026 (Education.ua; UNSURE: language may be mostly Russian) — source: https://t.me/vstup_education_ua
+# D: RU neural networks / prompts (format benchmarks)
+neuraldvig    # Нейродвиж (~303K) — source: https://trends.rbc.ru/trends/social/cmrm/68abfbba9a7947743b95f729
+seeallochnaya    # Сиолошная (Игорь Котенков) — source: https://vc.ru/ai/3060557-podbor-tg-kanalov-pro-ii-i-vaybkoding
+cgevent    # Метаверсище и ИИще (~51K) — source: https://vc.ru/ai/1531969-luchshie-telegram-kanaly-pro-neiroseti-i-ii-24-god
+TochkiNadAI    # Точки над ИИ (Иван Юницкий) — source: https://vc.ru/ai/3060557-podbor-tg-kanalov-pro-ii-i-vaybkoding
+neurohive    # Neurohive (~5K, technical) — source: https://t.me/neurohive
+neuraldeep    # Neural Deep — source: https://atv77.ru/novosti-neyrosetey-tg/
+vibecoding_tg    # Vibecoding TG — source: https://atv77.ru/novosti-neyrosetey-tg/
+claudedevolper    # Claude/vibe-coding niche channel — source: https://vc.ru/ai/3060557-podbor-tg-kanalov-pro-ii-i-vaybkoding

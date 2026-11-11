@@ -4,6 +4,7 @@ posts, the owner's approval buttons, quiet hours, reminders, digest)."""
 from __future__ import annotations
 
 import copy
+import json
 from datetime import datetime, timezone
 
 import httpx
@@ -480,3 +481,79 @@ def test_upload_sends_the_file_as_multipart():
     assert tg.upload("setChatPhoto", "photo", path, chat_id=-100) is True
     assert seen["type"].startswith("multipart/form-data") and b'name="chat_id"' in seen["body"]
     assert b'name="photo"; filename="conftest.py"' in seen["body"]
+
+
+def test_a_new_channel_waits_for_its_first_burst(tmp_path):
+    for n in range(1, 4):
+        _write(tmp_path, f"000{n}-p.md", TEXT_POST)
+    posts, tg, state = feed.load(tmp_path), FakeTG(), empty_state()
+    profile = {"wait_for_burst": True}
+    feed_bot(tg, state, posts, profile).run(utc("2026-11-13T07:45:00"), fetch)
+    assert state["feed"] == {}
+    Bot(tg, state, owner=OWNER, channel=CHANNEL, log=lambda m: None, posts=posts, giveaways=False, burst=2,
+        profile=profile, pause=lambda s: None).run(utc("2026-11-13T19:00:00"), fetch)
+    assert len(state["feed"]) == 2 and state["burst_at"]
+    feed_bot(tg, state, posts, profile).run(utc("2026-11-14T07:45:00"), fetch)
+    assert len(state["feed"]) == 3
+
+
+# ---------------------------------------------------------------- competitor study (t.me/s previews)
+from tg_channel import research
+
+
+def test_preview_page_is_parsed_into_channel_and_posts():
+    page = (Path(__file__).parent / "fixtures" / "tme_preview.html").read_text(encoding="utf-8")
+    ch, posts = research.parse(page)
+    assert ch["title"] == "Штучка Інтелект" and ch["counters"]["subscribers"] == 11700
+    assert ch["description"] == "Про ШІ просто\nщодня"
+    a, b = posts
+    assert a["id"] == "shtuchka_intelekt/1233" and a["views"] == 12300 and a["reactions"] == 1245
+    assert a["media"] == ["photo"] and a["text"].startswith("10 промптів для резюме\nЗберігай & ділися тут")
+    assert a["hashtags"] == ["#промпти"] and a["date"] == "2026-11-09T07:15:00+00:00"
+    assert b["forwarded"] and b["reply"] and b["media"] == ["poll"] and b["views"] == 948 and b["text"] == ""
+    assert research.number("1.2M") == 1_200_000 and research.number("x") is None
+
+
+def test_study_pages_back_and_summarises(tmp_path):
+    page = (Path(__file__).parent / "fixtures" / "tme_preview.html").read_text(encoding="utf-8")
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        if "before=" in str(request.url):
+            return httpx.Response(200, text=page)            # the same posts again: paging stops
+        if "nochannel" in str(request.url):
+            return httpx.Response(200, text="<html><body>nothing</body></html>")
+        return httpx.Response(200, text=page)
+    http = httpx.Client(transport=httpx.MockTransport(handler))
+    (tmp_path / "c.txt").write_text("# A\nshtuchka_intelekt  # comment\n@nochannel\nbad name\n", encoding="utf-8")
+    names = research.read_channels(tmp_path / "c.txt")
+    assert names == ["shtuchka_intelekt", "nochannel"]
+    result = research.study(names, 3, tmp_path / "out", http=http, pause=lambda s: None, log=lambda m: None)
+    s = result["channels"][0]
+    assert s["subscribers"] == 11700 and s["posts"] == 2 and s["median_views"] == 12300
+    assert s["by_kind"]["photo"]["n"] == 1 and s["top_posts"][0]["views"] == 12300
+    assert result["channels"][1] == {"name": "nochannel", "posts": 0, "found_via": "seed"}
+    assert any("before=1233" in u for u in seen)
+    data = json.loads((tmp_path / "out" / "channels.json").read_text(encoding="utf-8"))
+    assert "no posts" in data["channels"][1]["error"]
+
+
+def test_snowball_follows_channels_the_seeds_link_to(tmp_path):
+    def page(name, links):
+        body = " ".join(f'<a href="https://t.me/{n}">x</a>' for n in links)
+        return (f'<div class="tgme_widget_message js-widget_message" data-post="{name}/5"><div '
+                f'class="tgme_widget_message_text js-message_text">пост {body} @{links[0]}</div>'
+                f'<span class="tgme_widget_message_views">10</span></div>')
+    pages = {"aaaa": page("aaaa", ["popular", "single"]), "bbbb": page("bbbb", ["popular", "aaaa"]),
+             "popular": page("popular", ["zzzz"])}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        name = request.url.path.rsplit("/", 1)[-1]
+        return httpx.Response(200, text=pages.get(name, ""))
+    http = httpx.Client(transport=httpx.MockTransport(handler))
+    result = research.study(["aaaa", "bbbb"], 1, tmp_path, http=http, pause=lambda s: None, log=lambda m: None,
+                            snowball=5)
+    names = [c["name"] for c in result["channels"]]
+    assert names == ["aaaa", "bbbb", "popular"]                         # «single» is linked by one channel only
+    assert result["channels"][2]["found_via"] == "linked by 2 studied channels"

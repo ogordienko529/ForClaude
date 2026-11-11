@@ -33,7 +33,7 @@ Fetch = Callable[[datetime], tuple[list[Giveaway], list[str]]]
 
 def empty_state() -> dict[str, Any]:
     return {"version": 1, "offset": 0, "next_id": 1, "items": {}, "drafts": {}, "digests": {},
-            "feed": {}, "notes": {}, "channel": {}, "profile": "", "deleted": []}
+            "feed": {}, "notes": {}, "channel": {}, "profile": "", "deleted": [], "burst_at": ""}
 
 
 def load_state(path: Path) -> dict[str, Any]:
@@ -349,6 +349,9 @@ class Bot:
             self.note("low_queue", now, f"⚠️ Постів у черзі лишилося на {feed.days_left(posts, log, today):.0f} дн. "
                                         "Автописьменник (tg-content.yml) допише сам, якщо є секрет "
                                         "CLAUDE_CODE_OAUTH_TOKEN; інакше напиши Claude «допиши пости».")
+        if (self.profile or {}).get("wait_for_burst") and not self.state["burst_at"]:
+            self.report["note"] = "waiting for the first burst (profile.json: wait_for_burst)"
+            return
         done_today = sum(1 for v in log.values() if v.get("day") == today.isoformat())
         last = max((datetime.fromisoformat(v["at"]) for v in log.values() if v.get("at")), default=None)
         if done_today >= feed.due_slots(now) or (last and now - last < feed.MIN_GAP) or not left or not self.channel:
@@ -362,6 +365,7 @@ class Bot:
                 self.pause(3)                  # stay far below Telegram's limit of ~20 posts a minute per channel
             if not self.send_post(post, now, silent=True):
                 break
+            self.state["burst_at"] = now.isoformat()
         self.report["queue"] = len(left) - self.report["published"]
 
     def send_post(self, post: Post, now: datetime, silent: bool = False) -> bool:

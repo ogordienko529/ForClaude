@@ -7,6 +7,8 @@ run      one cycle (GitHub Actions calls it every 15 minutes). Reads TELEGRAM_BO
 queue    check every post in tg_content/posts and list the ones still to go (with --state: minus the published
          ones). Exit code 1 when a post has a problem. --left prints only how many are left.
 preview  print the posts for the giveaways active now; no Telegram, no token.
+research the last posts of public channels (their t.me/s web preview) for a competitor study: --channels FILE
+         (one username per line), --pages N (about 20 posts each), --out DIR (channels.json, summary.json).
 """
 
 from __future__ import annotations
@@ -36,11 +38,23 @@ def main(argv: list[str] | None = None) -> int:
     q.add_argument("--state", help="the bot's memory, to leave out the published posts")
     q.add_argument("--left", action="store_true", help="print only how many posts are left")
     sub.add_parser("preview", help="print the posts for the giveaways active now (no Telegram)")
+    r = sub.add_parser("research", help="fetch public channels' recent posts for a competitor study")
+    r.add_argument("--channels", default="tg_content/research/channels.txt")
+    r.add_argument("--pages", type=int, default=5)
+    r.add_argument("--out", default="research")
+    r.add_argument("--snowball", type=int, default=0, help="also study up to N channels the seeds link to")
     a = ap.parse_args(argv)
     now = datetime.now(timezone.utc)
 
     if a.cmd == "queue":
         return queue(Path(a.posts), Path(a.state) if a.state else None, a.left, now)
+    if a.cmd == "research":
+        from .research import read_channels, study
+        result = study(read_channels(Path(a.channels)), a.pages, Path(a.out), log=lambda m: print(m, file=sys.stderr),
+                       snowball=a.snowball)
+        print(json.dumps([{k: c.get(k) for k in ("name", "subscribers", "posts", "median_views", "err_median")}
+                          for c in result["channels"]], ensure_ascii=False))
+        return 0
 
     if a.cmd == "preview":
         giveaways, errors = fetch_all(now)
@@ -72,8 +86,8 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def read_profile(folder: Path) -> dict | None:
-    """tg_content/profile.json: title, description, photo (a file next to it) and delete_messages (channel message
-    ids to delete once); the bot applies them to the channel."""
+    """tg_content/profile.json: title, description, photo (a file next to it), delete_messages (channel message
+    ids to delete once) and wait_for_burst (no scheduled posts until a manual burst has opened the channel)."""
     try:
         data = json.loads((folder / "profile.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -81,6 +95,8 @@ def read_profile(folder: Path) -> dict | None:
     out: dict = {k: str(data[k]) for k in ("title", "description") if data.get(k)}
     if data.get("photo"):
         out["photo"] = str(folder / str(data["photo"]))
+    if data.get("wait_for_burst"):
+        out["wait_for_burst"] = True
     if isinstance(data.get("delete_messages"), list):
         out["delete_messages"] = [int(i) for i in data["delete_messages"] if str(i).isdigit()]
     return out or None
