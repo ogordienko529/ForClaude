@@ -71,8 +71,17 @@ def _norm(x: np.ndarray, peak: float = 0.9) -> np.ndarray:
 
 
 # ---------------------------------------------------------------- sound effects
+def _key_click(rng: np.random.Generator, sr: int) -> np.ndarray:
+    """One soft keyboard key: a damped low thock under a short bright tick, a little different each time."""
+    n = 0.035
+    m = int(n * sr)
+    thock = _sweep(rng.uniform(260, 360), 140, n, sr, curve=9) * _env(m, 0.0006, 0.007, sr)
+    tick = _lp(_hp(_noise(n, rng, sr), rng.uniform(1500, 2400), sr), 7000, sr) * _env(m, 0.0003, 0.0025, sr)
+    return (0.55 * thock + 0.8 * tick).astype(np.float32)
+
+
 def sfx(name: str, sr: int = SR, seed: int = 1) -> np.ndarray:
-    """boom, whoosh, pop, riser, hit, ding, tick."""
+    """boom, whoosh, pop, riser, hit, ding, tick, click (a soft UI tap), keys (3 s of soft typing, loopable)."""
     rng = np.random.default_rng(seed)
     if name == "boom":  # deep meme-style impact: sub drop + dull noise burst + tail
         sub = _sweep(90, 32, 1.6, sr, curve=5) * _env(int(1.6 * sr), 0.004, 0.55, sr)
@@ -89,6 +98,23 @@ def sfx(name: str, sr: int = SR, seed: int = 1) -> np.ndarray:
         return _norm(x, 0.6)
     if name == "tick":
         x = _hp(_noise(0.02, rng, sr), 3000, sr) * _env(int(0.02 * sr), 0.0005, 0.004, sr)
+        return _norm(x, 0.4)
+    if name == "click":  # a finger or mouse tap: a short knock with a soft click on top
+        n = 0.07
+        m = int(n * sr)
+        knock = _sweep(700, 300, n, sr, curve=10) * _env(m, 0.0005, 0.01, sr)
+        snap = _hp(_noise(n, rng, sr), 2800, sr) * _env(m, 0.0002, 0.0018, sr)
+        return _norm(0.8 * knock + 0.45 * snap, 0.5)
+    if name == "keys":  # typing at a natural, uneven pace: ~12 keys a second with short pauses between words
+        n = 3.0
+        x = np.zeros(int(n * sr), dtype=np.float32)
+        t = 0.01
+        while t < n - 0.06:
+            k = _key_click(rng, sr) * rng.uniform(0.45, 1.0)
+            i = int(t * sr)
+            m = min(len(k), len(x) - i)
+            x[i : i + m] += k[:m]
+            t += rng.uniform(0.06, 0.11) + (rng.uniform(0.08, 0.16) if rng.random() < 0.14 else 0.0)
         return _norm(x, 0.4)
     if name == "riser":
         n = 1.6
@@ -109,7 +135,27 @@ def sfx(name: str, sr: int = SR, seed: int = 1) -> np.ndarray:
     raise ValueError(f"unknown sound effect {name!r}")
 
 
-SFX_NAMES = ("boom", "whoosh", "pop", "tick", "riser", "hit", "ding")
+SFX_NAMES = ("boom", "whoosh", "pop", "tick", "riser", "hit", "ding", "click", "keys")
+
+# The sounds the long-form renderer plays on animation events (remotion/src/motion.tsx): typing -> keys,
+# a tap or a mouse click -> click, a scene change -> whoosh, a sticker or a stamp -> pop.
+SFX_BANK = ("whoosh", "pop", "click", "keys")
+
+
+def write_sfx_bank(folder, sr: int = SR) -> list:
+    """Write the renderer's sound effects as wav files into `folder` (the project's audio/sfx)."""
+    from pathlib import Path
+
+    import soundfile as sf
+
+    folder = Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
+    out = []
+    for name in SFX_BANK:
+        path = folder / f"{name}.wav"
+        sf.write(path, sfx(name, sr), sr, subtype="PCM_16")
+        out.append(path)
+    return out
 
 
 # ---------------------------------------------------------------- beat music

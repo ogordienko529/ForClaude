@@ -379,9 +379,36 @@ An example is in `examples/content/concorde/`.
 plane or ship), `map_point` (zoom to a place), `timeline`, `stat` (counter), `comparison`, `bars`,
 `fact` (sourced quote or fact card), `list`, `chat` (a generic messenger-style AI chat for AI-tip
 Shorts: the prompt types into a bubble, a typing indicator, then the answer line by line, on cues;
-laid out for 9:16 and 16:9, Cyrillic-safe). There are three palettes (midnight, parchment and slate)
-and music moods calm, tense and uplifting. The map is Natural Earth (public domain) and the fonts
-are Inter and Playfair Display (OFL), all bundled, so rendering works offline.
+laid out for 9:16 and 16:9, Cyrillic-safe), and the screen templates below. There are three
+palettes (midnight, parchment and slate) and music moods calm, tense and uplifting. The map is
+Natural Earth (public domain) and the fonts are Inter, Playfair Display and JetBrains Mono (OFL),
+all bundled, so rendering works offline; emoji stickers use the system's colour emoji font.
+
+**Screen templates for AI-tip Shorts (9:16 first).** They show the place where the text is typed
+instead of a text card. All are generic: no logos and no copy of a real product's layout.
+
+| Template | What it shows | Props |
+|---|---|---|
+| `phone` | a floating, slightly tilted smartphone (status bar, camera cut-out) with a generic AI chat app: the prompt types into the composer, a fingertip taps send (ripple), the message flies up, typing dots, then the answer lines (line *i* on cue *i*); a smooth 1.6x camera punch-in on `focus` that lands ~0.2 s before the narration says the phrase | `prompt` (≤160), `answer` (1-4 lines ≤70), `app_name` (generic label, default «ШІ-чат»), `highlight`, `focus`, `focus_cue` (a narration phrase when the wording differs), `tool_chips` (≤4 plain names such as "ChatGPT", floating beside the phone) |
+| `terminal` | a dark terminal / code-editor window: commands and code type in, output appears, an error line turns red with a small shake, the highlighted line gets a box and `explain` pops in a bubble next to it | `lines` [{`text`, `kind`: cmd, code, out, error, ok}] (≤12, ≤48 characters), `title`, `highlight_line` (default: the first error), `explain` (≤110), `line_numbers` (default on for code) |
+| `browser` | a browser window: the URL types into the address bar, a loading line and a skeleton, then a page (title, text lines on cues) or a 404 with a big shake; an optional pointer clicks the address bar and follows the text | `url` (≤60), `state` (page or notfound), `title`, `lines` (≤5), `cursor` |
+| `split` | "погано / добре": the weak prompt or wrong result on top, the strong one below; the ❌ stamp slams in on cue 0 with a small shake, the bottom panel arrives on cue 1 and its ✅ follows | `bad` and `good` = {`text`, `label`, `bubble`: prompt or answer}, `title` |
+
+Shared motion, for every template:
+- **No static frame.** Every scene has a slow camera drift (footage excepted), and its content is
+  already moving on its first frame. The video's first scene has no fade-in from black.
+- **Stickers.** `kinetic`, `fact` and `list` take `"sticker": "🤯"` (one emoji), which pops in once
+  with a small bounce beside the text.
+- **The 9:16 layout.** On-screen UI keeps to the band from 12 % to 63 % of the height, and the
+  burned-in captions sit right under it, above the platform's title and buttons. A beat with
+  `"captions": false` has no captions, for a screen that already types the words being said.
+- **Progress bar.** `"progress_bar": true` in the storyboard draws a thin accent bar along the top
+  that fills over the video (off by default).
+- **Sound effects.** `"sfx": true` adds quiet procedural sounds on the animation: soft key clicks
+  while text types, a click on a tap or a mouse click, a whoosh on each scene change and a pop on
+  stickers and stamps. On by default for `"format": "shorts"`, off for long-form. `build` writes
+  them to `audio/sfx/`, the renderer plays them in time with the picture, and the voice mix keeps
+  3 dB of headroom for them.
 
 **Checks:** before rendering, the storyboard is checked for unknown templates, missing props, text
 too long for the screen, missing sources and repetitive visuals. After rendering, the video is
@@ -557,7 +584,7 @@ content_agent/       local video maker: storyboard checks, voice/music/mix, time
   agent.py           `agent` command: Claude Code headless run, progress printer, resume
   mcp_server.py      the agent's MCP tools; jobs.py runs long steps in the background
   status.py          project state and next step; doctor.py checks the machine
-  remotion/          React video templates (maps, timelines, stats, text, footage, styles) rendered by Remotion
+  remotion/          React video templates (maps, timelines, stats, text, footage, chat and screen mock-ups, styles) rendered by Remotion
 tg_channel/          Telegram channel bot: feed.py (scheduled posts, checks), bot.py (one run), giveaway sources
 tg_content/          the channel: GUIDE.md (brief for writers), profile.json, posts/NNNN-*.md
 .github/workflows/   tg-bot.yml (the bot, every 15 min), tg-content.yml (the writer, every morning)

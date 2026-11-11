@@ -213,8 +213,9 @@ LOUDNESS = {"explainer": -14.0, "shorts": -14.0, "sleep": -20.0, "gameplay": -14
 
 
 def mix(voice_wav: Path, music_wav: Path | None, out_wav: Path, fmt: str = "explainer",
-        music_db: float = -19.0) -> dict:
-    """Voice cleanup + music ducked under the voice + two-pass loudness normalisation."""
+        music_db: float = -19.0, true_peak: float = -1.5) -> dict:
+    """Voice cleanup + music ducked under the voice + two-pass loudness normalisation. A lower true_peak
+    leaves headroom for sound effects the renderer adds on top."""
     import re
 
     ffmpeg = require_ffmpeg()
@@ -232,7 +233,7 @@ def mix(voice_wav: Path, music_wav: Path | None, out_wav: Path, fmt: str = "expl
         graph = f"[0:a]{voice_chain}[mix]"
     # Upmix before measuring: a mono signal copied to two channels is 3 LU louder.
     graph += ";[mix]pan=stereo|c0=c0|c1=c0[st]"
-    ln = f"loudnorm=I={target}:TP=-1.5:LRA=11"
+    ln = f"loudnorm=I={target}:TP={true_peak}:LRA=11"
     probe = subprocess.run([ffmpeg, "-hide_banner", "-nostats", *inputs, "-filter_complex",
                             f"{graph};[st]{ln}:print_format=json[o]", "-map", "[o]", "-f", "null", "-"],
                            capture_output=True, text=True)

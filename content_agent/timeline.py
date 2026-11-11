@@ -12,6 +12,7 @@ import re
 from pathlib import Path
 
 FPS = 30
+SFX_DIR = "audio/sfx"  # sound effects the renderer plays (written by `build` when the storyboard has sfx on)
 SIZES = {"explainer": (1920, 1080), "review": (1920, 1080), "sleep": (1920, 1080), "shorts": (1080, 1920)}
 CAPTION_CHARS = {"explainer": 80, "review": 80, "sleep": 80, "shorts": 36}
 
@@ -100,8 +101,23 @@ def _caption_cues(sentence: dict, limit: int) -> list[dict]:
     return cues
 
 
+def scene_marks(props: dict, sentences: list[dict], scene_from: int) -> dict[str, int]:
+    """Frames (relative to the scene) at which template moments are spoken: `focus` (phone punch-in) is the
+    `focus_cue` phrase, or the focus phrase itself when the narration says it."""
+    marks: dict[str, int] = {}
+    for phrase in (props.get("focus_cue"), props.get("focus")):
+        if isinstance(phrase, str) and phrase.strip():
+            at = cue_offsets([phrase], sentences, scene_from)[0]
+            if at is not None:
+                marks["focus"] = at
+                break
+    return marks
+
+
 def build_timeline(storyboard: dict, voice_timing: dict, audio_rel: str, fmt: str = "explainer",
                    lead: float = 0.35, captions: bool = True) -> dict:
+    from .schema import sfx_on
+
     width, height = SIZES.get(fmt, SIZES["explainer"])
     beats = {b["id"]: b for b in storyboard["beats"]}
     timing = voice_timing["beats"]
@@ -112,6 +128,7 @@ def build_timeline(storyboard: dict, voice_timing: dict, audio_rel: str, fmt: st
     for t, a, b in zip(timing, starts, ends):
         beat = beats[t["id"]]
         f0, f1 = round(a * FPS), round(b * FPS)
+        marks = scene_marks(beat["visual"].get("props", {}), t["sentences"], f0)
         scenes.append({
             "id": t["id"],
             "template": beat["visual"]["template"],
@@ -121,6 +138,7 @@ def build_timeline(storyboard: dict, voice_timing: dict, audio_rel: str, fmt: st
             # when the narration of this beat actually starts, relative to the scene (for reveal timing)
             "speechOffset": max(round(t["start"] * FPS) - f0, 0),
             "cues": cue_offsets(beat.get("cues", []), t["sentences"], f0),
+            **({"marks": marks} if marks else {}),
             **({"chapter": beat["chapter"]} if beat.get("chapter") else {}),
             **({"transition": beat["transition"]} if beat.get("transition") else {}),
         })
@@ -128,6 +146,8 @@ def build_timeline(storyboard: dict, voice_timing: dict, audio_rel: str, fmt: st
     if captions:
         limit = CAPTION_CHARS.get(fmt, 80)
         for t in timing:
+            if beats[t["id"]].get("captions") is False:  # the screen already types these words
+                continue
             for s in t["sentences"]:
                 for c in _caption_cues(s, limit):
                     caps.append({"from": round(c["start"] * FPS), "to": round(c["end"] * FPS), "text": c["text"]})
@@ -142,6 +162,8 @@ def build_timeline(storyboard: dict, voice_timing: dict, audio_rel: str, fmt: st
         "format": fmt,
         "audio": audio_rel,
         "showCaptions": bool(storyboard.get("captions", True)),
+        "progressBar": bool(storyboard.get("progress_bar", False)),
+        **({"sfx": SFX_DIR} if sfx_on(storyboard, fmt) else {}),
         "scenes": scenes,
         "captions": caps,
     }

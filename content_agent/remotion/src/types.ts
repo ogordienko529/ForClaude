@@ -6,6 +6,7 @@ export type Scene = {
   durationInFrames: number;
   speechOffset: number;
   cues?: (number | null)[];
+  marks?: Record<string, number>; // frames (relative to scene) of template moments the narration speaks (focus)
   transition?: string; // overrides the style's scene transition
 };
 
@@ -22,6 +23,8 @@ export type Timeline = {
   audio: string;
   showCaptions: boolean;
   style?: string; // cosmos | paper | blocky | neon | clean | comic (styles.tsx)
+  progressBar?: boolean; // a thin accent bar at the top over the whole video
+  sfx?: string; // folder (in the project) with the sound effects of motion.tsx; absent: no sound effects
   scenes: Scene[];
   captions: Caption[];
 };
@@ -31,4 +34,5 @@ export type SceneProps = {
   duration: number;
   speech: number; // frame (relative to scene) where narration starts
   cues: (number | null)[]; // frames (relative to scene) where the storyboard's cue phrases are spoken
+  marks?: Record<string, number>; // frames (relative to scene) of named moments, e.g. marks.focus
 };

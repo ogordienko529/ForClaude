@@ -6,13 +6,14 @@
 import React, {useEffect, useMemo, useState} from 'react';
 import {AbsoluteFill, continueRender, delayRender, interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
 import {progress, rise} from '../anim';
+import {PREROLL, Sfx, uiZone} from '../motion';
 import type {StyleDef} from '../styles';
 import {useStyle} from '../styles';
 import type {Palette} from '../theme';
 import {usePalette} from '../theme';
 import type {SceneProps} from '../types';
 
-const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), Math.max(lo, hi));
+export const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), Math.max(lo, hi));
 
 // ------------------------------------------------------------------ timing
 /** Frames (from the scene start) of every step; everything is on screen by ~75 % of the beat. */
@@ -59,7 +60,7 @@ export const chatTiming = (duration: number, speech: number, cues: (number | nul
 };
 
 // ------------------------------------------------------------------ colours
-const rgb = (c: string): number[] => {
+export const rgb = (c: string): number[] => {
   const h = c.trim().match(/^#([0-9a-f]{6})/i);
   if (h) {
     const v = parseInt(h[1], 16);
@@ -68,27 +69,27 @@ const rgb = (c: string): number[] => {
   const r = c.match(/rgba?\(([^)]+)\)/i);
   return r ? r[1].split(',').slice(0, 3).map((x) => parseFloat(x)) : [128, 128, 128];
 };
-const hex = (c: number[]) => '#' + c.map((v) => Math.round(clamp(v, 0, 255)).toString(16).padStart(2, '0')).join('');
-const mix = (a: string, b: string, t: number) => {
+export const hex = (c: number[]) => '#' + c.map((v) => Math.round(clamp(v, 0, 255)).toString(16).padStart(2, '0')).join('');
+export const mix = (a: string, b: string, t: number) => {
   const x = rgb(a);
   const y = rgb(b);
   return hex(x.map((v, i) => v + (y[i] - v) * t));
 };
-const alpha = (c: string, a: number) => `rgba(${rgb(c).join(',')},${a})`;
-const lum = (c: string) => {
+export const alpha = (c: string, a: number) => `rgba(${rgb(c).join(',')},${a})`;
+export const lum = (c: string) => {
   const [r, g, b] = rgb(c).map((v) => (v / 255 <= 0.03928 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4));
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 };
-const contrast = (a: string, b: string) => {
+export const contrast = (a: string, b: string) => {
   const [x, y] = [lum(a), lum(b)].sort((m, k) => k - m);
   return (x + 0.05) / (y + 0.05);
 };
 /** A palette colour that reads on `bg`, else whichever of black and white reads better. */
-const onColor = (bg: string, prefer: string[]) =>
+export const onColor = (bg: string, prefer: string[]) =>
   prefer.find((c) => contrast(c, bg) >= 4.5) ||
   [...prefer, '#ffffff', '#111111'].reduce((a, b) => (contrast(b, bg) > contrast(a, bg) ? b : a));
 
-const colours = (p: Palette) => {
+export const colours = (p: Palette) => {
   const dark = lum(p.bg1) < 0.25;
   const opaquePanel = /^#[0-9a-f]{6}$/i.test(p.panel.trim()); // comic: a white panel
   const win = opaquePanel ? p.panel : dark ? mix(p.bg1, p.bg2, 0.55) : mix(p.bg1, '#ffffff', 0.65);
@@ -109,7 +110,7 @@ const colours = (p: Palette) => {
 };
 
 /** Borders and shadows that match the style's labels (comic outlines, blocky bevels, neon glow). */
-const skin = (st: StyleDef, p: Palette, dark: boolean, u: number) => {
+export const skin = (st: StyleDef, p: Palette, dark: boolean, u: number) => {
   switch (st.label) {
     case 'bubble':
       return {
@@ -139,10 +140,10 @@ const skin = (st: StyleDef, p: Palette, dark: boolean, u: number) => {
 };
 
 // ------------------------------------------------------------------ text
-type Seg = {text: string; hi: boolean};
+export type Seg = {text: string; hi: boolean};
 
 /** Split text into plain and highlighted runs (case-insensitive, every occurrence). */
-const marks = (text: string, highlight: string[]): Seg[] => {
+export const marks = (text: string, highlight: string[]): Seg[] => {
   const cs = Array.from(text);
   const low = cs.map((c) => c.toLowerCase());
   const on = cs.map(() => false);
@@ -168,7 +169,7 @@ const marks = (text: string, highlight: string[]): Seg[] => {
 };
 
 /** The first n characters of the runs (what has been typed so far). */
-const take = (segs: Seg[], n: number): Seg[] => {
+export const take = (segs: Seg[], n: number): Seg[] => {
   const out: Seg[] = [];
   let left = n;
   for (const s of segs) {
@@ -180,7 +181,7 @@ const take = (segs: Seg[], n: number): Seg[] => {
   return out;
 };
 
-const Rich: React.FC<{segs: Seg[]; hi: React.CSSProperties}> = ({segs, hi}) => (
+export const Rich: React.FC<{segs: Seg[]; hi: React.CSSProperties}> = ({segs, hi}) => (
   <>
     {segs.map((s, i) =>
       s.hi ? (
@@ -195,12 +196,12 @@ const Rich: React.FC<{segs: Seg[]; hi: React.CSSProperties}> = ({segs, hi}) => (
 );
 
 // the bundled fonts with Cyrillic letters; other body fonts (Space Grotesk) fall back to Inter for Cyrillic text
-const CYRILLIC_FONTS = /Inter|Pixelify|Playfair|Montserrat/;
-const chatFamily = (body: string, text: string) =>
+export const CYRILLIC_FONTS = /Inter|Pixelify|Playfair|Montserrat/;
+export const chatFamily = (body: string, text: string) =>
   /[Ѐ-ӿ]/.test(text) && !CYRILLIC_FONTS.test(body) ? 'Inter, Arial, sans-serif' : body;
 
 /** Waits until the faces for exactly these characters are loaded (Cyrillic subsets load on demand). */
-const useChatFonts = (family: string, text: string) => {
+export const useChatFonts = (family: string, text: string) => {
   const [handle] = useState(() => delayRender('Loading chat fonts'));
   const [ready, setReady] = useState(false);
   useEffect(() => {
@@ -217,7 +218,7 @@ const useChatFonts = (family: string, text: string) => {
 
 let canvasCtx: CanvasRenderingContext2D | null | undefined;
 /** Lines the text takes at this font and width (greedy word wrap, as the browser does). */
-const lineCount = (text: string, weight: number, size: number, family: string, max: number) => {
+export const lineCount = (text: string, weight: number, size: number, family: string, max: number) => {
   if (canvasCtx === undefined) canvasCtx = typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
   if (!canvasCtx) return Math.max(1, Math.ceil((Array.from(text).length * size * 0.58) / max));
   canvasCtx.font = `${weight} ${size}px ${family}`;
@@ -240,7 +241,7 @@ const lineCount = (text: string, weight: number, size: number, family: string, m
   return lines;
 };
 
-const Avatar: React.FC<{size: number; bg: string; fg: string; square: boolean}> = ({size, bg, fg, square}) => (
+export const Avatar: React.FC<{size: number; bg: string; fg: string; square: boolean}> = ({size, bg, fg, square}) => (
   <svg width={size} height={size} viewBox="0 0 100 100" style={{flexShrink: 0}}>
     {square ? <rect width={100} height={100} fill={bg} /> : <circle cx={50} cy={50} r={50} fill={bg} />}
     <line x1={50} y1={20} x2={50} y2={32} stroke={fg} strokeWidth={5} strokeLinecap="round" />
@@ -273,11 +274,12 @@ export const Chat: React.FC<SceneProps> = ({props, duration, speech, cues}) => {
   const sk = skin(st, p, c.dark, u);
   const bw = sk.border;
 
-  // geometry: 9:16 keeps clear of the platform UI (top bar, title and buttons at the bottom, captions)
+  // geometry: the UI band keeps clear of the platform's top bar, and the captions sit below it
   const padX = (vertical ? 30 : 34) * u;
   const bubbleMaxFor = (cardW: number) => (vertical ? Math.min(width * 0.85, cardW - 2 * padX) : (cardW - 2 * padX) * 0.85);
-  const safeTop = vertical ? height * 0.12 : height * 0.065;
-  const safeBottom = vertical ? height * 0.23 : height * 0.19;
+  const zone = uiZone(width, height);
+  const safeTop = zone.top;
+  const safeBottom = height - zone.bottom;
   const avatar = (vertical ? 76 : 60) * u;
   const headerPadV = (vertical ? 22 : 18) * u;
   const headerH = avatar + 2 * headerPadV + 2 * u;
@@ -323,7 +325,7 @@ export const Chat: React.FC<SceneProps> = ({props, duration, speech, cues}) => {
   const typing = frame >= t.typeStart && frame < t.typeEnd;
   const caretOn = frame < t.dotsStart && (typing || Math.floor(frame / 8) % 2 === 0);
 
-  const appear = rise(frame, fps, t.appear);
+  const appear = rise(frame, fps, t.appear - PREROLL); // already moving on the first frame
   const dotsIn = rise(frame, fps, t.dotsStart, 14);
   // the dots give way to the first answer line (with no answer they keep going)
   const dotsOut = answer.length
@@ -492,6 +494,7 @@ export const Chat: React.FC<SceneProps> = ({props, duration, speech, cues}) => {
           </div>
         </div>
       </div>
+      <Sfx name="keys" at={t.typeStart} dur={t.typeEnd - t.typeStart} />
     </AbsoluteFill>
   );
 };

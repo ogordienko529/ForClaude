@@ -21,7 +21,10 @@ touches that beat.
                                       # phonk are generated beats that sound synthetic)
   "palette": "midnight",              # colour theme for the default style (other styles bring their own colours)
   "style": "cosmos",                  # cosmos | paper | blocky | neon | clean | comic (see `content_agent styles`)
-  "captions": true,                   # burned-in captions from the narration
+  "captions": true,                   # burned-in captions from the narration (a beat can set "captions": false)
+  "progress_bar": false,              # a thin accent bar at the top that fills over the whole video
+  "sfx": null,                        # quiet sound effects hooked to the animation (typing, taps, scene changes,
+                                      # stickers); default: on for "shorts", off for long-form
   "credits": [{"name": "Superb Warfare", "author": "...", "license": "...", "url": "https://..."}],
                                       # reviews: every mod/creator shown, goes into out/description.md
   "thumbnail": {"src": "footage/x.mp4", "t": 61.5, "title": "This mod is *insane*", "tag": "Mod review"},
@@ -32,6 +35,7 @@ touches that beat.
      "cues": ["Atlantic"],            # optional: phrases that time the reveals (item i appears on cue i)
      "chapter": "The supersonic dream",  # optional: starts a YouTube chapter here (reviews: >= 3, first beat)
      "transition": "wipe",            # optional: this beat's transition in (default: the style's)
+     "captions": false,               # optional: no burned captions over this beat (the screen already types the words)
      "sources": ["https://..."]}
   ]
 }
@@ -54,9 +58,10 @@ TEMPLATES: dict[str, dict[str, Any]] = {
         "doc": "Opening or chapter card: big serif title, optional kicker above and subtitle below.",
     },
     "kinetic": {
-        "required": {"lines": list}, "optional": {"emphasis": list},
-        "limits": {"lines": 3, "line": 42},
-        "doc": "1-3 short lines of animated text; words in `emphasis` are highlighted.",
+        "required": {"lines": list}, "optional": {"emphasis": list, "sticker": str},
+        "limits": {"lines": 3, "line": 42, "sticker": 8},
+        "doc": "1-3 short lines of animated text; words in `emphasis` are highlighted; optional `sticker` (one emoji, "
+               "e.g. \"🤯\") pops in beside the text once it is on screen.",
     },
     "map_route": {
         "required": {"from": dict, "to": dict}, "optional": {"label": str, "vehicle": str},
@@ -90,14 +95,14 @@ TEMPLATES: dict[str, dict[str, Any]] = {
         "doc": "Horizontal bar chart, items [{label, value}], 2-7 items.",
     },
     "fact": {
-        "required": {"text": str}, "optional": {"source": str, "kicker": str},
-        "limits": {"text": 170, "source": 60, "kicker": 30},
-        "doc": "Quote or fact card with optional source line.",
+        "required": {"text": str}, "optional": {"source": str, "kicker": str, "sticker": str},
+        "limits": {"text": 170, "source": 60, "kicker": 30, "sticker": 8},
+        "doc": "Quote or fact card with optional source line; optional `sticker` emoji pops onto the card's corner.",
     },
     "list": {
-        "required": {"items": list}, "optional": {"title": str},
-        "limits": {"items": 5, "item": 48, "title": 50},
-        "doc": "Title plus 2-5 bullet items revealed one by one.",
+        "required": {"items": list}, "optional": {"title": str, "sticker": str},
+        "limits": {"items": 5, "item": 48, "title": 50, "sticker": 8},
+        "doc": "Title plus 2-5 bullet items revealed one by one; optional `sticker` emoji pops in after the last item.",
     },
     "footage": {
         "required": {"src": str, "in": (int, float)},
@@ -119,7 +124,52 @@ TEMPLATES: dict[str, dict[str, Any]] = {
                "user bubble, a typing indicator, then 1-6 short `answer` lines appear one by one (line i on cue i); "
                "optional `title` is a small header label, `highlight` lists phrases of the prompt or answer to mark.",
     },
+    "phone": {
+        "required": {"prompt": str, "answer": list},
+        "optional": {"app_name": str, "highlight": list, "focus": str, "focus_cue": str, "tool_chips": list},
+        "limits": {"prompt": 160, "answer": 4, "answer_line": 70, "app_name": 20, "highlight": 6, "focus": 60,
+                   "tool_chips": 4, "chip": 14},
+        "doc": "A floating smartphone with a generic AI chat app (9:16 first): `prompt` types into the composer, a "
+               "fingertip taps send, the message flies up, typing dots, then 1-4 short `answer` lines (line i on cue i). "
+               "`focus` (a phrase of the prompt or answer) gets a smooth 1.6x camera punch-in that lands ~0.2 s before "
+               "the narration says it (or `focus_cue`, a narration phrase, when the wording differs); `app_name` is a "
+               "generic label (default «ШІ-чат» / \"AI chat\"), `highlight` marks phrases, `tool_chips` (up to 4 "
+               "names, plain text, no logos) float beside the phone.",
+    },
+    "terminal": {
+        "required": {"lines": list},
+        "optional": {"title": str, "highlight_line": int, "explain": str, "line_numbers": bool},
+        "limits": {"lines": 12, "line": 48, "title": 40, "explain": 110},
+        "doc": "A dark terminal / code-editor window: `lines` [{text, kind: cmd|code|out|error|ok}] - cmd and code "
+               "type in, out/error/ok lines appear (line i on cue i); `highlight_line` (index, default: the first "
+               "error) gets a box, `explain` pops in a bubble next to it; `line_numbers` defaults to on for code.",
+    },
+    "browser": {
+        "required": {"url": str},
+        "optional": {"state": str, "title": str, "lines": list, "cursor": bool},
+        "limits": {"url": 60, "title": 70, "lines": 5, "line": 90},
+        "doc": "A browser window: the `url` types into the address bar, the page loads (skeleton, then content). "
+               "state \"page\": `title` and up to 5 text `lines` (line i on cue i); state \"notfound\": a big 404 "
+               "with a shake (`title`/`lines` replace the default message). `cursor`: a mouse pointer clicks the "
+               "address bar and follows the text.",
+    },
+    "split": {
+        "required": {"bad": dict, "good": dict},
+        "optional": {"title": str},
+        "limits": {"text": 140, "label": 18, "title": 40},
+        "doc": "Two stacked panels, weak on top and strong below (\"погано / добре\"): bad/good = {text, label?, "
+               "bubble?: prompt|answer}; the ❌ stamp slams onto the top panel on cue 0, the bottom panel arrives on "
+               "cue 1 and its ✅ stamp follows. `bubble` shows the text as a mini chat message.",
+    },
 }
+
+# Tool and brand names: fine as plain text in `tool_chips`, but not as the name of the mock app, which would
+# then pass for that product's own app.
+BRAND_NAMES = ("chatgpt", "openai", "gemini", "claude", "anthropic", "copilot", "perplexity", "deepseek", "grok",
+               "bard", "mistral", "llama", "notion", "google", "microsoft")
+TERMINAL_KINDS = ("cmd", "code", "out", "error", "ok")
+BROWSER_STATES = ("page", "notfound")
+SPLIT_BUBBLES = ("prompt", "answer")
 
 VOICE_ENGINES = ("recording", "kokoro", "elevenlabs", "openai", "chatterbox")
 
@@ -196,6 +246,9 @@ def validate(sb: Storyboard, max_words_per_beat: int = 45, min_words_per_beat: i
                                              f"Use {{\"track\": \"file.mp3\"}} from the music library (music-lib)"))
     if d.get("format", "explainer") not in FORMATS:
         issues.append(Issue("error", None, f"format must be one of {FORMATS}"))
+    for key in ("progress_bar", "sfx"):
+        if d.get(key) is not None and not isinstance(d[key], bool):
+            issues.append(Issue("error", None, f"{key} must be true or false"))
     if d.get("style", "cosmos") not in STYLES:
         issues.append(Issue("error", None, f"style must be one of {tuple(STYLES)}"))
     engine = d.get("voice_engine", "kokoro")
@@ -255,6 +308,11 @@ def validate(sb: Storyboard, max_words_per_beat: int = 45, min_words_per_beat: i
             if key not in spec["required"] and key not in spec["optional"]:
                 issues.append(Issue("warning", bid, f"{tname}: unknown prop {key!r} is ignored"))
         issues += _check_limits(bid, tname, props, spec["limits"])
+        if "captions" in beat and not isinstance(beat["captions"], bool):
+            issues.append(Issue("error", bid, "captions must be true or false"))
+        if tname == "phone" and isinstance(props.get("focus_cue"), str) \
+                and props["focus_cue"].strip().lower() not in narration.lower():
+            issues.append(Issue("warning", bid, f"phone: focus_cue {props['focus_cue']!r} does not occur in the narration"))
         if beat.get("transition") and beat["transition"] not in TRANSITIONS:
             issues.append(Issue("error", bid, f"transition must be one of {TRANSITIONS}"))
         cues = beat.get("cues", [])
@@ -354,6 +412,16 @@ def _check_limits(bid: str, tname: str, props: dict, limits: dict) -> list[Issue
             for h in hl:
                 if not any(h.strip().lower() in t for t in texts):
                     warn(f"highlight {h!r} does not occur in the prompt or answer")
+    if "sticker" in limits and "sticker" in props:
+        out += _check_sticker(bid, tname, props["sticker"], limits["sticker"])
+    if tname == "phone":
+        out += _check_phone(bid, props, limits)
+    if tname == "terminal":
+        out += _check_terminal(bid, props, limits)
+    if tname == "browser":
+        out += _check_browser(bid, props, limits)
+    if tname == "split":
+        out += _check_split(bid, props, limits)
     if tname == "footage":
         f = props.get("focus", [0.5, 0.5])
         if not (isinstance(f, list) and len(f) == 2 and all(isinstance(v, (int, float)) and 0 <= v <= 1 for v in f)):
@@ -368,3 +436,174 @@ def _check_limits(bid: str, tname: str, props: dict, limits: dict) -> list[Issue
                     or not (-180 <= lon <= 180):
                 out.append(Issue("error", bid, f"{tname}: {key} needs numeric lat (-90..90) and lon (-180..180)"))
     return out
+
+
+_TEXTY = re.compile(r"[A-Za-z0-9\u0400-\u04ff]")
+
+
+def _check_sticker(bid: str, tname: str, sticker: Any, limit: int) -> list[Issue]:
+    if not isinstance(sticker, str) or not sticker.strip():
+        return [Issue("error", bid, f"{tname}: sticker must be an emoji, e.g. \"🤯\"")]
+    if len(sticker.strip()) > limit or _TEXTY.search(sticker):
+        return [Issue("warning", bid, f"{tname}: sticker should be one emoji (\"🤯\", \"✅\", \"❌\"), not text")]
+    return []
+
+
+def _phrases(bid: str, tname: str, key: str, value: Any, texts: list[str], limit: int) -> list[Issue]:
+    """A list of phrases that must occur in one of the texts (highlights)."""
+    if not isinstance(value, list) or not all(isinstance(h, str) and h.strip() for h in value):
+        return [Issue("error", bid, f"{tname}: {key} must be a list of phrases from the prompt or answer")]
+    out = []
+    if len(value) > limit:
+        out.append(Issue("warning", bid, f"{tname}: use at most {limit} {key} phrases"))
+    low = [t.lower() for t in texts]
+    for h in value:
+        if not any(h.strip().lower() in t for t in low):
+            out.append(Issue("warning", bid, f"{tname}: {key} {h!r} does not occur in the prompt or answer"))
+    return out
+
+
+def _check_phone(bid: str, props: dict, limits: dict) -> list[Issue]:
+    out: list[Issue] = []
+
+    def warn(msg: str) -> None:
+        out.append(Issue("warning", bid, f"phone: {msg}"))
+
+    prompt = props.get("prompt")
+    if isinstance(prompt, str) and not prompt.strip():
+        out.append(Issue("error", bid, "phone: prompt is empty"))
+    elif _too_long(prompt, limits["prompt"]):
+        warn(f"prompt longer than {limits['prompt']} characters (the phone screen is small: keep the key sentence)")
+    answer = props.get("answer")
+    if isinstance(answer, list):
+        if not 1 <= len(answer) <= limits["answer"]:
+            warn(f"use 1-{limits['answer']} answer lines")
+        if not all(isinstance(a, str) for a in answer):
+            out.append(Issue("error", bid, "phone: answer must be a list of strings, one per line"))
+        for a in answer:
+            if _too_long(a, limits["answer_line"]):
+                warn(f"answer line longer than {limits['answer_line']} characters")
+    texts = [t for t in [prompt, *(answer if isinstance(answer, list) else [])] if isinstance(t, str)]
+    if "highlight" in props:
+        out += _phrases(bid, "phone", "highlight", props["highlight"], texts, limits["highlight"])
+    focus = props.get("focus")
+    if focus is not None:
+        if not isinstance(focus, str) or not focus.strip():
+            out.append(Issue("error", bid, "phone: focus must be a phrase of the prompt or answer"))
+        else:
+            if not any(focus.strip().lower() in t.lower() for t in texts):
+                warn(f"focus {focus!r} does not occur in the prompt or answer (no punch-in)")
+            if _too_long(focus, limits["focus"]):
+                warn(f"focus longer than {limits['focus']} characters: punch in on one short phrase")
+    if "focus_cue" in props and not isinstance(props["focus_cue"], str):
+        out.append(Issue("error", bid, "phone: focus_cue must be a phrase of the narration"))
+    name = props.get("app_name")
+    if _too_long(name, limits["app_name"]):
+        warn(f"app_name longer than {limits['app_name']} characters")
+    if isinstance(name, str) and any(b in name.lower() for b in BRAND_NAMES):
+        warn(f"app_name {name!r} is a product name: the phone shows a generic app, so give it a generic label "
+             f"(«ШІ-чат») and name the tools in tool_chips")
+    chips = props.get("tool_chips")
+    if chips is not None:
+        if not isinstance(chips, list) or not all(isinstance(c, str) and c.strip() for c in chips):
+            out.append(Issue("error", bid, "phone: tool_chips must be a list of short names, e.g. [\"ChatGPT\", \"Gemini\"]"))
+        else:
+            if len(chips) > limits["tool_chips"]:
+                warn(f"use at most {limits['tool_chips']} tool_chips")
+            for c in chips:
+                if _too_long(c, limits["chip"]):
+                    warn(f"tool chip {c!r} longer than {limits['chip']} characters")
+    return out
+
+
+def _check_terminal(bid: str, props: dict, limits: dict) -> list[Issue]:
+    out: list[Issue] = []
+    lines = props.get("lines")
+    if not isinstance(lines, list):
+        return out
+    if not 1 <= len(lines) <= limits["lines"]:
+        out.append(Issue("warning", bid, f"terminal: use 1-{limits['lines']} lines"))
+    for i, ln in enumerate(lines):
+        if not isinstance(ln, dict) or not isinstance(ln.get("text"), str):
+            out.append(Issue("error", bid, f"terminal: line {i} must be {{\"text\": \"...\", \"kind\": \"cmd\"}}"))
+            continue
+        if ln.get("kind", "out") not in TERMINAL_KINDS:
+            out.append(Issue("error", bid, f"terminal: line {i} kind must be one of {TERMINAL_KINDS}"))
+        if _too_long(ln["text"], limits["line"]):
+            out.append(Issue("warning", bid, f"terminal: line {i} longer than {limits['line']} characters (it wraps "
+                                             f"or the font shrinks)"))
+    hl = props.get("highlight_line")
+    if hl is not None and (isinstance(hl, bool) or not isinstance(hl, int) or not 0 <= hl < len(lines)):
+        out.append(Issue("error", bid, f"terminal: highlight_line must be a line index 0-{len(lines) - 1}"))
+    explain = props.get("explain")
+    if explain is not None and not isinstance(explain, str):
+        out.append(Issue("error", bid, "terminal: explain must be text"))
+    elif _too_long(explain, limits["explain"]):
+        out.append(Issue("warning", bid, f"terminal: explain longer than {limits['explain']} characters"))
+    has_error = any(isinstance(ln, dict) and ln.get("kind") == "error" for ln in lines)
+    if props.get("explain") is not None and hl is None and not has_error:
+        out.append(Issue("warning", bid, "terminal: explain needs a line to point at: set highlight_line or add an "
+                                         "error line"))
+    if "line_numbers" in props and not isinstance(props["line_numbers"], bool):
+        out.append(Issue("error", bid, "terminal: line_numbers must be true or false"))
+    return out
+
+
+def _check_browser(bid: str, props: dict, limits: dict) -> list[Issue]:
+    out: list[Issue] = []
+    url = props.get("url")
+    if isinstance(url, str):
+        if not url.strip():
+            out.append(Issue("error", bid, "browser: url is empty"))
+        elif _too_long(url, limits["url"]):
+            out.append(Issue("warning", bid, f"browser: url longer than {limits['url']} characters"))
+        if " " in url.strip():
+            out.append(Issue("warning", bid, "browser: url has spaces"))
+    state = props.get("state", "page")
+    if state not in BROWSER_STATES:
+        out.append(Issue("error", bid, f"browser: state must be one of {BROWSER_STATES}"))
+    lines = props.get("lines", [])
+    if not isinstance(lines, list) or not all(isinstance(x, str) for x in lines):
+        out.append(Issue("error", bid, "browser: lines must be a list of strings"))
+    else:
+        if len(lines) > limits["lines"]:
+            out.append(Issue("warning", bid, f"browser: use at most {limits['lines']} lines"))
+        for x in lines:
+            if _too_long(x, limits["line"]):
+                out.append(Issue("warning", bid, f"browser: line longer than {limits['line']} characters"))
+        if state == "page" and not lines and not props.get("title"):
+            out.append(Issue("warning", bid, "browser: a page with no title and no lines loads into an empty page"))
+    if "cursor" in props and not isinstance(props["cursor"], bool):
+        out.append(Issue("error", bid, "browser: cursor must be true or false"))
+    return out
+
+
+def _check_split(bid: str, props: dict, limits: dict) -> list[Issue]:
+    out: list[Issue] = []
+    for side in ("bad", "good"):
+        s = props.get(side)
+        if not isinstance(s, dict):
+            continue
+        text = s.get("text")
+        if not isinstance(text, str) or not text.strip():
+            out.append(Issue("error", bid, f"split: {side} needs text"))
+        elif _too_long(text, limits["text"]):
+            out.append(Issue("warning", bid, f"split: {side} text longer than {limits['text']} characters"))
+        if "label" in s and not isinstance(s["label"], str):
+            out.append(Issue("error", bid, f"split: {side} label must be text"))
+        elif _too_long(s.get("label"), limits["label"]):
+            out.append(Issue("warning", bid, f"split: {side} label longer than {limits['label']} characters"))
+        if s.get("bubble") is not None and s["bubble"] not in SPLIT_BUBBLES:
+            out.append(Issue("error", bid, f"split: {side} bubble must be one of {SPLIT_BUBBLES}"))
+        extra = set(s) - {"text", "label", "bubble"}
+        if extra:
+            out.append(Issue("warning", bid, f"split: {side} has unknown keys {sorted(extra)} (ignored)"))
+    return out
+
+
+def sfx_on(storyboard: dict, fmt: str | None = None) -> bool:
+    """Sound effects hooked to the animation: the storyboard's "sfx", else on for Shorts only."""
+    value = storyboard.get("sfx")
+    if value is None:
+        return (fmt or storyboard.get("format", "explainer")) == "shorts"
+    return bool(value)

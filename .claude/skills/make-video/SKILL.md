@@ -11,7 +11,8 @@ render in headless Chromium, and technical QA. No paid APIs, no uploads.
 
 Default format: **animated explainer**, 16:9, 3-8 minutes, a calm documentary narrator, with maps,
 timelines, stat counters, charts, kinetic text and fact cards. Shorts (9:16) are supported by
-`--format shorts` but the templates are tuned for 16:9 first (`chat` is laid out for both).
+`--format shorts`. The data and map templates are tuned for 16:9; `chat`, `phone`, `terminal`,
+`browser`, `split` and the text cards are laid out for 9:16 too.
 
 Commands (run from the repo root with the venv's Python):
 
@@ -54,6 +55,21 @@ Edit `content_projects/<slug>/storyboard.json`. One beat = one scene = one idea.
   `bars`, reasons/steps -> `list`, a sourced claim -> `fact`, a punchline -> `kinetic`, a prompt
   and what the AI answers (AI tips, also in Shorts) -> `chat` (`prompt` up to 280 characters,
   1-6 short `answer` lines, optional `title` header label and `highlight` phrases).
+- **AI-tip Shorts: show the screen, not a text card.** Show the app, the terminal or the page where
+  the text is typed. Use 2-3 screen scenes per Short, with a text card or a sticker between them.
+  - `phone`: the prompt typed on a phone and the AI's answer. `prompt` ≤160, 1-4 `answer` lines;
+    `focus` (the key phrase of the prompt or answer) gets a camera punch-in timed ~0.2 s before
+    the narration says it (add `focus_cue` when the narration words it differently); `app_name`
+    is a generic label, never a product name; `tool_chips` names the tools as plain text.
+  - `terminal`: code or a command and its output, an error with a box and an `explain` bubble.
+  - `browser`: a link that opens (a page with a title and lines) or does not (`"state": "notfound"`).
+  - `split`: weak vs strong prompt ("погано / добре") with ❌/✅ stamps on cues 0, 1 and 2.
+  - `kinetic`, `fact` and `list` take one emoji `sticker` ("🤯", "✅", "❌"), at most one per scene
+    and not on every card.
+  - Set `"captions": false` on a beat whose screen types the very words being said.
+  - Storyboard options: `"progress_bar": true` (a thin top bar, off by default) and `"sfx"` (soft
+    typing, taps, whooshes and pops; on by default for Shorts, off for long-form).
+  - Keep the 9:16 UI inside the band from 12 % to 63 % of the height; the captions sit under it.
 - Never the same template three times in a row; aim for 5+ different templates per video.
 - **Sync reveals to the words** with `"cues"`: phrases copied from the narration, one per item
   (list items, bars, timeline events, comparison sides, kinetic lines, chat answer lines; the first
@@ -128,7 +144,8 @@ the sources list, the final rubric scores and anything you could not fix. Nothin
 - **Original work only.** Every video needs its own research, script and angle. Do not mass
   produce near-identical videos: YouTube demonetises repetitive or "inauthentic" content.
 - Only use assets the pipeline generates or ships with a free licence: Natural Earth map data
-  (public domain), Inter and Playfair Display fonts (OFL), procedural music. Do not download
+  (public domain), Inter, Playfair Display and JetBrains Mono fonts (OFL), procedural music and
+  sound effects. Screen templates stay generic: no logos, no copy of a real product's interface. Do not download
   footage, images or music from the web into a project.
 - Do not imitate a real person's voice or fabricate footage of real events.
 - Never put API keys in files or commits; they come from environment variables.

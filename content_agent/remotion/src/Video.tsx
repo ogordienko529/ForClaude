@@ -1,9 +1,14 @@
 import React, {useEffect, useState} from 'react';
 import {AbsoluteFill, Audio, continueRender, delayRender, Sequence, staticFile} from 'remotion';
+import {CAPTION_LIFT, CAPTION_TOP, Drift, ProgressBar, Sfx, SfxContext} from './motion';
+import {Browser} from './templates/browser';
 import {Chat} from './templates/chat';
 import {Bars, Comparison, Stat, Timeline} from './templates/data';
 import {Footage, Verdict} from './templates/footage';
 import {MapPoint, MapRoute} from './templates/maps';
+import {Phone} from './templates/phone';
+import {Split} from './templates/split';
+import {Terminal} from './templates/terminal';
 import {FactCard, Kinetic, ListCard, TitleCard} from './templates/text';
 import {STYLES, StyleContext, StyledBackground, StyledCaptions, StyledShell, styleVars} from './styles';
 import type {StyleDef} from './styles';
@@ -24,7 +29,14 @@ export const TEMPLATES: Record<string, React.FC<SceneProps>> = {
   footage: Footage,
   verdict: Verdict,
   chat: Chat,
+  phone: Phone,
+  terminal: Terminal,
+  browser: Browser,
+  split: Split,
 };
+
+// footage moves on its own (and a drift would show the edge of the clip)
+const NO_DRIFT = new Set(['footage']);
 
 const useFonts = (loads: string[]) => {
   const [handle] = useState(() => delayRender('Loading fonts'));
@@ -54,26 +66,35 @@ export const Video: React.FC<TimelineData> = (t) => {
   return (
     <StyleContext.Provider value={st}>
       <PaletteContext.Provider value={st.palette}>
-        <AbsoluteFill style={{fontVariantNumeric: 'lining-nums', fontFeatureSettings: '"lnum" 1', ...styleVars(st)}}>
-          <StyledBackground />
-          {t.scenes.map((s) => {
-            const C = TEMPLATES[s.template];
-            return (
-              <Sequence key={s.id} from={s.from} durationInFrames={s.durationInFrames} name={`${s.id} ${s.template}`}>
-                <StyledShell duration={s.durationInFrames} transition={s.transition}>
-                  {C ? (
-                    <C props={s.props} duration={s.durationInFrames} speech={s.speechOffset} cues={s.cues || []} />
-                  ) : (
-                    <Missing props={s.props} duration={s.durationInFrames} speech={0} cues={[]} name={s.template} />
-                  )}
-                </StyledShell>
-              </Sequence>
-            );
-          })}
-          {/* gameplay footage has a hotbar at the bottom: reviews lift the captions above it */}
-          {t.showCaptions && <StyledCaptions captions={t.captions} lift={t.format === 'review' ? 0.13 : 0.06} />}
-          {t.audio ? <Audio src={staticFile(t.audio)} /> : null}
-        </AbsoluteFill>
+        <SfxContext.Provider value={t.sfx || null}>
+          <AbsoluteFill style={{fontVariantNumeric: 'lining-nums', fontFeatureSettings: '"lnum" 1', ...styleVars(st)}}>
+            <StyledBackground />
+            {t.scenes.map((s, i) => {
+              const C = TEMPLATES[s.template];
+              const body = C ? (
+                <C props={s.props} duration={s.durationInFrames} speech={s.speechOffset} cues={s.cues || []} marks={s.marks || {}} />
+              ) : (
+                <Missing props={s.props} duration={s.durationInFrames} speech={0} cues={[]} name={s.template} />
+              );
+              return (
+                <Sequence key={s.id} from={s.from} durationInFrames={s.durationInFrames} name={`${s.id} ${s.template}`}>
+                  {/* the first scene has no transition in: the video opens on a picture already in motion */}
+                  <StyledShell duration={s.durationInFrames} transition={s.transition} intro={i > 0}>
+                    {NO_DRIFT.has(s.template) ? body : <Drift seed={s.id} duration={s.durationInFrames}>{body}</Drift>}
+                  </StyledShell>
+                </Sequence>
+              );
+            })}
+            {/* a whoosh just ahead of every cut, so it peaks on the new picture */}
+            {t.scenes.slice(1).map((s) => (
+              <Sfx key={`w${s.id}`} name="whoosh" at={s.from - 5} />
+            ))}
+            {/* 9:16 keeps the captions above the platform's title and buttons; reviews lift them above the hotbar */}
+            {t.showCaptions && <StyledCaptions captions={t.captions} lift={CAPTION_LIFT[t.format] ?? 0.06} top={CAPTION_TOP[t.format]} />}
+            {t.progressBar ? <ProgressBar total={t.durationInFrames} /> : null}
+            {t.audio ? <Audio src={staticFile(t.audio)} /> : null}
+          </AbsoluteFill>
+        </SfxContext.Provider>
       </PaletteContext.Provider>
     </StyleContext.Provider>
   );

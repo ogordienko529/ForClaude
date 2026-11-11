@@ -255,7 +255,9 @@ export const wordTimes = (cap: Caption) => {
   });
 };
 
-export const StyledCaptions: React.FC<{captions: Caption[]; lift?: number}> = ({captions, lift = 0.06}) => {
+/** lift: the captions' bottom edge above the frame's bottom (fraction of the height); top: anchor their top edge
+ * there instead, so a long caption grows downwards (9:16, where the UI sits right above them). */
+export const StyledCaptions: React.FC<{captions: Caption[]; lift?: number; top?: number}> = ({captions, lift = 0.06, top}) => {
   const st = useStyle();
   const p = st.palette;
   const frame = useCurrentFrame();
@@ -266,7 +268,16 @@ export const StyledCaptions: React.FC<{captions: Caption[]; lift?: number}> = ({
   const u = Math.min(width, height) / 1080;
   const size = height * 0.034;
   const wrap = (child: React.ReactNode, extra: React.CSSProperties = {}) => (
-    <AbsoluteFill style={{justifyContent: 'flex-end', alignItems: 'center', paddingBottom: height * lift, ...extra}}>{child}</AbsoluteFill>
+    <AbsoluteFill
+      style={{
+        justifyContent: top === undefined ? 'flex-end' : 'flex-start',
+        alignItems: 'center',
+        ...(top === undefined ? {paddingBottom: height * lift} : {paddingTop: height * top}),
+        ...extra,
+      }}
+    >
+      {child}
+    </AbsoluteFill>
   );
   const fadeIn = interpolate(local, [0, 5], [0, 1], clamp);
   switch (st.caption) {
@@ -450,24 +461,31 @@ export const StyledLabel: React.FC<{label: string; sublabel?: string; duration: 
 };
 
 // ------------------------------------------------------------------ scene transitions
-export const StyledShell: React.FC<{duration: number; transition?: string; children: React.ReactNode}> = ({duration, transition, children}) => {
+/** intro=false (the video's first scene): no transition in, so the first frame is already the scene in motion. */
+export const StyledShell: React.FC<{duration: number; transition?: string; intro?: boolean; children: React.ReactNode}> = ({
+  duration,
+  transition,
+  intro = true,
+  children,
+}) => {
   const st = useStyle();
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const kind = (transition || st.transition) as TransitionKind;
   const d = duration;
+  const fi = intro ? frame : frame + 1000; // the clock of the transition in: long finished without an intro
   const fadeOut = (n: number) => interpolate(frame, [d - n, d], [1, 0], clamp);
   switch (kind) {
     case 'cut':
       return <AbsoluteFill>{children}</AbsoluteFill>;
     case 'wipe': {
-      const k = interpolate(frame, [0, 14], [0, 1], {...clamp, easing: ease});
+      const k = interpolate(fi, [0, 14], [0, 1], {...clamp, easing: ease});
       return <AbsoluteFill style={{clipPath: `inset(0 ${(1 - k) * 100}% 0 0)`, opacity: fadeOut(8)}}>{children}</AbsoluteFill>;
     }
     case 'pixel': {
       const cols = 16;
       const rows = 9;
-      const inK = frame / 10;
+      const inK = fi / 10;
       const outK = (frame - (d - 9)) / 9;
       const blocks = [];
       for (let y = 0; y < rows; y++) {
@@ -488,7 +506,7 @@ export const StyledShell: React.FC<{duration: number; transition?: string; child
       );
     }
     case 'glitch': {
-      const g = frame < 7 ? 1 - frame / 7 : frame > d - 6 ? (frame - (d - 6)) / 6 : 0;
+      const g = fi < 7 ? 1 - fi / 7 : frame > d - 6 ? (frame - (d - 6)) / 6 : 0;
       const jx = g * 26 * (random(`gx${frame}`) - 0.5) * 2;
       const flick = g > 0 && random(`gf${frame}`) < 0.3 ? 0.4 : 1;
       return (
@@ -499,23 +517,23 @@ export const StyledShell: React.FC<{duration: number; transition?: string; child
       );
     }
     case 'slide': {
-      const k = interpolate(frame, [0, 13], [1, 0], {...clamp, easing: Easing.out(Easing.cubic)});
+      const k = interpolate(fi, [0, 13], [1, 0], {...clamp, easing: Easing.out(Easing.cubic)});
       const o = interpolate(frame, [d - 9, d], [0, 1], {...clamp, easing: Easing.in(Easing.cubic)});
       return <AbsoluteFill style={{transform: `translateX(${k * 100 - o * 40}%)`, opacity: 1 - o}}>{children}</AbsoluteFill>;
     }
     case 'zoomBurst': {
-      const s = spring({frame, fps, config: {damping: 12, stiffness: 200, mass: 0.6}});
+      const s = spring({frame: fi, fps, config: {damping: 12, stiffness: 200, mass: 0.6}});
       const o = interpolate(frame, [d - 7, d], [0, 1], clamp);
       return (
         <AbsoluteFill style={{transform: `scale(${interpolate(s, [0, 1], [1.35, 1]) + o * 0.15}) rotate(${interpolate(s, [0, 1], [-4, 0])}deg)`,
-          opacity: interpolate(frame, [0, 3], [0, 1], clamp) * (1 - o)}}>
+          opacity: interpolate(fi, [0, 3], [0, 1], clamp) * (1 - o)}}>
           {children}
         </AbsoluteFill>
       );
     }
     default: {
       const fade = Math.min(10, Math.floor(d / 4));
-      const opacity = interpolate(frame, [0, fade, d - fade, d], [0, 1, 1, 0], clamp);
+      const opacity = Math.min(interpolate(fi, [0, fade], [0, 1], clamp), interpolate(frame, [d - fade, d], [1, 0], clamp));
       return <AbsoluteFill style={{opacity, transform: `scale(${interpolate(frame, [0, d], [1, 1.035])})`}}>{children}</AbsoluteFill>;
     }
   }

@@ -39,8 +39,15 @@ def composition(timeline_path: Path) -> str:
     return "Gameplay" if kind == "gameplay" else "Video"
 
 
+def missing_node_modules() -> list[str]:
+    """Renderer packages listed in package.json that are not installed (a pull can add new ones)."""
+    pkg = json.loads((REMOTION_DIR / "package.json").read_text(encoding="utf-8"))
+    names = [*pkg.get("dependencies", {}), *pkg.get("devDependencies", {})]
+    return [n for n in names if not (REMOTION_DIR / "node_modules" / n / "package.json").exists()]
+
+
 def ensure_node_modules() -> None:
-    if not (REMOTION_DIR / "node_modules" / "remotion").exists():
+    if missing_node_modules():
         npm = shutil.which("npm")
         if not npm:
             raise RuntimeError("Node.js is required for rendering: install it from https://nodejs.org (LTS)")

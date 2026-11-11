@@ -337,8 +337,12 @@ def cmd_mix(a) -> None:
     sb = _load(project)
     music = project / "audio" / "music.wav"
     t0 = _step("mix")
+    from .schema import sfx_on
+
+    # the renderer adds quiet sound effects on top of this mix: leave them headroom
     info = mix(project / "audio" / "voice.wav", music if music.exists() else None, project / "audio" / "mix.wav",
-               fmt=sb.data.get("format", "explainer"), music_db=a.music_db)
+               fmt=sb.data.get("format", "explainer"), music_db=a.music_db,
+               true_peak=-3.0 if sfx_on(sb.data) else -1.5)
     _done(t0, f"(-> {info['target_lufs']:.0f} LUFS)")
 
 
@@ -365,6 +369,10 @@ def cmd_build(a) -> None:
     problems = _check_footage(project, tl)
     if problems:
         sys.exit("footage does not cover these scenes:\n" + "\n".join(problems))
+    if tl.get("sfx"):
+        from .sound import write_sfx_bank
+
+        write_sfx_bank(project / tl["sfx"])
     write_timeline(tl, project / "timeline.json")
     desc = _write_description(project, sb, tl)
     print(f"timeline: {len(tl['scenes'])} scenes, {tl['durationInFrames'] / tl['fps']:.1f}s; description: {desc}",
