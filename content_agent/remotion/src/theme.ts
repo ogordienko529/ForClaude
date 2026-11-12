@@ -67,7 +67,7 @@ export const PALETTES: Record<string, Palette> = {
   },
   // an old green-phosphor terminal
   crt: {
-    bg1: '#030603', bg2: '#0a160c', text: '#d8ffdc', muted: '#6fa878', accent: '#39ff7a', accent2: '#ffcf3a',
+    bg1: '#08140c', bg2: '#13291b', text: '#d8ffdc', muted: '#6fa878', accent: '#39ff7a', accent2: '#ffcf3a',
     land: '#0d1f10', landStroke: '#1b3a20', grid: 'rgba(57,255,122,0.06)', panel: 'rgba(57,255,122,0.07)',
   },
   // light and playful: cream, violet and pink
