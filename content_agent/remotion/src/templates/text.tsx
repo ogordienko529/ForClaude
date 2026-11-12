@@ -144,7 +144,7 @@ export const Kinetic: React.FC<SceneProps> = ({props, speech, duration, cues}) =
                     display: 'inline-block',
                     marginRight: '0.34em',
                     opacity: r,
-                    transform: `translateY(${(1 - r) * 30 * u}px) scale(${isEm ? 1 + 0.06 * r : 1})`,
+                    transform: `translateY(${(1 - r) * 30 * u}px)`, // colour marks the key word; a scale-up ate the word gap
                     fontFamily: FONTS.impact,
                     fontWeight: 800,
                     fontSize: lineSize[li],
