@@ -131,8 +131,8 @@ def technical_checks(video: Path, timeline: dict) -> tuple[list[Finding], dict]:
         if e < info["duration"] - 1.0 and s > 0.5:
             findings.append(Finding("silence", "medium", f"{e - s:.1f}s of silence", _scene_at(s, scenes, fps), s, e))
 
-    # Black frames
-    err = _ffmpeg(["-i", str(video), "-vf", "blackdetect=d=0.3:pic_th=0.95", "-an", "-f", "null", "-"])
+    # Black frames: almost every pixel dark (a dark style with a line of text in the middle is not a black frame)
+    err = _ffmpeg(["-i", str(video), "-vf", "blackdetect=d=0.3:pic_th=0.995", "-an", "-f", "null", "-"])
     for s, e in re.findall(r"black_start:([\d.]+) black_end:([\d.]+)", err):
         findings.append(Finding("black_frames", "high", f"black frames {float(e) - float(s):.1f}s",
                                 _scene_at(float(s), scenes, fps), float(s), float(e)))
