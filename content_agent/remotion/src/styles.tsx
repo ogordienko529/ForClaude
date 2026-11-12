@@ -271,6 +271,28 @@ export const wordTimes = (cap: Caption) => {
   });
 };
 
+/** Two or three words per group; a quoted name («ШІ на старті») starts its own group and stays whole (up to 5). */
+export const wordGroups = <T extends {w: string}>(ws: T[]): T[][] => {
+  const groups: T[][] = [];
+  let cur: T[] = [];
+  let open = 0;
+  for (const x of ws) {
+    if (/^[«“]/.test(x.w) && cur.length >= 2 && open <= 0) {
+      groups.push(cur);
+      cur = [];
+    }
+    cur.push(x);
+    open += (x.w.match(/[«“]/g) || []).length - (x.w.match(/[»”]/g) || []).length;
+    if ((cur.length >= 3 && open <= 0) || cur.length >= 5) {
+      groups.push(cur);
+      cur = [];
+      open = Math.max(open, 0);
+    }
+  }
+  if (cur.length) groups.push(cur);
+  return groups;
+};
+
 /** lift: the captions' bottom edge above the frame's bottom (fraction of the height); top: anchor their top edge
  * there instead, so a long caption grows downwards (9:16, where the UI sits right above them). */
 export const StyledCaptions: React.FC<{captions: Caption[]; lift?: number; top?: number}> = ({captions, lift = 0.06, top}) => {
@@ -340,8 +362,7 @@ export const StyledCaptions: React.FC<{captions: Caption[]; lift?: number; top?:
     case 'bold': {
       // two or three words at a time, big, the current word highlighted
       const ws = wordTimes(cap);
-      const groups: {w: string; start: number}[][] = [];
-      ws.forEach((x, i) => (i % 3 === 0 ? groups.push([x]) : groups[groups.length - 1].push(x)));
+      const groups = wordGroups(ws);
       const g = [...groups].reverse().find((gr) => frame >= gr[0].start) || groups[0];
       const pop = spring({frame: frame - g[0].start, fps, config: {damping: 12, stiffness: 260, mass: 0.5}});
       return wrap(

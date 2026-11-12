@@ -39,6 +39,9 @@ def chunk_text(text: str, limit: int) -> list[str]:
             score = abs(ends[i] - target)
             if re.search(r"[,;:\u2014\u2013]$", words[i]):
                 score -= limit * 0.3  # break after a comma or dash when it is close enough
+            head = " ".join(words[: i + 1])
+            if head.count("\u00ab") > head.count("\u00bb") or head.count("\u201c") > head.count("\u201d"):
+                score += limit * 0.5  # keep a quoted name (\u00ab\u0428\u0406 \u043d\u0430 \u0441\u0442\u0430\u0440\u0442\u0456\u00bb) on one caption
             if best_score is None or score < best_score:
                 best, best_score = i, score
         if best is None:

@@ -230,3 +230,10 @@ def test_stretch_pauses_lengthens_sentence_gaps_only():
     audio = np.concatenate([tone(1), gap(0.15), tone(1), gap(0.4), tone(1)])  # comma-like, then sentence gap
     out = stretch_pauses(audio, sr, target=1.0, rng=random.Random(1), jitter=0)
     assert abs(out.size / sr - (audio.size / sr + 0.6)) < 0.03   # only the 0.4 s gap grew, to ~1.0 s
+
+
+def test_sentences_ending_in_exclamation_or_quote_get_no_extra_period():
+    assert split_sentences("А ти цю програму бачиш уперше!") == ["А ти цю програму бачиш уперше!"]
+    assert split_sentences("У каналі «ШІ на старті»") == ["У каналі «ШІ на старті»"]
+    assert split_sentences("Ось і все…") == ["Ось і все…"]
+    assert split_sentences("No end") == ["No end."]

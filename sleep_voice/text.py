@@ -186,7 +186,7 @@ def split_sentences(paragraph: str, max_chars: int = 280) -> list[str]:
         if s:
             out.append(s)
     # Every chunk ends with punctuation, so the voice closes the sentence naturally.
-    return [s if s[-1] in ".?,;:\"')" else s + "." for s in out]
+    return [s if s[-1] in ".?!…,;:\"')»”" else s + "." for s in out]
 
 
 def parse_script(raw: str, lexicon: dict[str, str] | None = None) -> Script:

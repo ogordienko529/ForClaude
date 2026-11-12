@@ -227,3 +227,10 @@ def test_timeline_carries_cues_and_validation_checks_them():
     assert any("does not occur" in i.message for i in _issues(d))
     d["beats"][1]["cues"] = "twice"
     assert any(i.level == "error" and "cues" in i.message for i in _issues(d))
+
+
+def test_captions_keep_a_quoted_name_together():
+    from content_agent.timeline import chunk_text
+
+    parts = chunk_text("Повний промпт — у телеграм-каналі «ШІ на старті»!", 36)
+    assert any("«ШІ на старті»" in p for p in parts)
