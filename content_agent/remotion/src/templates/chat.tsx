@@ -197,7 +197,7 @@ export const Rich: React.FC<{segs: Seg[]; hi: React.CSSProperties}> = ({segs, hi
 );
 
 // the bundled fonts with Cyrillic letters; other body fonts (Space Grotesk) fall back to Inter for Cyrillic text
-export const CYRILLIC_FONTS = /Inter|Pixelify|Playfair|Montserrat/;
+export const CYRILLIC_FONTS = /Inter|Pixelify|Playfair|Montserrat|Manrope|Rubik|Unbounded|Oswald|Caveat|JetBrains/;
 export const chatFamily = (body: string, text: string) =>
   /[Ѐ-ӿ]/.test(text) && !CYRILLIC_FONTS.test(body) ? 'Inter, Arial, sans-serif' : body;
 

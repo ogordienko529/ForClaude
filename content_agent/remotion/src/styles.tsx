@@ -9,8 +9,8 @@ import type {Palette} from './theme';
 import {PALETTES} from './theme';
 import type {Caption} from './types';
 
-export type BackgroundKind = 'stars' | 'paper' | 'voxel' | 'synth' | 'clean' | 'halftone';
-export type CaptionKind = 'pill' | 'typewriter' | 'tooltip' | 'karaoke' | 'bold' | 'comic';
+export type BackgroundKind = 'stars' | 'paper' | 'voxel' | 'synth' | 'clean' | 'halftone' | 'circuit' | 'crt' | 'blobs' | 'notebook' | 'alert';
+export type CaptionKind = 'pill' | 'typewriter' | 'tooltip' | 'karaoke' | 'bold' | 'comic' | 'glow' | 'prompt' | 'chips' | 'marker' | 'stamp';
 export type LabelKind = 'bar' | 'ink' | 'toast' | 'neon' | 'tag' | 'bubble';
 export type TransitionKind = 'fadePush' | 'wipe' | 'pixel' | 'glitch' | 'slide' | 'zoomBurst' | 'cut';
 
@@ -84,6 +84,42 @@ export const STYLES: Record<string, StyleDef> = {
     fonts: {display: 'Montserrat, Arial, sans-serif', body: 'Inter, Arial, sans-serif', caption: 'Montserrat, Arial, sans-serif', impact: 'Montserrat, Arial, sans-serif'},
     fontLoads: ['900 80px Montserrat', '800 40px Montserrat', '400 40px Inter', '600 40px Inter', '800 40px Inter'],
     background: 'clean', caption: 'bold', label: 'tag', transition: 'slide', radius: 22,
+  },
+  // Shorts looks with Cyrillic type: one per kind of story, so the channel's videos do not share one template
+  // electric navy, wide Unbounded, words that light up cyan; circuit traces with pulses behind
+  volt: {
+    name: 'volt', palette: P.volt,
+    fonts: {display: 'Unbounded, Arial, sans-serif', body: 'Manrope, Inter, Arial, sans-serif', caption: 'Unbounded, Arial, sans-serif', impact: 'Unbounded, Arial, sans-serif'},
+    fontLoads: ['800 80px Unbounded', '700 40px Unbounded', '600 40px Manrope', '800 40px Manrope'],
+    background: 'circuit', caption: 'glow', label: 'neon', transition: 'zoomBurst', radius: 18,
+  },
+  // a green-phosphor terminal: monospace everywhere, captions typed after a «>» prompt, scanlines
+  crt: {
+    name: 'crt', palette: P.crt,
+    fonts: {display: '"JetBrains Mono", monospace', body: '"JetBrains Mono", monospace', caption: '"JetBrains Mono", monospace', impact: '"JetBrains Mono", monospace'},
+    fontLoads: ['700 80px "JetBrains Mono"', '400 40px "JetBrains Mono"', '700 40px "JetBrains Mono"'],
+    background: 'crt', caption: 'prompt', label: 'neon', transition: 'glitch', radius: 6,
+  },
+  // light and playful: Rubik, every caption word on its own colour chip (like tokens)
+  candy: {
+    name: 'candy', palette: P.candy,
+    fonts: {display: 'Rubik, Arial, sans-serif', body: 'Rubik, Arial, sans-serif', caption: 'Rubik, Arial, sans-serif', impact: 'Rubik, Arial, sans-serif'},
+    fontLoads: ['800 80px Rubik', '500 40px Rubik', '700 40px Rubik'],
+    background: 'blobs', caption: 'chips', label: 'tag', transition: 'slide', radius: 26,
+  },
+  // a ruled notebook page: handwritten Caveat for big text, captions under a yellow highlighter
+  notebook: {
+    name: 'notebook', palette: P.notebook,
+    fonts: {display: 'Caveat, cursive', body: 'Manrope, Inter, Arial, sans-serif', caption: 'Manrope, Inter, Arial, sans-serif', impact: 'Caveat, cursive'},
+    fontLoads: ['700 80px Caveat', '600 40px Manrope', '800 40px Manrope'],
+    background: 'notebook', caption: 'marker', label: 'ink', transition: 'wipe', radius: 10,
+  },
+  // a security warning: condensed Oswald, captions stamped on red, hazard stripes, glitch cuts
+  alert: {
+    name: 'alert', palette: P.alert,
+    fonts: {display: 'Oswald, Arial Narrow, sans-serif', body: 'Inter, Arial, sans-serif', caption: 'Oswald, Arial Narrow, sans-serif', impact: 'Oswald, Arial Narrow, sans-serif'},
+    fontLoads: ['700 80px Oswald', '600 40px Oswald', '600 40px Inter', '800 40px Inter'],
+    background: 'alert', caption: 'stamp', label: 'tag', transition: 'glitch', radius: 4,
   },
   comic: {
     name: 'comic',
@@ -245,6 +281,112 @@ const Halftone: React.FC<{p: Palette}> = ({p}) => {
   );
 };
 
+/** Circuit traces on a dark grid; light pulses run along them. */
+const Circuit: React.FC<{p: Palette}> = ({p}) => {
+  const frame = useCurrentFrame();
+  const {width, height} = useVideoConfig();
+  const cell = 90;
+  const traces = useMemo(() => Array.from({length: 9}, (_, i) => {
+    let x = Math.floor(random(`cx${i}`) * (width / cell)) * cell;
+    let y = Math.floor(random(`cy${i}`) * (height / cell)) * cell;
+    const pts = [[x, y]];
+    for (let k = 0; k < 6; k++) {
+      if (random(`cd${i}_${k}`) < 0.5) x += cell * (1 + Math.floor(random(`cl${i}_${k}`) * 3));
+      else y += cell * (1 + Math.floor(random(`cl${i}_${k}`) * 3));
+      pts.push([x, y]);
+    }
+    return pts.map((q) => q.join(',')).join(' ');
+  }), [width, height]);
+  return (
+    <AbsoluteFill style={{background: `radial-gradient(ellipse at 50% 30%, ${p.bg2} 0%, ${p.bg1} 75%)`}}>
+      <AbsoluteFill style={{backgroundImage: `linear-gradient(${p.grid} 1px, transparent 1px), linear-gradient(90deg, ${p.grid} 1px, transparent 1px)`,
+        backgroundSize: `${cell}px ${cell}px`}} />
+      <svg width={width} height={height} style={{position: 'absolute'}}>
+        {traces.map((pts, i) => (
+          <g key={i}>
+            <polyline points={pts} fill="none" stroke={p.accent} strokeOpacity={0.1} strokeWidth={3} />
+            <polyline points={pts} fill="none" stroke={i % 3 === 0 ? p.accent2 : p.accent} strokeWidth={4} strokeLinecap="round"
+              strokeDasharray="60 1400" strokeDashoffset={-((frame * (6 + (i % 4)) + i * 300) % 1460)} opacity={0.55}
+              style={{filter: `drop-shadow(0 0 6px ${p.accent})`}} />
+          </g>
+        ))}
+      </svg>
+      <AbsoluteFill style={{background: 'radial-gradient(ellipse at center, rgba(0,0,0,0) 50%, rgba(0,0,0,0.55) 100%)'}} />
+    </AbsoluteFill>
+  );
+};
+
+/** A green-phosphor screen: scanlines, a rolling bright band, a faint flicker and a vignette. */
+const Crt: React.FC<{p: Palette}> = ({p}) => {
+  const frame = useCurrentFrame();
+  const {height} = useVideoConfig();
+  const band = ((frame * 6) % (height * 1.4)) - height * 0.2;
+  const flicker = 0.96 + 0.04 * random(`fl${Math.floor(frame / 2)}`);
+  return (
+    <AbsoluteFill style={{background: `radial-gradient(ellipse at 50% 45%, ${p.bg2} 0%, ${p.bg1} 80%)`, opacity: flicker}}>
+      <div style={{position: 'absolute', left: 0, right: 0, top: band, height: height * 0.18,
+        background: `linear-gradient(180deg, rgba(0,0,0,0) 0%, ${p.accent}12 50%, rgba(0,0,0,0) 100%)`}} />
+      <AbsoluteFill style={{backgroundImage: 'repeating-linear-gradient(180deg, rgba(0,0,0,0.32) 0px, rgba(0,0,0,0.32) 2px, transparent 2px, transparent 5px)'}} />
+      <AbsoluteFill style={{background: 'radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(0,0,0,0.7) 100%)'}} />
+    </AbsoluteFill>
+  );
+};
+
+/** Light: three big soft colour blobs drifting over cream, with a dot grid. */
+const Blobs: React.FC<{p: Palette}> = ({p}) => {
+  const frame = useCurrentFrame();
+  const {width, height} = useVideoConfig();
+  const t = frame / 30;
+  const blob = (c: string, x: number, y: number, r: number, k: number) => (
+    <div style={{position: 'absolute', left: x * width + Math.sin(t * 0.4 + k) * 60 - r, top: y * height + Math.cos(t * 0.33 + k) * 70 - r,
+      width: 2 * r, height: 2 * r, borderRadius: r, background: c, opacity: 0.28, filter: 'blur(80px)'}} />
+  );
+  return (
+    <AbsoluteFill style={{background: `linear-gradient(180deg, ${p.bg2} 0%, ${p.bg1} 100%)`, overflow: 'hidden'}}>
+      {blob(p.accent, 0.15, 0.2, width * 0.35, 0)}
+      {blob(p.accent2, 0.9, 0.55, width * 0.38, 2)}
+      {blob('#ffc93c', 0.3, 0.9, width * 0.32, 4)}
+      <AbsoluteFill style={{backgroundImage: `radial-gradient(${p.grid} 2px, transparent 2.5px)`, backgroundSize: '36px 36px'}} />
+    </AbsoluteFill>
+  );
+};
+
+/** A ruled notebook page: blue rules, a red margin, paper grain. */
+const Notebook: React.FC<{p: Palette}> = ({p}) => {
+  const frame = useCurrentFrame();
+  const {width} = useVideoConfig();
+  const tile = useNoiseTile('notebook', 0.06);
+  const lx = 45 + 8 * Math.sin(frame / 260);
+  return (
+    <AbsoluteFill style={{background: `radial-gradient(ellipse at ${lx}% 30%, ${p.bg1} 0%, ${p.bg2} 100%)`}}>
+      <AbsoluteFill style={{backgroundImage: `repeating-linear-gradient(180deg, transparent 0px, transparent 63px, ${p.accent}26 63px, ${p.accent}26 65px)`}} />
+      <div style={{position: 'absolute', top: 0, bottom: 0, left: width * 0.1, width: 3, background: 'rgba(222,70,70,0.4)'}} />
+      <AbsoluteFill style={{backgroundImage: `url(${tile})`, mixBlendMode: 'multiply', opacity: 0.8}} />
+      <AbsoluteFill style={{background: 'radial-gradient(ellipse at center, rgba(0,0,0,0) 60%, rgba(60,50,30,0.18) 100%)'}} />
+    </AbsoluteFill>
+  );
+};
+
+/** A warning screen: a breathing red glow and moving hazard stripes along the top and bottom edges. */
+const Alert: React.FC<{p: Palette}> = ({p}) => {
+  const frame = useCurrentFrame();
+  const {width, height} = useVideoConfig();
+  const glow = 0.5 + 0.5 * Math.sin(frame / 14);
+  const stripe = (y: number) => (
+    <div style={{position: 'absolute', left: -80, width: width + 160, top: y, height: 30,
+      backgroundImage: `repeating-linear-gradient(-45deg, ${p.accent2} 0px, ${p.accent2} 22px, #111 22px, #111 44px)`,
+      transform: `translateX(${-((frame * 1.5) % 62)}px)`, opacity: 0.55}} />
+  );
+  return (
+    <AbsoluteFill style={{background: `radial-gradient(ellipse at 50% 40%, ${p.bg2} 0%, ${p.bg1} 75%)`, overflow: 'hidden'}}>
+      <AbsoluteFill style={{background: `radial-gradient(ellipse at 50% 40%, ${p.accent}${Math.round(20 + 22 * glow).toString(16)} 0%, rgba(0,0,0,0) 60%)`}} />
+      <AbsoluteFill style={{backgroundImage: 'repeating-linear-gradient(180deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 4px)'}} />
+      {stripe(height * 0.085)}
+      {stripe(height - 34)}
+    </AbsoluteFill>
+  );
+};
+
 export const StyledBackground: React.FC = () => {
   const st = useStyle();
   const p = st.palette;
@@ -254,6 +396,11 @@ export const StyledBackground: React.FC = () => {
     case 'synth': return <Synth p={p} />;
     case 'clean': return <Clean p={p} />;
     case 'halftone': return <Halftone p={p} />;
+    case 'circuit': return <Circuit p={p} />;
+    case 'crt': return <Crt p={p} />;
+    case 'blobs': return <Blobs p={p} />;
+    case 'notebook': return <Notebook p={p} />;
+    case 'alert': return <Alert p={p} />;
     default: return <Stars p={p} />;
   }
 };
@@ -378,6 +525,89 @@ export const StyledCaptions: React.FC<{captions: Caption[]; lift?: number; top?:
               </span>
             );
           })}
+        </div>,
+      );
+    }
+    case 'glow':
+    case 'prompt':
+    case 'chips':
+    case 'marker':
+    case 'stamp': {
+      // two or three words at a time (a quoted name stays whole); the spoken word stands out
+      const ws = wordTimes(cap);
+      const groups = wordGroups(ws);
+      const g = [...groups].reverse().find((gr) => frame >= gr[0].start) || groups[0];
+      const g0 = g[0].start;
+      const cur = g.findIndex((x, i) => frame >= x.start && (i === g.length - 1 || frame < g[i + 1].start));
+      const k = spring({frame: frame - g0, fps, config: {damping: 12, stiffness: 260, mass: 0.5}});
+      const box = (children: React.ReactNode, style: React.CSSProperties = {}) =>
+        wrap(<div style={{maxWidth: '84%', textAlign: 'center', fontFamily: st.fonts.caption, lineHeight: 1.15, ...style}}>{children}</div>);
+      if (st.caption === 'glow') {
+        return box(
+          g.map((x, i) => (
+            <span key={i} style={{display: 'inline-block', marginRight: '0.32em', fontWeight: 800, fontSize: size * 1.3,
+              color: i === cur ? p.accent : p.text, transform: `translateY(${(1 - k) * 30 * u}px) scale(${i === cur ? 1.08 : 1})`, opacity: Math.min(k * 1.6, 1),
+              textShadow: i === cur ? `0 0 ${18 * u}px ${p.accent}, 0 0 ${40 * u}px ${p.accent}88` : `0 ${3 * u}px ${12 * u}px rgba(0,0,0,0.8)`}}>
+              {x.w}
+            </span>
+          )),
+        );
+      }
+      if (st.caption === 'prompt') {
+        const text = g.map((x) => x.w).join(' ');
+        const n = Math.min(text.length, Math.ceil((frame - g0 + 1) * 3.2));
+        const caret = Math.floor(frame / 8) % 2 === 0;
+        return box(
+          <div style={{display: 'inline-block', padding: `${14 * u}px ${26 * u}px`, background: 'rgba(0,10,2,0.78)', borderLeft: `${6 * u}px solid ${p.accent}`,
+            color: p.accent, fontWeight: 700, fontSize: size * 1.12, textAlign: 'left', textShadow: `0 0 ${10 * u}px ${p.accent}99`}}>
+            <span style={{opacity: 0.6}}>&gt; </span>
+            {text.slice(0, n)}
+            <span style={{opacity: caret ? 1 : 0, background: p.accent, color: p.bg1, marginLeft: 2 * u}}>&nbsp;</span>
+          </div>,
+        );
+      }
+      if (st.caption === 'chips') {
+        const CHIP = [p.accent, p.accent2, '#ffb627', '#16b29a'];
+        return box(
+          g.map((x, i) => {
+            const on = frame >= x.start;
+            const c = spring({frame: frame - x.start, fps, config: {damping: 11, stiffness: 300, mass: 0.5}});
+            const col = CHIP[(ws.indexOf(x) + 1) % CHIP.length];
+            return (
+              <span key={i} style={{display: 'inline-block', margin: `${6 * u}px ${7 * u}px`, padding: `${8 * u}px ${18 * u}px`, borderRadius: 18 * u,
+                background: col, color: '#ffffff', fontWeight: 800, fontSize: size * 1.2, opacity: on ? 1 : 0,
+                transform: `scale(${on ? 0.6 + 0.4 * c : 0.6}) rotate(${(i % 2 ? 2 : -2) * (1 - Math.min(c, 1))}deg)`,
+                boxShadow: `0 ${6 * u}px 0 rgba(0,0,0,0.16)`}}>
+                {x.w}
+              </span>
+            );
+          }),
+        );
+      }
+      if (st.caption === 'marker') {
+        // a highlighter stroke sweeps under the words; it follows the lines when the group wraps
+        const sweep = interpolate(frame - g0, [0, 9], [0, 100], clamp);
+        return box(
+          <span style={{fontWeight: 800, fontSize: size * 1.22, color: p.text, padding: `0 ${12 * u}px`, lineHeight: 1.3,
+            backgroundImage: `linear-gradient(${p.accent2}, ${p.accent2})`, backgroundRepeat: 'no-repeat', backgroundSize: `${sweep}% 62%`,
+            backgroundPosition: '0 75%', WebkitBoxDecorationBreak: 'clone', boxDecorationBreak: 'clone'}}>
+            {g.map((x, i) => (
+              <React.Fragment key={i}>
+                <span style={{color: i === cur ? p.accent : p.text}}>{x.w}</span>
+                {i < g.length - 1 ? ' ' : ''}
+              </React.Fragment>
+            ))}
+          </span>,
+        );
+      }
+      // stamp: condensed capitals on a red block, slammed in
+      return box(
+        <div style={{display: 'inline-block', padding: `${8 * u}px ${24 * u}px`, background: p.accent, color: '#ffffff', fontWeight: 700,
+          fontSize: size * 1.45, letterSpacing: '0.02em', textTransform: 'uppercase', transform: `rotate(-2deg) scale(${1.25 - 0.25 * Math.min(k, 1)})`,
+          boxShadow: `${8 * u}px ${8 * u}px 0 rgba(0,0,0,0.55)`}}>
+          {g.map((x, i) => (
+            <span key={i} style={{marginRight: i < g.length - 1 ? '0.28em' : 0, color: i === cur ? p.accent2 : '#ffffff'}}>{x.w}</span>
+          ))}
         </div>,
       );
     }

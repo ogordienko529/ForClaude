@@ -57,6 +57,7 @@ The `rubric:` header field, and the hashtag to end the post with (one hashtag):
 | `study` | `#навчання` | AI for learning: a method with a prompt (exams, НМТ, сесія, a language, planning). 600–1000 characters. |
 | `career` | `#робота` | CV, cover letter, LinkedIn, interview practice, first job in IT, salary talk — with the Ukrainian market in the title when possible. 600–1000 characters. |
 | `tool` | `#інструмент` | One tool or one feature and the task it solves. Only facts from the tool's official page (see Facts). |
+| `explain` | `#простослова` | Something people hear about but few understand (MCP, agents, tokens, the context window, prompt injection), in plain words with one analogy → what it changes for a student or a junior → what to do today, often a prompt. Official links. 600–1000 characters. |
 | `news` | `#новини` | Rare: only as «what changes for a student or a junior today», with official links. Set `date:`. |
 | `myth` | `#міф` | A popular belief about AI → what is true → what to do. At most 600 characters, at most 3 bullets. |
 | `quiz` | — | A Telegram quiz poll (format below). At most one in any 14 posts. |
@@ -65,9 +66,14 @@ The `rubric:` header field, and the hashtag to end the post with (one hashtag):
 **Short posts** (250–500 characters, no prompt block): one idea — a mistake, a «до / після», an opinion on «ШІ і
 джун», a curious fact with a source. Use rubric `myth`, `career`, `study` or `tool` as fits.
 
-**A week (14 slots, 09:30 and 17:15):** 5 `prompt`, 2 `career` (one with a Ukrainian market fact and its link),
-2 `study`, 2 short posts, 1 `tool`, 1 `quiz` (or a two-reaction vote), 1 «ШІ і джун». Never two posts of the same
-rubric in a row. Once a week end a post with a two-reaction vote («❤️ — вже пробував, 👀 — ще ні»); promise nothing.
+**A week (14 slots, 09:30 and 17:15):** 4 `prompt`, 1 `explain`, 2 `career` (one with a Ukrainian market fact and
+its link), 2 `study`, 2 short posts, 1 `tool`, 1 `quiz` (or a two-reaction vote), 1 «ШІ і джун». Never two posts of
+the same rubric in a row. Once a week end a post with a two-reaction vote («❤️ — вже пробував, 👀 — ще ні»); promise
+nothing.
+
+**With a video:** a Short that says «більше — у телеграм-каналі» on a new topic gets its post the same day: an
+`explain` (or `prompt`) post with `date:` set to the day the video goes up, so it leads the morning slot. The
+videos' scripts live in `tg_content/videos/<slug>/voice.json`.
 
 ## Clear first (the owner's verdict on the first posts: «дуже важко зрозуміти»)
 

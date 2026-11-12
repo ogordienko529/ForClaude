@@ -132,16 +132,21 @@ def sfx(name: str, sr: int = SR, seed: int = 1) -> np.ndarray:
         t = _t(n, sr)
         x = sum(a * np.sin(2 * np.pi * f * t) for f, a in ((1568, 1.0), (3136, 0.4), (4704, 0.2)))
         return _norm(x * _env(len(t), 0.002, 0.25, sr), 0.5)
+    if name == "buzz":  # a wrong answer: two short low square-ish tones
+        n = 0.5
+        t = _t(n, sr)
+        x = np.tanh(3 * np.sin(2 * np.pi * 150 * t)) * ((t < 0.2) | ((t > 0.26) & (t < 0.46)))
+        return _norm(_lp(x, 1800, sr) * _env(len(t), 0.003, 0.2, sr), 0.5)
     raise ValueError(f"unknown sound effect {name!r}")
 
 
-SFX_NAMES = ("boom", "whoosh", "pop", "tick", "riser", "hit", "ding", "click", "keys")
+SFX_NAMES = ("boom", "whoosh", "pop", "tick", "riser", "hit", "ding", "buzz", "click", "keys")
 
 # The sounds the long-form renderer plays on animation events (remotion/src/motion.tsx): typing -> keys,
 # a tap or a mouse click -> click, a scene change -> whoosh, a sticker or a stamp -> pop.
-SFX_BANK = ("whoosh", "pop", "click", "keys")
+SFX_BANK = ("whoosh", "pop", "click", "keys", "ding", "buzz")
 SFX_ASSETS = __import__("pathlib").Path(__file__).parent / "assets" / "sfx"   # see assets/sfx/README.md
-SFX_VARIANTS = ("whoosh_2", "whoosh_4", "click_2", "keys_2", "keys_3", "impact")
+SFX_VARIANTS = ("whoosh_2", "whoosh_4", "click_2", "click_3", "keys_2", "keys_3", "impact", "riser")
 
 
 def write_sfx_bank(folder, sr: int = SR) -> list:

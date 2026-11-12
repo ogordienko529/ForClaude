@@ -163,6 +163,47 @@ TEMPLATES: dict[str, dict[str, Any]] = {
                "bubble?: prompt|answer}; the ❌ stamp slams onto the top panel on cue 0, the bottom panel arrives on "
                "cue 1 and its ✅ stamp follows. `bubble` shows the text as a mini chat message.",
     },
+    "connect": {
+        "required": {"nodes": list},
+        "optional": {"center": dict, "title": str, "unplugged": bool, "fast": bool},
+        "limits": {"nodes": 6, "node": 18, "title": 14, "center_label": 16},
+        "doc": "A hub (the AI) and the services it plugs into: `nodes` [{label, icon?: emoji}] 2-6 round the hub, a "
+               "cable snaps in from each one with a click on cue i (MCP, connectors); `center` {label?, logo?: claude}; "
+               "`title` big above (\"MCP\"); `unplugged`: dashed broken cables with ❌ instead (the AI on its own); "
+               "`fast`: every cable within the first second (hooks).",
+    },
+    "loop": {
+        "required": {"steps": list},
+        "optional": {"center": str, "rounds": int, "done": str},
+        "limits": {"steps": 5, "step": 16, "center": 14, "done": 16, "rounds": 4},
+        "doc": "Steps on a ring with a light running round it (an agent's loop): `steps` [label | {label, icon}] 3-5; "
+               "with one round the light reaches step i on cue i; `rounds` 2-4: the last step fails (❌, buzz) until the "
+               "last round passes (✅, ding); `center` names what loops (\"Агент\"); `done` shows with ✅ at the end.",
+    },
+    "tokens": {
+        "required": {"rows": list},
+        "optional": {"count": bool, "note": str, "fast": bool},
+        "limits": {"rows": 3, "text": 26, "pieces": 9, "label": 30, "note": 70},
+        "doc": "Text that falls apart into coloured chips, the way a model reads it: `rows` [{text, pieces, label?}] "
+               "1-3; `pieces` joined must equal `text` (spaces stay inside a piece); row i splits on cue i with a click "
+               "per chip, under it «N токенів» (`count`: false hides it); `note` a small line at the bottom.",
+    },
+    "context": {
+        "required": {"messages": list},
+        "optional": {"window": int, "label": str, "fast": bool},
+        "limits": {"messages": 12, "message": 40, "window": 8, "label": 22},
+        "doc": "A chat that keeps growing (`messages`, user and AI alternating; message i lands on cue i) under a "
+               "dashed frame round the last `window` messages (the model's working memory, `label`); older ones blur "
+               "and grey out, the frame turns red with a buzz once the chat outgrows it; `fast`: a message every 0.2 s.",
+    },
+    "webpage": {
+        "required": {"url": str, "hidden": str},
+        "optional": {"title": str, "lines": list, "revealed": bool, "scan": bool, "zoom": bool, "badge": str},
+        "limits": {"url": 40, "title": 50, "lines": 4, "line": 90, "hidden": 90, "badge": 30},
+        "doc": "A web page with white-on-white `hidden` text after the second line: on cue 0 a select-all reveals it in "
+               "red (click + buzz); `scan`: an agent's beam reads the page on cue 1 and `badge` pops beside the hidden "
+               "line; `zoom`: the hidden text pulls out into a big red card over the blurred page; `revealed`: already shown from the first frame.",
+    },
 }
 
 # Tool and brand names: fine as plain text in `tool_chips`, but not as the name of the mock app, which would
@@ -185,11 +226,16 @@ STYLES = {
     "comic": "halftone and rays, Bangers, speech-bubble captions and labels, zoom-burst transitions",
     "ember": "bright orange: heavy Montserrat on an orange background, navy highlights, slides",
     "clay": "graphite with clay-orange highlights (Claude-like colours), heavy Montserrat, slides",
+    "volt": "electric navy with cyan and lime, wide Unbounded, circuit traces with running pulses, words light up",
+    "crt": "green-phosphor terminal, monospace everywhere, captions typed after a «>» prompt, scanlines, glitch cuts",
+    "candy": "light cream with violet and pink blobs, Rubik, every caption word on its own colour chip, slides",
+    "notebook": "ruled notebook page, handwritten Caveat for big text, captions under a yellow highlighter, wipes",
+    "alert": "security warning: near black and alarm red, condensed Oswald, captions stamped on red, hazard stripes",
 }
 TRANSITIONS = ("fadePush", "wipe", "pixel", "glitch", "slide", "zoomBurst", "cut")
 FORMATS = ("explainer", "shorts", "review")
 
-PALETTES = ("midnight", "parchment", "slate", "ember", "clay")
+PALETTES = ("midnight", "parchment", "slate", "ember", "clay", "volt", "crt", "candy", "notebook", "alert")
 # Product marks the chat and phone scenes can show to name the tool (remotion/src/logos.ts), never as the
 # channel's own brand.
 LOGOS = ("claude",)
@@ -429,6 +475,8 @@ def _check_limits(bid: str, tname: str, props: dict, limits: dict) -> list[Issue
         out += _check_browser(bid, props, limits)
     if tname == "split":
         out += _check_split(bid, props, limits)
+    if tname in ("connect", "loop", "tokens", "context", "webpage"):
+        out += _check_explain(bid, tname, props, limits)
     if tname == "footage":
         f = props.get("focus", [0.5, 0.5])
         if not (isinstance(f, list) and len(f) == 2 and all(isinstance(v, (int, float)) and 0 <= v <= 1 for v in f)):
@@ -442,6 +490,70 @@ def _check_limits(bid: str, tname: str, props: dict, limits: dict) -> list[Issue
             if not isinstance(lat, (int, float)) or not isinstance(lon, (int, float)) or not (-90 <= lat <= 90) \
                     or not (-180 <= lon <= 180):
                 out.append(Issue("error", bid, f"{tname}: {key} needs numeric lat (-90..90) and lon (-180..180)"))
+    return out
+
+
+def _check_explain(bid: str, tname: str, props: dict, limits: dict) -> list[Issue]:
+    out: list[Issue] = []
+
+    def label(x: Any) -> str:
+        return x if isinstance(x, str) else (x.get("label", "") if isinstance(x, dict) else "")
+
+    if tname == "connect":
+        nodes = props.get("nodes") or []
+        if not 2 <= len(nodes) <= limits["nodes"] or not all(label(n).strip() for n in nodes):
+            out.append(Issue("error", bid, f"connect: nodes must be 2-{limits['nodes']} labels or {{label, icon}}"))
+        for n in nodes:
+            if len(label(n)) > limits["node"]:
+                out.append(Issue("warning", bid, f"connect: node {label(n)!r} is long, keep it under {limits['node']} characters"))
+            if isinstance(n, dict) and n.get("icon"):
+                out += _check_sticker(bid, tname, n["icon"], 8)
+        logo = (props.get("center") or {}).get("logo")
+        if logo and logo not in LOGOS:
+            out.append(Issue("error", bid, f"connect: center logo must be one of {LOGOS}"))
+    elif tname == "loop":
+        steps = props.get("steps") or []
+        if not 3 <= len(steps) <= limits["steps"] or not all(label(x).strip() for x in steps):
+            out.append(Issue("error", bid, f"loop: steps must be 3-{limits['steps']} labels or {{label, icon}}"))
+        for x in steps:
+            if len(label(x)) > limits["step"]:
+                out.append(Issue("warning", bid, f"loop: step {label(x)!r} is long, keep it under {limits['step']} characters"))
+        r = props.get("rounds", 1)
+        if not isinstance(r, int) or not 1 <= r <= limits["rounds"]:
+            out.append(Issue("error", bid, f"loop: rounds must be 1-{limits['rounds']}"))
+    elif tname == "tokens":
+        rows = props.get("rows") or []
+        if not 1 <= len(rows) <= limits["rows"]:
+            out.append(Issue("error", bid, f"tokens: 1-{limits['rows']} rows"))
+        for r in rows:
+            pieces = r.get("pieces") if isinstance(r, dict) else None
+            if not isinstance(pieces, list) or not pieces or not all(isinstance(x, str) and x for x in pieces):
+                out.append(Issue("error", bid, "tokens: every row needs pieces, a list of non-empty strings"))
+                continue
+            text = r.get("text", "".join(pieces))
+            if "".join(pieces) != text:
+                out.append(Issue("error", bid, f"tokens: pieces {pieces} do not join into {text!r}"))
+            if len(text) > limits["text"] or len(pieces) > limits["pieces"]:
+                out.append(Issue("warning", bid, f"tokens: {text!r} is long for one row: at most {limits['text']} "
+                                                 f"characters and {limits['pieces']} pieces read well"))
+    elif tname == "context":
+        msgs = props.get("messages") or []
+        if not 3 <= len(msgs) <= limits["messages"] or not all(isinstance(m, str) and m.strip() for m in msgs):
+            out.append(Issue("error", bid, f"context: messages must be 3-{limits['messages']} short lines"))
+        for m in msgs:
+            if isinstance(m, str) and len(m) > limits["message"]:
+                out.append(Issue("warning", bid, f"context: message {m[:30]!r}… is cut off past {limits['message']} characters"))
+        w = props.get("window", 4)
+        if not isinstance(w, int) or not 1 <= w <= limits["window"]:
+            out.append(Issue("error", bid, f"context: window must be 1-{limits['window']}"))
+    elif tname == "webpage":
+        if not str(props.get("hidden", "")).strip():
+            out.append(Issue("error", bid, "webpage: hidden needs the white-on-white text to reveal"))
+        if len(str(props.get("hidden", ""))) > limits["hidden"]:
+            out.append(Issue("warning", bid, f"webpage: hidden text over {limits['hidden']} characters wraps badly"))
+        lines = props.get("lines") or []
+        if not isinstance(lines, list) or len(lines) > limits["lines"]:
+            out.append(Issue("error", bid, f"webpage: lines must be a list of at most {limits['lines']}"))
     return out
 
 

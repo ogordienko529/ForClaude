@@ -39,7 +39,7 @@ from pathlib import Path
 from .posts import KYIV
 
 POSTS_DIR = Path("tg_content/posts")
-RUBRICS = ("intro", "prompt", "study", "career", "tool", "news", "myth", "quiz")
+RUBRICS = ("intro", "prompt", "study", "career", "tool", "explain", "news", "myth", "quiz")
 SLOTS = ((9, 30), (17, 15))         # Kyiv time: 19:00 was the weakest hour in the competitor study
 MIN_GAP = timedelta(hours=3)        # a late run never fires two posts back to back
 STALE_DAYS = 2

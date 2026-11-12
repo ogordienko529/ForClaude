@@ -90,20 +90,23 @@ export const ProgressBar: React.FC<{total: number}> = ({total}) => {
 };
 
 // ------------------------------------------------------------------ sound effects
-export type SfxName = 'whoosh' | 'pop' | 'click' | 'keys' | 'impact';
+export type SfxName = 'whoosh' | 'pop' | 'click' | 'keys' | 'impact' | 'ding' | 'buzz' | 'riser';
 // linear gains: quiet under the voice (the voice mix keeps 3 dB of headroom for them, see `mix`)
 // recorded CC0 sounds (content_agent/assets/sfx): loudness-matched, so the gains only set their place in the mix
-const SFX_GAIN: Record<SfxName, number> = {whoosh: 0.32, pop: 0.38, click: 0.42, keys: 0.16, impact: 0.45};
-const SFX_FRAMES: Record<SfxName, number> = {whoosh: 18, pop: 4, click: 3, keys: 90, impact: 24};
+const SFX_GAIN: Record<SfxName, number> = {whoosh: 0.32, pop: 0.38, click: 0.42, keys: 0.16, impact: 0.45, ding: 0.3, buzz: 0.26, riser: 0.22};
+const SFX_FRAMES: Record<SfxName, number> = {whoosh: 18, pop: 4, click: 3, keys: 90, impact: 24, ding: 16, buzz: 17, riser: 66};
 // the files of each sound (content_agent/assets/sfx and variants/) with the seconds from the start of the file to
 // its sync point (the soft whoosh peaks 0.23 s in): each starts that much earlier. Events rotate through the
 // variants so a Short does not repeat one whoosh at every cut.
 const SFX_FILES: Record<SfxName, Array<[string, number]>> = {
   whoosh: [['whoosh', 0.229], ['whoosh_2', 0.096], ['whoosh_4', 0.233]],
   pop: [['pop', 0.011]],
-  click: [['click', 0.009], ['click_2', 0.01]],
+  click: [['click', 0.009], ['click_2', 0.01], ['click_3', 0.002]],
   keys: [['keys', 0], ['keys_2', 0], ['keys_3', 0]],
   impact: [['impact', 0.018]],
+  ding: [['ding', 0.003]],
+  buzz: [['buzz', 0.003]],
+  riser: [['riser', 1.98]], // peaks at its end: it lands on the action
 };
 
 /** The project folder with the sound files (timeline "sfx"), or null when sound effects are off. */

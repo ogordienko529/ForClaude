@@ -16,6 +16,16 @@ import '@fontsource/pixelify-sans/700.css';
 import '@fontsource/space-grotesk/500.css';
 import '@fontsource/space-grotesk/700.css';
 import '@fontsource/special-elite/400.css';
+import '@fontsource/unbounded/700.css';
+import '@fontsource/unbounded/800.css';
+import '@fontsource/manrope/600.css';
+import '@fontsource/manrope/800.css';
+import '@fontsource/rubik/500.css';
+import '@fontsource/rubik/700.css';
+import '@fontsource/rubik/800.css';
+import '@fontsource/caveat/700.css';
+import '@fontsource/oswald/600.css';
+import '@fontsource/oswald/700.css';
 import './pixel-digits.css';
 import {createContext, useContext} from 'react';
 
@@ -49,6 +59,31 @@ export const PALETTES: Record<string, Palette> = {
   clay: {
     bg1: '#141413', bg2: '#262624', text: '#faf9f5', muted: '#a8a59b', accent: '#d97757', accent2: '#e8b28f',
     land: '#2b2a27', landStroke: '#3d3b37', grid: 'rgba(255,255,255,0.05)', panel: 'rgba(255,255,255,0.06)',
+  },
+  // electric: deep navy, cyan and lime (connections, data flowing)
+  volt: {
+    bg1: '#050a18', bg2: '#0c1a3a', text: '#eaf6ff', muted: '#8ba3c7', accent: '#2ef2ff', accent2: '#c8ff3c',
+    land: '#0f1f40', landStroke: '#1e3766', grid: 'rgba(46,242,255,0.06)', panel: 'rgba(255,255,255,0.06)',
+  },
+  // an old green-phosphor terminal
+  crt: {
+    bg1: '#030603', bg2: '#0a160c', text: '#d8ffdc', muted: '#6fa878', accent: '#39ff7a', accent2: '#ffcf3a',
+    land: '#0d1f10', landStroke: '#1b3a20', grid: 'rgba(57,255,122,0.06)', panel: 'rgba(57,255,122,0.07)',
+  },
+  // light and playful: cream, violet and pink
+  candy: {
+    bg1: '#fff4e6', bg2: '#ffffff', text: '#1c1530', muted: '#6d6480', accent: '#7b3fe4', accent2: '#ff4f8b',
+    land: '#f3e6d6', landStroke: '#e2cdb3', grid: 'rgba(28,21,48,0.05)', panel: 'rgba(28,21,48,0.05)',
+  },
+  // a ruled notebook page: ink blue and a yellow highlighter
+  notebook: {
+    bg1: '#fbf7ee', bg2: '#f3ecdc', text: '#1d2433', muted: '#6c7385', accent: '#2556e8', accent2: '#ffd43b',
+    land: '#ece3cf', landStroke: '#d8cbb0', grid: 'rgba(37,86,232,0.08)', panel: 'rgba(29,36,51,0.05)',
+  },
+  // a security warning: near black, alarm red, warning yellow
+  alert: {
+    bg1: '#0b0a0c', bg2: '#1e0c10', text: '#fff4f4', muted: '#b39b9e', accent: '#ff2d4a', accent2: '#ffe14a',
+    land: '#251015', landStroke: '#3d1a21', grid: 'rgba(255,45,74,0.06)', panel: 'rgba(255,255,255,0.06)',
   },
   // bright orange: dark text, navy highlights; for Shorts that should not look like the dark ones
   ember: {
