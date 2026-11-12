@@ -567,7 +567,7 @@ export const StyledCaptions: React.FC<{captions: Caption[]; lift?: number; top?:
         );
       }
       if (st.caption === 'chips') {
-        const CHIP = [p.accent, p.accent2, '#ffb627', '#16b29a'];
+        const CHIP = [p.accent, p.accent2, '#e8710a', '#0f9d87']; // white text stays readable on each
         return box(
           g.map((x, i) => {
             const on = frame >= x.start;
