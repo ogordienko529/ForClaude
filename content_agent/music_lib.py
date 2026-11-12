@@ -176,6 +176,7 @@ def scan(lib: Path, rescan: bool = False) -> dict:
         meta = json.loads((lib / "tracks.json").read_text(encoding="utf-8")) if (lib / "tracks.json").exists() else {}
     except ValueError:
         meta = {}
+    bundled = bundled_tracks()
     out = {}
     for f in sorted(lib.iterdir()):
         if f.suffix.lower() not in AUDIO_EXT:
@@ -184,12 +185,23 @@ def scan(lib: Path, rescan: bool = False) -> dict:
         entry = index.get(f.name)
         if not entry or entry.get("stamp") != stamp:
             entry = {"stamp": stamp, **analyze(f)}
-        m = meta.get(f.name, {})
+        m = meta.get(f.name) or bundled.get(f.name, {})
         entry.update({"title": m.get("title", f.stem), "artist": m.get("artist", ""), "source": m.get("source", ""),
                       "license": m.get("license", ""), "url": m.get("url", ""), "mood": m.get("mood", "")})
         out[f.name] = entry
     idx_path.write_text(json.dumps(out, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     return out
+
+
+def bundled_tracks() -> dict:
+    """Credits of the tracks that ship with content_agent (assets/music/sources.json), keyed by file name, so a
+    copied track keeps its author and licence without a tracks.json."""
+    try:
+        rows = json.loads((Path(__file__).parent / "assets" / "music" / "sources.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return {r["file"]: {"title": r.get("title", ""), "artist": r.get("author", ""), "source": r.get("page", ""),
+                        "license": (r.get("license") or "").split(" (")[0], "url": ""} for r in rows if r.get("file")}
 
 
 def load(lib: Path) -> dict:

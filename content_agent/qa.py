@@ -217,6 +217,23 @@ def _grab(video: Path, t: float, out: Path, width: int = 480) -> Path:
     return out
 
 
+def renderer_version() -> str:
+    """The commit the video was rendered with (plus «+changes» when the renderer had local edits), so an old render
+    is easy to tell from a current one."""
+    import subprocess
+    from pathlib import Path as _P
+
+    root = _P(__file__).resolve().parent
+    try:
+        head = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=root, capture_output=True, text=True,
+                              timeout=5).stdout.strip()
+        dirty = subprocess.run(["git", "status", "--porcelain", "--", "remotion/src"], cwd=root, capture_output=True,
+                               text=True, timeout=5).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return "unknown"
+    return (head or "unknown") + ("+changes" if dirty else "")
+
+
 def contact_sheets(video: Path, timeline: dict, outdir: Path, per_sheet: int = 6) -> list[Path]:
     """Three frames per scene (early / middle / late) with scene id and timecodes burned in."""
     fps = timeline["fps"]
@@ -429,6 +446,7 @@ def run_qa(project: Path, video: Path, timeline: dict, storyboard_issues: list |
     (review / "transcript.txt").write_text(transcript + "\n", encoding="utf-8")
     report = {
         "video": str(video),
+        "renderer": renderer_version(),
         "info": info,
         "findings": [asdict(f) for f in findings],
         "storyboard_warnings": [str(i) for i in (storyboard_issues or [])],

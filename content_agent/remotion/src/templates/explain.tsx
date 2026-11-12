@@ -68,10 +68,10 @@ export const Connect: React.FC<SceneProps> = ({props, duration, speech, cues}) =
   const titleH = title ? 120 * u : 0;
   const cx = width / 2;
   const cy = (zone.top + titleH + zone.bottom) / 2;
-  const rx = width * 0.33;
+  const rx = width * 0.3;
   const ry = (zone.bottom - zone.top - titleH) * 0.4;
-  const R = 124 * u; // the hub
-  const nfs = 40 * u; // node label size
+  const R = 140 * u; // the hub
+  const nfs = 52 * u; // node label size
   const fast = !!props.fast;
   const start = fast ? 3 : Math.max(Math.min(speech, 12), 0);
   const gap = fast ? 7 : clamp(((duration - start) * 0.62) / n, 7, 26);
@@ -79,7 +79,7 @@ export const Connect: React.FC<SceneProps> = ({props, duration, speech, cues}) =
   const pos = nodes.map((node, i) => {
     // four go to the corners; other counts start at the top, so none sits on the far left or right edge
     const a = -Math.PI / 2 + (2 * Math.PI * i) / n + (n === 4 || n === 2 ? Math.PI / n : 0);
-    const w = textWidth(node.label, 800, nfs, family) + (node.icon ? 66 * u : 0) + 64 * u;
+    const w = textWidth(node.label, 800, nfs, family) + (node.icon ? 80 * u : 0) + 72 * u;
     const x = clamp(cx + rx * Math.cos(a), w / 2 + 24 * u, width - w / 2 - 24 * u);
     return {x, y: cy + ry * Math.sin(a), a};
   });
@@ -177,12 +177,12 @@ export const Connect: React.FC<SceneProps> = ({props, duration, speech, cues}) =
         const scale = (0.7 + 0.3 * inK) * (1 + 0.14 * Math.sin(Math.min(bump, 1) * Math.PI));
         return (
           <div key={i} style={{position: 'absolute', left: q.x, top: q.y, transform: `translate(-50%, -50%) scale(${scale})`, opacity: Math.min(inK * 1.4, 1),
-            display: 'flex', alignItems: 'center', gap: 16 * u, padding: `${20 * u}px ${28 * u}px`, borderRadius: Math.max(st.radius, 8) * 1.4 * u,
+            display: 'flex', alignItems: 'center', gap: 16 * u, padding: `${22 * u}px ${32 * u}px`, borderRadius: Math.max(st.radius, 8) * 1.4 * u,
             background: on ? (dark ? mix(nodeBg, p.accent, 0.16) : mix('#ffffff', p.accent, 0.08)) : nodeBg,
             border: `${4 * u}px solid ${on ? p.accent : alpha(p.muted, 0.5)}`, whiteSpace: 'nowrap',
             boxShadow: on ? `0 0 ${30 * u}px ${alpha(p.accent, 0.55)}` : `0 ${8 * u}px ${20 * u}px rgba(0,0,0,0.25)`,
             filter: unplugged ? 'grayscale(0.7)' : undefined}}>
-            {node.icon ? <Emoji e={node.icon} size={50 * u} /> : null}
+            {node.icon ? <Emoji e={node.icon} size={62 * u} /> : null}
             <span style={{fontFamily: family, fontWeight: 800, fontSize: nfs, color: on ? p.text : alpha(p.text, unplugged ? 0.55 : 0.85)}}>{node.label}</span>
             {!unplugged ? <Sfx name="click" at={at[i] + 6} gain={1.2} /> : <Sfx name="pop" at={at[i]} gain={0.8} />}
           </div>
@@ -346,8 +346,8 @@ export const Tokens: React.FC<SceneProps> = ({props, duration, speech, cues}) =>
     const w = textWidth(r.text, 800, 100, family) + r.pieces.length * 46; // chips' padding and gaps at size 100
     return Math.min((n === 1 ? 150 : 110) * u, (100 * maxW) / Math.max(w, 1));
   });
-  const rowH = rows.map((_, i) => sizes[i] * 1.5 + (rows[i].label ? 56 * u : 0) + (count ? 56 * u : 0));
-  const total = rowH.reduce((a, b) => a + b, 0) + (n - 1) * 46 * u + (note ? 70 * u : 0);
+  const rowH = rows.map((_, i) => sizes[i] * 1.5 + (rows[i].label ? 74 * u : 0) + (count ? 70 * u : 0));
+  const total = rowH.reduce((a, b) => a + b, 0) + (n - 1) * 46 * u + (note ? 90 * u : 0);
   let y = (zone.top + zone.bottom) / 2 - total / 2;
 
   return (
@@ -363,7 +363,7 @@ export const Tokens: React.FC<SceneProps> = ({props, duration, speech, cues}) =>
         return (
           <div key={i} style={{position: 'absolute', left: 0, right: 0, top, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 * u,
             opacity: Math.min(inK * 1.5, 1), transform: `translateY(${(1 - Math.min(inK, 1)) * 40 * u}px)`}}>
-            {r.label ? <div style={{fontFamily: family, fontWeight: 700, fontSize: 38 * u, color: p.muted}}>{r.label}</div> : null}
+            {r.label ? <div style={{fontFamily: family, fontWeight: 800, fontSize: 54 * u, color: p.text}}>{r.label}</div> : null}
             <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 18 * u * split, flexWrap: 'nowrap'}}>
               {r.pieces.map((piece, j) => {
                 const c = frame >= at[i] + j * 2 ? spring({frame: frame - at[i] - j * 2, fps, config: {damping: 9, stiffness: 260, mass: 0.5}}) : 0;
@@ -381,7 +381,7 @@ export const Tokens: React.FC<SceneProps> = ({props, duration, speech, cues}) =>
               })}
             </div>
             {count ? (
-              <div style={{fontFamily: family, fontWeight: 800, fontSize: 38 * u, color: p.accent, opacity: frame >= at[i] ? 1 : 0}}>
+              <div style={{fontFamily: family, fontWeight: 800, fontSize: 52 * u, color: p.accent, opacity: frame >= at[i] ? 1 : 0}}>
                 {shown} {tokenWord(shown)}
               </div>
             ) : null}
@@ -391,7 +391,7 @@ export const Tokens: React.FC<SceneProps> = ({props, duration, speech, cues}) =>
       })}
       {note ? (
         <div style={{position: 'absolute', left: width * 0.1, right: width * 0.1, top: y - 20 * u, textAlign: 'center', fontFamily: family, fontWeight: 700,
-          fontSize: 30 * u, color: p.muted, opacity: rise(frame, fps, at[at.length - 1] + 10, 16)}}>
+          fontSize: 40 * u, color: p.muted, opacity: rise(frame, fps, at[at.length - 1] + 10, 16)}}>
           {note}
         </div>
       ) : null}

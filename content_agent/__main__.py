@@ -456,7 +456,13 @@ def _write_description(project: Path, sb: Storyboard, tl: dict) -> Path:
         lines.append("Sources:")
         lines += [f"- {u}" for u in sources]
         lines.append("")
-    if sb.data.get("music", "calm") != "none":
+    music = sb.data.get("music", "calm")
+    if isinstance(music, dict) and music.get("track"):
+        from . import music_lib
+
+        entry = music_lib.load(music_lib.library_dir(project)).get(music["track"]) or {"title": Path(music["track"]).stem}
+        lines.append(music_lib.credit(entry))
+    elif music != "none":
         lines.append("Music: original, generated for this video.")
     out = project / "out" / "description.md"
     out.parent.mkdir(parents=True, exist_ok=True)

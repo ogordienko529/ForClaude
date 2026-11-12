@@ -107,10 +107,10 @@ export const STYLES: Record<string, StyleDef> = {
     fontLoads: ['800 80px Rubik', '500 40px Rubik', '700 40px Rubik'],
     background: 'blobs', caption: 'chips', label: 'tag', transition: 'slide', radius: 26,
   },
-  // a ruled notebook page: handwritten Caveat for big text, captions under a yellow highlighter
+  // a ruled notebook page: handwritten Caveat for the big kinetic text, printed Manrope on cards, highlighter captions
   notebook: {
     name: 'notebook', palette: P.notebook,
-    fonts: {display: 'Caveat, cursive', body: 'Manrope, Inter, Arial, sans-serif', caption: 'Manrope, Inter, Arial, sans-serif', impact: 'Caveat, cursive'},
+    fonts: {display: 'Manrope, Inter, Arial, sans-serif', body: 'Manrope, Inter, Arial, sans-serif', caption: 'Manrope, Inter, Arial, sans-serif', impact: 'Caveat, cursive'},
     fontLoads: ['700 80px Caveat', '600 40px Manrope', '800 40px Manrope'],
     background: 'notebook', caption: 'marker', label: 'ink', transition: 'wipe', radius: 10,
   },
@@ -406,6 +406,13 @@ export const StyledBackground: React.FC = () => {
 };
 
 // ------------------------------------------------------------------ captions
+/** True for a dark colour (#rgb or #rrggbb). */
+const isDark = (hex: string) => {
+  const h = hex.replace('#', '');
+  const v = h.length === 3 ? h.split('').map((c) => parseInt(c + c, 16)) : [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+  return (0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]) / 255 < 0.45;
+};
+
 /** Word start frames, estimated by characters inside the caption's time span. */
 export const wordTimes = (cap: Caption) => {
   const words = cap.text.split(/\s+/).filter(Boolean);
@@ -512,6 +519,8 @@ export const StyledCaptions: React.FC<{captions: Caption[]; lift?: number; top?:
       const groups = wordGroups(ws);
       const g = [...groups].reverse().find((gr) => frame >= gr[0].start) || groups[0];
       const pop = spring({frame: frame - g[0].start, fps, config: {damping: 12, stiffness: 260, mass: 0.5}});
+      // on a dark page white words with a dark edge; dark words with a white edge read as hollow there
+      const dark = isDark(p.bg1);
       return wrap(
         <div style={{transform: `scale(${interpolate(pop, [0, 1], [0.8, 1])})`, textAlign: 'center', fontFamily: st.fonts.caption,
           fontSize: size * 1.6, textTransform: 'uppercase', lineHeight: 1.1, maxWidth: '82%'}}>
@@ -519,7 +528,8 @@ export const StyledCaptions: React.FC<{captions: Caption[]; lift?: number; top?:
             const cur = frame >= x.start && (i === g.length - 1 || frame < g[i + 1].start);
             return (
               <span key={i} style={{display: 'inline-block', margin: `0 ${8 * u}px`, padding: `0 ${10 * u}px`, borderRadius: 8 * u,
-                background: cur ? p.accent : 'transparent', color: cur ? '#fff' : '#111', WebkitTextStroke: cur ? undefined : `${8 * u}px #fff`,
+                background: cur ? p.accent : 'transparent', color: cur ? '#fff' : dark ? '#fff' : '#111',
+                WebkitTextStroke: cur ? undefined : `${8 * u}px ${dark ? '#111' : '#fff'}`,
                 paintOrder: 'stroke fill'}}>
                 {x.w}
               </span>

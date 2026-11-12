@@ -13,6 +13,8 @@ date: 2026-11-13
 2. Натисни «+», вибери сервіс (наприклад, Google Drive) і Connect.
 3. У чаті натисни «+» внизу ліворуч → Connectors і ввімкни його.
 
+На безплатному плані можна додати один свій (custom) конектор; що ще доступно, залежить від плану.
+
 💡 Відкривай доступ лише до того, що потрібно для задачі, і читай, що Claude просить дозволити.
 
 <a href="https://support.claude.com/en/articles/11176164-use-connectors-to-extend-claude-s-capabilities">Інструкція Claude</a> · <a href="https://www.anthropic.com/news/model-context-protocol">Про MCP</a>
