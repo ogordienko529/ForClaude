@@ -1,7 +1,9 @@
 import React from 'react';
 import {AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
 import {progress, revealAt, rise, stagger} from '../anim';
-import {PREROLL, Sticker, uiZone} from '../motion';
+import {PREROLL, Sticker, uiZone, useFontsFor} from '../motion';
+import {textWidth} from '../screen';
+import {useStyle} from '../styles';
 import {FONTS, usePalette} from '../theme';
 import type {SceneProps} from '../types';
 import {Kicker} from '../ui';
@@ -92,7 +94,19 @@ export const Kinetic: React.FC<SceneProps> = ({props, speech, duration, cues}) =
   const lines: string[] = props.lines || [];
   const emph = new Set((props.emphasis || []).map((w: string) => norm(w)).filter(Boolean));
   const total = lines.reduce((n, l) => n + l.split(' ').length, 0);
-  const size = (lines.length >= 3 ? 74 : lines.length === 2 ? 88 : 104) * u;
+  const {width, height} = useVideoConfig();
+  const st = useStyle();
+  const portrait = height > width;
+  // 9:16: phone-sized type, each line as big as fits the width (handwritten Caveat runs small, so it gets more)
+  const base = (lines.length >= 3 ? 74 : lines.length === 2 ? 88 : 104) * u * (portrait ? 1.35 : 1) * (/Caveat/.test(st.fonts.impact) ? 1.3 : 1);
+  // measure with the style's own font, once it has loaded (a fallback font measures narrower)
+  const ready = useFontsFor([`800 100px ${st.fonts.impact}`], lines.join(' '));
+  const lineSize = lines.map((l) => {
+    if (!ready) return base * 0.7;
+    const w = textWidth(l, 800, 100, st.fonts.impact) + 34 * Math.max(l.split(' ').length - 1, 0);
+    return portrait ? Math.max(Math.min(base, (width * 0.8 * 100) / Math.max(w, 1)), base * 0.5) : base;
+  });
+  const size = Math.min(...lineSize, base);
   const band = useBand(120 * u);
   // a line with a narration cue appears when its words are spoken (the first line no later than
   // the narration itself, so the screen is never empty); otherwise words spread out. The very first
@@ -117,7 +131,7 @@ export const Kinetic: React.FC<SceneProps> = ({props, speech, duration, cues}) =
     <AbsoluteFill style={{justifyContent: 'center', alignItems: 'center', ...band}}>
       <div style={{position: 'relative'}}>
         {lines.map((l, li) => (
-          <div key={li} style={{textAlign: 'center', marginBottom: 18 * u}}>
+          <div key={li} style={{textAlign: 'center', marginBottom: 18 * u, whiteSpace: 'nowrap'}}>
             <span style={{position: 'relative', display: 'inline-block'}}>
             {l.split(' ').map((w, wi) => {
               const r = rise(frame, fps, starts[li][wi]);
@@ -132,7 +146,7 @@ export const Kinetic: React.FC<SceneProps> = ({props, speech, duration, cues}) =
                     transform: `translateY(${(1 - r) * 30 * u}px) scale(${isEm ? 1 + 0.06 * r : 1})`,
                     fontFamily: FONTS.impact,
                     fontWeight: 800,
-                    fontSize: size,
+                    fontSize: lineSize[li],
                     color: isEm ? p.accent : p.text,
                     letterSpacing: '-0.01em',
                   }}
@@ -143,7 +157,8 @@ export const Kinetic: React.FC<SceneProps> = ({props, speech, duration, cues}) =
             })}
             {/* the sticker sits on the first line's end, close to the words even when a later line wraps */}
             {li === 0 && props.sticker ? (
-              <Sticker emoji={String(props.sticker)} at={stickerAt} size={size * 1.35} tilt={12} style={{right: -size * 1.6, top: -size * 0.8}} />
+              <Sticker emoji={String(props.sticker)} at={stickerAt} size={size * (portrait ? 1.05 : 1.35)} tilt={12}
+                style={portrait ? {right: -size * 0.55, top: -size * 1.05} : {right: -size * 1.6, top: -size * 0.8}} />
             ) : null}
             </span>
           </div>

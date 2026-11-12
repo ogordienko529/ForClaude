@@ -606,7 +606,10 @@ export const StyledCaptions: React.FC<{captions: Caption[]; lift?: number; top?:
           fontSize: size * 1.45, letterSpacing: '0.02em', textTransform: 'uppercase', transform: `rotate(-2deg) scale(${1.25 - 0.25 * Math.min(k, 1)})`,
           boxShadow: `${8 * u}px ${8 * u}px 0 rgba(0,0,0,0.55)`}}>
           {g.map((x, i) => (
-            <span key={i} style={{marginRight: i < g.length - 1 ? '0.28em' : 0, color: i === cur ? p.accent2 : '#ffffff'}}>{x.w}</span>
+            <React.Fragment key={i}>
+              <span style={{color: i === cur ? p.accent2 : '#ffffff'}}>{x.w}</span>
+              {i < g.length - 1 ? ' ' : ''}
+            </React.Fragment>
           ))}
         </div>,
       );

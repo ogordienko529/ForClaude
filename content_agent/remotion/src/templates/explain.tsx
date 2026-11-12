@@ -422,9 +422,9 @@ export const Context: React.FC<SceneProps> = ({props, duration, speech, cues}) =
   const fast = !!props.fast;
   const step = fast ? 6 : clamp((Math.max(duration - 20, 30) * 0.8) / n, 6, 34);
   const at = messages.map((_, i) => cueAt(cues, i, -PREROLL + i * step));
-  const h = 84 * u;
+  const h = 96 * u;
   const gap = 18 * u;
-  const colW = width * 0.8;
+  const colW = width * 0.84;
   const left = (width - colW) / 2;
   const bottom = zone.bottom - 30 * u;
   const winTop = bottom - win * (h + gap) + gap - 26 * u;
@@ -454,7 +454,7 @@ export const Context: React.FC<SceneProps> = ({props, duration, speech, cues}) =
             filter: outside > 0 ? `blur(${3 * outside * u}px) grayscale(${outside})` : undefined}}>
             <div style={{maxWidth: '100%', height: h, boxSizing: 'border-box', display: 'flex', alignItems: 'center', padding: `0 ${26 * u}px`,
               borderRadius: `${26 * u}px ${26 * u}px ${user ? 8 * u : 26 * u}px ${user ? 26 * u : 8 * u}px`, background: user ? userBg : botBg,
-              color: user ? '#ffffff' : p.text, fontFamily: family, fontWeight: 600, fontSize: 32 * u, whiteSpace: 'nowrap', overflow: 'hidden',
+              color: user ? '#ffffff' : p.text, fontFamily: family, fontWeight: 600, fontSize: 37 * u, whiteSpace: 'nowrap', overflow: 'hidden',
               textOverflow: 'ellipsis', boxShadow: `0 ${6 * u}px ${16 * u}px rgba(0,0,0,${dark ? 0.35 : 0.12})`}}>
               {m}
             </div>
