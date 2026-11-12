@@ -1,5 +1,5 @@
 import React from 'react';
-import {AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
+import {AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig} from 'remotion';
 import {progress, revealAt, rise, stagger} from '../anim';
 import {PREROLL, Sticker, uiZone, useFontsFor} from '../motion';
 import {textWidth} from '../screen';
@@ -135,7 +135,10 @@ export const Kinetic: React.FC<SceneProps> = ({props, speech, duration, cues}) =
           <div key={li} style={{textAlign: 'center', marginBottom: 18 * u, whiteSpace: 'nowrap'}}>
             <span style={{position: 'relative', display: 'inline-block'}}>
             {l.split(' ').map((w, wi) => {
-              const r = rise(frame, fps, starts[li][wi]);
+              // a hook or a call to action lands in ~0.15 s; other text rises more softly
+              const r = props.fast
+                ? spring({frame: frame - starts[li][wi], fps, config: {damping: 20, stiffness: 320, mass: 0.6}})
+                : rise(frame, fps, starts[li][wi]);
               const isEm = emph.has(norm(w));
               return (
                 <span

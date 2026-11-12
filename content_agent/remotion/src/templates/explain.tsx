@@ -71,16 +71,19 @@ export const Connect: React.FC<SceneProps> = ({props, duration, speech, cues}) =
   const rx = width * 0.3;
   const ry = (zone.bottom - zone.top - titleH) * 0.4;
   const R = 140 * u; // the hub
-  const nfs = 52 * u; // node label size
+  const nfs = 48 * u; // node label size
   const fast = !!props.fast;
   const start = fast ? 3 : Math.max(Math.min(speech, 12), 0);
   const gap = fast ? 7 : clamp(((duration - start) * 0.62) / n, 7, 26);
   const at = nodes.map((_, i) => cueAt(cues, i, start + i * gap));
-  const pos = nodes.map((node, i) => {
-    // four go to the corners; other counts start at the top, so none sits on the far left or right edge
-    const a = -Math.PI / 2 + (2 * Math.PI * i) / n + (n === 4 || n === 2 ? Math.PI / n : 0);
-    const w = textWidth(node.label, 800, nfs, family) + (node.icon ? 80 * u : 0) + 72 * u;
-    const x = clamp(cx + rx * Math.cos(a), w / 2 + 24 * u, width - w / 2 - 24 * u);
+  const widths = nodes.map((node) => textWidth(node.label, 800, nfs, family) + (node.icon ? 80 * u : 0) + 72 * u);
+  const maxW = Math.max(...widths, 0);
+  // four go to the corners, spread so the two in a row keep a gap; other counts start at the top
+  const corners = n === 4;
+  const rxN = corners ? clamp(maxW / 2 + 18 * u, rx, width / 2 - maxW / 2 - 14 * u) : rx;
+  const pos = nodes.map((_, i) => {
+    const a = -Math.PI / 2 + (2 * Math.PI * i) / n + (corners ? Math.PI / 4 : 0);
+    const x = clamp(cx + rxN * Math.cos(a), widths[i] / 2 + 14 * u, width - widths[i] / 2 - 14 * u);
     return {x, y: cy + ry * Math.sin(a), a};
   });
   const live = nodes.filter((_, i) => !unplugged && frame >= at[i] + 6).length;
