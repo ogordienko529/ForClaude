@@ -98,7 +98,8 @@ export const Kinetic: React.FC<SceneProps> = ({props, speech, duration, cues}) =
   const st = useStyle();
   const portrait = height > width;
   // 9:16: phone-sized type, each line as big as fits the width (handwritten Caveat runs small, so it gets more)
-  const base = (lines.length >= 3 ? 74 : lines.length === 2 ? 88 : 104) * u * (portrait ? 1.35 : 1) * (/Caveat/.test(st.fonts.impact) ? 1.3 : 1);
+  const base = (portrait ? (lines.length >= 3 ? 112 : lines.length === 2 ? 128 : 150) : lines.length >= 3 ? 74 : lines.length === 2 ? 88 : 104) * u
+    * (/Caveat/.test(st.fonts.impact) ? 1.3 : 1);
   // measure with the style's own font, once it has loaded (a fallback font measures narrower)
   const ready = useFontsFor([`800 100px ${st.fonts.impact}`], lines.join(' '));
   const lineSize = lines.map((l) => {
