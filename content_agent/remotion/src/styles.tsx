@@ -545,8 +545,8 @@ export const StyledCaptions: React.FC<{captions: Caption[]; lift?: number; top?:
       if (st.caption === 'glow') {
         return box(
           g.map((x, i) => (
-            <span key={i} style={{display: 'inline-block', marginRight: '0.32em', fontWeight: 800, fontSize: size * 1.3,
-              color: i === cur ? p.accent : p.text, transform: `translateY(${(1 - k) * 30 * u}px) scale(${i === cur ? 1.08 : 1})`, opacity: Math.min(k * 1.6, 1),
+            <span key={i} style={{display: 'inline-block', margin: '0 0.18em', fontWeight: 800, fontSize: size * 1.3,
+              color: i === cur ? p.accent : p.text, transform: `translateY(${(1 - k) * 30 * u}px)`, opacity: Math.min(k * 1.6, 1),
               textShadow: i === cur ? `0 0 ${18 * u}px ${p.accent}, 0 0 ${40 * u}px ${p.accent}88` : `0 ${3 * u}px ${12 * u}px rgba(0,0,0,0.8)`}}>
               {x.w}
             </span>

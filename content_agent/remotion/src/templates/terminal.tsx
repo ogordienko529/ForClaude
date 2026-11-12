@@ -154,7 +154,7 @@ export const Terminal: React.FC<SceneProps> = ({props, duration, speech, cues}) 
       const h = barH + 28 * u + (rows.reduce((a, b) => a + b, 0) + idle) * fs * LH + 28 * u;
       return {fs, gutter, textW, rows, h};
     };
-    const top = vertical ? 40 : 34;
+    const top = vertical ? 54 : 34; // short lines on a phone screen get big type
     let fs = clamp((winW - 2 * padX - (numbers ? 70 * u : 0)) / (0.6 * maxChars), 24 * u, top * u);
     let l = layout(fs);
     while (fs > 18 * u && l.h > zoneH * (explain ? 0.7 : 0.92)) l = layout((fs -= 1 * u));
