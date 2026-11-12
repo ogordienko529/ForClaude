@@ -155,7 +155,8 @@ export const Terminal: React.FC<SceneProps> = ({props, duration, speech, cues}) 
       return {fs, gutter, textW, rows, h};
     };
     const top = vertical ? 54 : 34; // short lines on a phone screen get big type
-    let fs = clamp((winW - 2 * padX - (numbers ? 70 * u : 0)) / (0.6 * maxChars), 24 * u, top * u);
+    // 8 % spare: symbols such as ⚠ come from a wider fallback font, and a line that wraps unexpectedly breaks the layout
+    let fs = clamp((0.92 * (winW - 2 * padX - (numbers ? 70 * u : 0))) / (0.6 * maxChars), 24 * u, top * u);
     let l = layout(fs);
     while (fs > 18 * u && l.h > zoneH * (explain ? 0.7 : 0.92)) l = layout((fs -= 1 * u));
     return l;
