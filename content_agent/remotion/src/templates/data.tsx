@@ -116,13 +116,13 @@ export const Bars: React.FC<SceneProps> = ({props, speech, duration, cues}) => {
   const frame = useCurrentFrame();
   const {fps, width, height} = useVideoConfig();
   const p = usePalette();
-  const u = useUnit();
+  const portrait = height > width;
+  // 9:16: phone-sized type, the label above its bar so the bar can take the whole width
+  const u = useUnit() * (portrait ? 1.45 : 1);
   const items: {label: string; value: number}[] = props.items || [];
   const max = Math.max(...items.map((it) => it.value), 1);
-  // 9:16: a narrower side padding and bars that leave room for the label and the value on one line
-  const portrait = height > width;
-  const pad = (portrait ? 70 : 200) * u;
-  const barMax = Math.min(1000 * u, width - 2 * pad - 330 * u - 170 * u);
+  const pad = (portrait ? 50 : 200) * u;
+  const barMax = portrait ? width - 2 * pad - 230 * u : 1000 * u;
   const zone = uiZone(width, height);
   return (
     <AbsoluteFill style={{justifyContent: 'center', padding: `0 ${pad}px`, ...(portrait ? {top: zone.top, height: zone.bottom - zone.top} : {})}}>
@@ -134,17 +134,25 @@ export const Bars: React.FC<SceneProps> = ({props, speech, duration, cues}) => {
       {items.map((it, i) => {
         const s = revealAt(i, items.length, speech, duration, cues, 0.5);
         const g = progress(frame, s, s + 30);
-        return (
-          <div key={i} style={{display: 'flex', alignItems: 'center', marginBottom: 26 * u}}>
-            <div style={{width: 330 * u, fontFamily: FONTS.sans, fontWeight: 600, fontSize: 38 * u, color: p.text, opacity: rise(frame, fps, s - 6)}}>
-              {it.label}
-            </div>
+        const label = (
+          <div style={{width: portrait ? undefined : 330 * u, fontFamily: FONTS.sans, fontWeight: portrait ? 800 : 600, fontSize: 38 * u, color: p.text,
+            opacity: rise(frame, fps, s - 6), marginBottom: portrait ? 8 * u : 0}}>
+            {it.label}
+          </div>
+        );
+        const bar = (
+          <div style={{display: 'flex', alignItems: 'center'}}>
             <div style={{height: 52 * u, width: Math.max((barMax * it.value * g) / max, 6 * u), background: i === 0 ? p.accent : p.accent2, borderRadius: 8 * u}} />
             <div style={{marginLeft: 20 * u, fontFamily: FONTS.sans, fontWeight: 800, fontSize: 38 * u, color: p.muted, opacity: g, whiteSpace: 'nowrap'}}>
               {fmt(it.value * g, Number.isInteger(it.value) ? 0 : 1)}
               {props.unit ? ` ${props.unit}` : ''}
             </div>
           </div>
+        );
+        return portrait ? (
+          <div key={i} style={{marginBottom: 30 * u}}>{label}{bar}</div>
+        ) : (
+          <div key={i} style={{display: 'flex', alignItems: 'center', marginBottom: 26 * u}}>{label}{bar}</div>
         );
       })}
     </AbsoluteFill>
