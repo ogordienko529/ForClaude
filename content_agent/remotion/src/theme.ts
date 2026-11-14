@@ -88,7 +88,7 @@ export const PALETTES: Record<string, Palette> = {
   // a warm sunset gradient: coral to violet, white type, a yellow key word
   sunset: {
     bg1: '#ff6b4a', bg2: '#6b3df0', text: '#ffffff', muted: '#ffe2d6', accent: '#ffe14d', accent2: '#ff3d7f',
-    land: '#ff8a6a', landStroke: '#ffb39c', grid: 'rgba(255,255,255,0.08)', panel: 'rgba(255,255,255,0.14)',
+    land: '#ff8a6a', landStroke: '#ffb39c', grid: 'rgba(255,255,255,0.08)', panel: '#2b1456', // deep violet windows: white text reads on them
   },
   // a newspaper page: off-white, black type, one red
   editorial: {
