@@ -159,7 +159,57 @@ export const Bars: React.FC<SceneProps> = ({props, speech, duration, cues}) => {
   );
 };
 
-export const Timeline: React.FC<SceneProps> = ({props, speech, duration, cues}) => {
+export const Timeline: React.FC<SceneProps> = (sp) => {
+  const {height, width} = useVideoConfig();
+  return height > width ? <TimelineTall {...sp} /> : <TimelineWide {...sp} />;
+};
+
+/** 9:16: the timeline runs down the screen, a dot per event, the year big beside it and the label under the year. */
+const TimelineTall: React.FC<SceneProps> = ({props, speech, duration, cues}) => {
+  const frame = useCurrentFrame();
+  const {fps, width, height} = useVideoConfig();
+  const p = usePalette();
+  const u = useUnit() * 1.4;
+  const events: {year: string; label: string}[] = props.events || [];
+  const n = Math.max(events.length, 1);
+  const zone = uiZone(width, height);
+  const titleH = props.title ? 110 * u : 0;
+  const top = zone.top + titleH + 50 * u;
+  const step = Math.min((zone.bottom - top - 110 * u) / Math.max(n - 1, 1), 240 * u); // the last label clears the captions
+  const x = 120 * u;
+  const axis = progress(frame, speech - 6, speech + 30);
+  return (
+    <AbsoluteFill>
+      {props.title && (
+        <div style={{position: 'absolute', top: zone.top, left: x - 40 * u, right: 30 * u, fontFamily: FONTS.serif, fontWeight: 700, fontSize: 48 * u, color: p.text,
+          lineHeight: 1.1, whiteSpace: 'nowrap', opacity: rise(frame, fps, speech - 8)}}>
+          {props.title}
+        </div>
+      )}
+      <div style={{position: 'absolute', left: x - 2 * u, top, width: 4 * u, height: step * (n - 1) * axis, background: p.muted, opacity: 0.5}} />
+      {events.map((e, i) => {
+        const y = top + step * i;
+        const s = revealAt(i, n, speech + 8, duration, cues, 0.6);
+        const r = rise(frame, fps, s);
+        const hi = props.highlight === i;
+        const pulse = hi ? 1 + 0.12 * Math.sin((frame - s) / 6) * r : 1;
+        const d = (hi ? 40 : 28) * u * pulse;
+        return (
+          <React.Fragment key={i}>
+            <div style={{position: 'absolute', left: x - d / 2, top: y - d / 2, width: d, height: d, borderRadius: '50%', background: hi ? p.accent : p.accent2,
+              border: `${5 * u}px solid ${p.bg1}`, opacity: r}} />
+            <div style={{position: 'absolute', left: x + 50 * u, top: y - 36 * u, right: 40 * u, opacity: r, transform: `translateX(${(1 - r) * 40 * u}px)`}}>
+              <div style={{fontFamily: FONTS.serif, fontWeight: 700, fontSize: (hi ? 64 : 52) * u, color: hi ? p.accent : p.text, lineHeight: 1}}>{e.year}</div>
+              <div style={{marginTop: 10 * u, fontFamily: FONTS.sans, fontWeight: 600, fontSize: 36 * u, color: p.text, opacity: hi ? 1 : 0.8, lineHeight: 1.2}}>{e.label}</div>
+            </div>
+          </React.Fragment>
+        );
+      })}
+    </AbsoluteFill>
+  );
+};
+
+const TimelineWide: React.FC<SceneProps> = ({props, speech, duration, cues}) => {
   const frame = useCurrentFrame();
   const {fps, width} = useVideoConfig();
   const p = usePalette();
