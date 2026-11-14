@@ -1,6 +1,7 @@
 ---
 rubric: study
 date: 2026-11-19
+video: v15-testnotes.mp4
 ---
 <b>Тест з конспекту за 10 хвилин</b>
 
