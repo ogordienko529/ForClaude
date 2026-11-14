@@ -23,6 +23,10 @@ touches that beat.
   "style": "cosmos",                  # cosmos | paper | blocky | neon | clean | comic (see `content_agent styles`)
   "captions": true,                   # burned-in captions from the narration (a beat can set "captions": false)
   "progress_bar": false,              # a thin accent bar at the top that fills over the whole video
+  "countdown": false,                 # shorts: a «⏱ 0:29» pill with the seconds left («Пояснюю за 30 секунд»)
+  "series": "ШІ за 30 · №5",          # shorts: the series plaque right of the countdown, the whole video (<= 24)
+  "handle": "@shi_start_ua",          # shorts: «✈ Telegram · @shi_start_ua» under the top pills, the whole video (<= 24)
+  "comment": "Що відповів твій чат?", # shorts: «💬 … 👇 напиши в коментарях» over the last scene (<= 48)
   "sfx": null,                        # quiet sound effects hooked to the animation (typing, taps, scene changes,
                                       # stickers); default: on for "shorts", off for long-form
   "credits": [{"name": "Superb Warfare", "author": "...", "license": "...", "url": "https://..."}],
@@ -204,6 +208,15 @@ TEMPLATES: dict[str, dict[str, Any]] = {
                "red (click + buzz); `scan`: an agent's beam reads the page on cue 1 and `badge` pops beside the hidden "
                "line; `zoom`: the hidden text pulls out into a big red card over the blurred page; `revealed`: already shown from the first frame.",
     },
+    "tgpost": {
+        "required": {"title": str, "prompt": str},
+        "optional": {"channel": str, "tag": str},
+        "limits": {"title": 60, "prompt": 160, "channel": 24, "tag": 20},
+        "doc": "The call-to-action beat as the channel's own post in a Telegram-like channel view: header (round «Ш І» "
+               "avatar, `channel`, default «ШІ на старті»), a post with a bold `title` and the `prompt` in a monospace "
+               "tap-to-copy block; the post slides up, the prompt types in, a fingertip taps the block on cue 0 (else at "
+               "55 %) with a click and the toast «Скопійовано в буфер обміну», then `tag` (e.g. «#зролика») pulses.",
+    },
     "flashcards": {
         "required": {"cards": list},
         "optional": {"title": str, "tag": str},
@@ -309,9 +322,10 @@ def validate(sb: Storyboard, max_words_per_beat: int = 45, min_words_per_beat: i
                                              f"Use {{\"track\": \"file.mp3\"}} from the music library (music-lib)"))
     if d.get("format", "explainer") not in FORMATS:
         issues.append(Issue("error", None, f"format must be one of {FORMATS}"))
-    for key in ("progress_bar", "sfx"):
+    for key in ("progress_bar", "sfx", "countdown"):
         if d.get(key) is not None and not isinstance(d[key], bool):
             issues.append(Issue("error", None, f"{key} must be true or false"))
+    issues += _check_band(d)
     if d.get("style", "cosmos") not in STYLES:
         issues.append(Issue("error", None, f"style must be one of {tuple(STYLES)}"))
     engine = d.get("voice_engine", "kokoro")
@@ -395,6 +409,28 @@ def validate(sb: Storyboard, max_words_per_beat: int = 45, min_words_per_beat: i
             issues.append(Issue("warning", bid, f"three {tname!r} scenes in a row: vary the visuals"))
     sb.issues = issues
     return issues
+
+
+# Shorts overlays: the top band (series plaque, handle) and the ending sticker; longer text runs into the right rail
+BAND_LIMITS = {"series": 24, "handle": 24, "comment": 48}
+
+
+def _check_band(d: dict) -> list[Issue]:
+    out = []
+    used = [k for k in BAND_LIMITS if d.get(k) is not None]
+    for key in used:
+        v = d[key]
+        if not isinstance(v, str) or not v.strip():
+            out.append(Issue("error", None, f"{key} must be a short text, e.g. {_BAND_EXAMPLES[key]!r}"))
+        elif len(v.strip()) > BAND_LIMITS[key]:
+            out.append(Issue("error", None, f"{key} is {len(v.strip())} characters, at most {BAND_LIMITS[key]} "
+                                            f"(longer text runs under the platform's buttons)"))
+    if (used or d.get("countdown")) and d.get("format", "explainer") != "shorts":
+        out.append(Issue("warning", None, f"{', '.join(used or ['countdown'])}: laid out for 9:16 Shorts only"))
+    return out
+
+
+_BAND_EXAMPLES = {"series": "ШІ за 30 · №5", "handle": "@shi_start_ua", "comment": "Що відповів твій чат?"}
 
 
 def _too_long(text: Any, limit: int) -> bool:
@@ -498,6 +534,18 @@ def _check_limits(bid: str, tname: str, props: dict, limits: dict) -> list[Issue
                 out.append(Issue("warning", bid, f"flashcards: «{c.get('front')}» is long for a card"))
     if tname in ("connect", "loop", "tokens", "context", "webpage"):
         out += _check_explain(bid, tname, props, limits)
+    if tname == "tgpost":
+        if not str(props.get("prompt", "")).strip():
+            out.append(Issue("error", bid, "tgpost: prompt needs the text the post offers to copy"))
+        for key in ("prompt", "channel", "tag"):
+            if _too_long(props.get(key), limits[key]):
+                warn(f"{key} longer than {limits[key]} characters (the post outgrows the screen)")
+        tag = props.get("tag")
+        if isinstance(tag, str) and tag.strip() and not tag.strip().startswith("#"):
+            warn(f"tag {tag!r} is a hashtag: start it with «#»")
+        ch = props.get("channel")
+        if isinstance(ch, str) and any(b in ch.lower() for b in BRAND_NAMES):
+            warn(f"channel {ch!r} is a product name: the post is the channel's own, name the channel")
     if tname == "footage":
         f = props.get("focus", [0.5, 0.5])
         if not (isinstance(f, list) and len(f) == 2 and all(isinstance(v, (int, float)) and 0 <= v <= 1 for v in f)):

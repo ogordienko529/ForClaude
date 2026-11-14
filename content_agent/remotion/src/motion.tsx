@@ -16,6 +16,7 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from 'remotion';
+import {textWidth} from './screen';
 import {usePalette} from './theme';
 
 // the system's colour emoji (Windows, macOS, Linux); a bundled emoji webfont renders blank in headless Chrome
@@ -89,30 +90,153 @@ export const ProgressBar: React.FC<{total: number}> = ({total}) => {
   );
 };
 
+/** Where the top band (countdown, series plaque, handle) starts: below the platforms' top bar (TikTok's LIVE and tabs). */
+export const BAND_TOP = 0.088;
+/** 9:16 with a handle line: how far the scenes move down (fraction of the height) to clear the band's second row. */
+export const BAND_SHIFT = 0.04;
+const BAND_FONT = 'Inter, Arial, sans-serif';
+const PILL_H = 72;
+
+const secondsLeft = (total: number, frame: number, fps: number) => {
+  const left = Math.max(Math.ceil((total - frame) / fps), 0);
+  return `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+};
+
+/** A paper plane (drawn, so it renders without an emoji font): the handle line's Telegram sign. */
+const Plane: React.FC<{size: number; color: string}> = ({size, color}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" style={{flexShrink: 0, display: 'block'}}>
+    <path d="M2.4 11.1 20.3 4.2c.9-.3 1.7.4 1.4 1.4l-3 14c-.2 1-1.3 1.4-2 .8l-4.6-3.4-2.4 2.3c-.3.3-.9.1-.9-.3l.2-3.7 7.6-6.9c.3-.3 0-.5-.4-.3l-9.4 5.9-4-1.3c-.9-.3-.9-1.4-.1-1.7z" fill={color} />
+  </svg>
+);
+
 /**
- * «⏱ 0:29»: the seconds left, in a pill at the top left, below the platforms' top bar (TikTok's LIVE and tabs). It pops in big on the
- * first frames (the promise «за 30 секунд»), settles small, and pulses in the last three seconds.
+ * The band at the top left of a Short, below the platforms' top bar and left of their right-hand buttons:
+ * - countdown: «⏱ 0:29», the seconds left; it pops in big on the first frames (the promise «за 30 секунд»), settles
+ *   small, and pulses red in the last three seconds;
+ * - series: the series plaque «ШІ за 30 · №5» in the accent colour, right of the countdown;
+ * - handle: «✈ Telegram · @handle» on a second row, on screen the whole video.
+ * With a countdown the plaque and the handle slide in once it has settled, so the hook frame stays clean.
  */
-export const Countdown: React.FC<{total: number}> = ({total}) => {
+export const TopBand: React.FC<{total: number; countdown?: boolean; series?: string; handle?: string}> = ({total, countdown, series, handle}) => {
   const frame = useCurrentFrame();
   const {width, height, fps} = useVideoConfig();
   const p = usePalette();
   const u = Math.min(width, height) / 1080;
-  useFontsFor([`700 40px ${MONO_FONT}`, `400 40px ${EMOJI_FONT}`], '⏱0123456789:');
-  const left = Math.max(Math.ceil((total - frame) / fps), 0);
-  const label = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+  const handleText = handle ? `Telegram · ${handle}` : '';
+  useFontsFor([`700 40px ${MONO_FONT}`, `400 40px ${EMOJI_FONT}`, `800 40px ${BAND_FONT}`, `700 40px ${BAND_FONT}`],
+    `⏱0123456789:${series || ''}${handleText}`);
+  const top = height * BAND_TOP;
+  const x0 = 40 * u;
+  const maxRight = width * 0.84; // TikTok's like / comment / share column starts about here
+  const urgent = (total - frame) / fps < 3.2;
+
   const k = spring({frame: frame - 2, fps, config: {damping: 12, stiffness: 180, mass: 0.6}});
   const settle = spring({frame: frame - 40, fps, config: {damping: 16, stiffness: 120}});
   const scale = (0.6 + 0.4 * Math.min(k, 1.1)) * (1.5 - 0.5 * Math.min(settle, 1));
-  const tick = (total - frame) / fps < 3.2 ? 1 + 0.08 * Math.max(Math.sin(((frame % fps) / fps) * Math.PI), 0) : 1;
-  const urgent = (total - frame) / fps < 3.2;
+  const tick = urgent ? 1 + 0.08 * Math.max(Math.sin(((frame % fps) / fps) * Math.PI), 0) : 1;
+  const cdFont = 36 * u;
+  const cdW = countdown ? 2 * 20 * u + 36 * u + 10 * u + textWidth('0:00', 700, cdFont, MONO_FONT) + 6 * u : 0;
+
+  const enter = countdown ? 46 : -PREROLL;
+  const kin = spring({frame: frame - enter, fps, config: {damping: 14, stiffness: 170, mass: 0.6}});
+  const kin2 = spring({frame: frame - enter - 5, fps, config: {damping: 14, stiffness: 170, mass: 0.6}});
+
+  const sx = x0 + (countdown ? cdW + 20 * u : 0);
+  const sPad = 22 * u;
+  let sSize = 34 * u;
+  while (series && sSize > 22 * u && sx + textWidth(series, 800, sSize, BAND_FONT) + 2 * sPad + 6 * u > maxRight) sSize -= u;
+  const hPad = 16 * u;
+  let hSize = 31 * u;
+  while (handle && hSize > 20 * u && x0 + hSize * 1.1 + 10 * u + textWidth(handleText, 700, hSize, BAND_FONT) + 2 * hPad > maxRight) hSize -= u;
+  const seriesText = onColour(p.accent);
+
   return (
-    <div style={{position: 'absolute', left: 40 * u, top: height * 0.088, transformOrigin: 'left top', transform: `scale(${scale * tick})`,
-      opacity: Math.min(k * 2, 1), display: 'flex', alignItems: 'center', gap: 10 * u, padding: `${10 * u}px ${20 * u}px`, borderRadius: 40 * u,
-      background: 'rgba(0,0,0,0.55)', border: `${3 * u}px solid ${urgent ? '#ef3b4f' : p.accent}`, boxShadow: `0 ${6 * u}px ${18 * u}px rgba(0,0,0,0.35)`}}>
-      <span style={{fontFamily: EMOJI_FONT, fontSize: 34 * u, lineHeight: 1}}>⏱</span>
-      <span style={{fontFamily: MONO_FONT, fontWeight: 700, fontSize: 36 * u, color: '#ffffff', letterSpacing: '0.02em'}}>{label}</span>
-    </div>
+    <>
+      {countdown ? (
+        <div style={{position: 'absolute', left: x0, top, height: PILL_H * u, boxSizing: 'border-box', transformOrigin: 'left top',
+          transform: `scale(${scale * tick})`, opacity: Math.min(k * 2, 1), display: 'flex', alignItems: 'center', gap: 10 * u,
+          padding: `0 ${20 * u}px`, borderRadius: 40 * u, background: 'rgba(0,0,0,0.55)', border: `${3 * u}px solid ${urgent ? '#ef3b4f' : p.accent}`,
+          boxShadow: `0 ${6 * u}px ${18 * u}px rgba(0,0,0,0.35)`}}>
+          <span style={{fontFamily: EMOJI_FONT, fontSize: 34 * u, lineHeight: 1}}>⏱</span>
+          <span style={{fontFamily: MONO_FONT, fontWeight: 700, fontSize: cdFont, lineHeight: 1, color: '#ffffff', letterSpacing: '0.02em'}}>
+            {secondsLeft(total, frame, fps)}
+          </span>
+        </div>
+      ) : null}
+      {series ? (
+        <div style={{position: 'absolute', left: sx, top, height: PILL_H * u, boxSizing: 'border-box', display: 'flex', alignItems: 'center',
+          padding: `0 ${sPad}px`, borderRadius: 40 * u, background: p.accent, border: `${3 * u}px solid rgba(255,255,255,0.85)`,
+          boxShadow: `0 ${6 * u}px ${18 * u}px rgba(0,0,0,0.3)`, opacity: Math.min(kin * 2, 1),
+          transform: `translateX(${(1 - Math.min(kin, 1)) * -40 * u}px) scale(${0.85 + 0.15 * kin})`, transformOrigin: 'left center',
+          fontFamily: BAND_FONT, fontWeight: 800, fontSize: sSize, lineHeight: 1, color: seriesText, whiteSpace: 'nowrap'}}>
+          {series}
+        </div>
+      ) : null}
+      {handle ? (
+        <div style={{position: 'absolute', left: x0, top: top + (countdown || series ? (PILL_H + 10) * u : 0), display: 'flex', alignItems: 'center',
+          gap: 10 * u, padding: `${7 * u}px ${hPad}px`, borderRadius: 30 * u, background: 'rgba(0,0,0,0.5)', opacity: Math.min(kin2 * 2, 1),
+          transform: `translateY(${(1 - Math.min(kin2, 1)) * -16 * u}px)`, fontFamily: BAND_FONT, fontWeight: 700, fontSize: hSize, lineHeight: 1.15,
+          color: '#ffffff', whiteSpace: 'nowrap'}}>
+          <Plane size={hSize * 1.1} color="#5fc3f5" />
+          {handleText}
+        </div>
+      ) : null}
+    </>
+  );
+};
+
+/** «⏱ 0:29» alone (the band with only the countdown). */
+export const Countdown: React.FC<{total: number}> = ({total}) => <TopBand total={total} countdown />;
+
+// dark text on a light accent, white on a dark one
+const onColour = (c: string) => {
+  const m = c.replace('#', '').match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i);
+  if (!m) return '#ffffff';
+  const [r, g, b] = m.slice(1).map((h) => parseInt(h, 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.4 ? '#141414' : '#ffffff';
+};
+
+/**
+ * «💬 Що відповів твій чат?» with «👇 напиши в коментарях» under it: a speech-bubble sticker that pops in over the
+ * last scene and stays to the end (the ending task that brings comments). It sits in the middle band, above the
+ * captions and left of the platforms' buttons.
+ */
+export const CommentSticker: React.FC<{text: string; at: number}> = ({text, at}) => {
+  const frame = useCurrentFrame();
+  const {width, height, fps} = useVideoConfig();
+  const p = usePalette();
+  const u = Math.min(width, height) / 1080;
+  const sub = '👇 напиши в коментарях';
+  useFontsFor([`800 40px ${BAND_FONT}`, `600 40px ${BAND_FONT}`, `400 40px ${EMOJI_FONT}`], `💬${text}${sub}`);
+  const maxW = width * 0.8 - 40 * u;
+  const pad = 26 * u;
+  let size = 46 * u;
+  while (size > 30 * u && textWidth(text, 800, size, BAND_FONT) + size * 1.3 > 2 * (maxW - 2 * pad) * 0.92) size -= u;
+  const k = pop(frame, fps, at);
+  const k2 = spring({frame: frame - at - 7, fps, config: {damping: 14, stiffness: 160}});
+  const sway = frame > at ? Math.sin((frame - at) / 13) * 1.2 * Math.min(k, 1) : 0;
+  return (
+    <>
+      {frame >= at ? (
+        <div style={{position: 'absolute', left: 40 * u, bottom: height * 0.372, maxWidth: maxW, boxSizing: 'border-box', padding: `${18 * u}px ${pad}px ${20 * u}px`,
+          borderRadius: 30 * u, background: '#ffffff', color: '#151515', border: `${5 * u}px solid ${p.accent}`,
+          boxShadow: `0 ${14 * u}px ${34 * u}px rgba(0,0,0,0.35)`, transformOrigin: '12% 100%',
+          transform: `scale(${k}) rotate(${-2.5 + (1 - Math.min(k, 1)) * -12 + sway}deg)`, opacity: Math.min(k * 2, 1)}}>
+          <div style={{fontFamily: BAND_FONT, fontWeight: 800, fontSize: size, lineHeight: 1.15}}>
+            <span style={{fontFamily: EMOJI_FONT, fontWeight: 400, marginRight: size * 0.25}}>💬</span>
+            {text}
+          </div>
+          <div style={{marginTop: 8 * u, fontFamily: BAND_FONT, fontWeight: 600, fontSize: 31 * u, lineHeight: 1.1, color: '#4a4a4a',
+            opacity: Math.min(k2 * 2, 1), transform: `translateY(${(1 - Math.min(k2, 1)) * 10 * u}px)`}}>
+            <span style={{fontFamily: EMOJI_FONT, fontWeight: 400}}>👇</span> напиши в коментарях
+          </div>
+          {/* the bubble's tail */}
+          <div style={{position: 'absolute', left: 54 * u, bottom: -16 * u, width: 30 * u, height: 30 * u, background: '#ffffff',
+            borderRight: `${5 * u}px solid ${p.accent}`, borderBottom: `${5 * u}px solid ${p.accent}`, transform: 'rotate(45deg)'}} />
+        </div>
+      ) : null}
+      <Sfx name="pop" at={at} />
+    </>
   );
 };
 

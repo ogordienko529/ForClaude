@@ -25,6 +25,9 @@ export type Timeline = {
   style?: string; // cosmos | paper | blocky | neon | clean | comic (styles.tsx)
   progressBar?: boolean; // a thin accent bar at the top over the whole video
   countdown?: boolean; // a «⏱ 0:29» pill counting down the seconds left («Пояснюю за 30 секунд»)
+  series?: string; // the series plaque «ШІ за 30 · №5» right of the countdown, the whole video
+  handle?: string; // «✈ Telegram · @shi_start_ua» under the top pills, the whole video (scenes move down to clear it)
+  comment?: string; // «💬 Що відповів твій чат? 👇 напиши в коментарях» over the last scene
   sfx?: string; // folder (in the project) with the sound effects of motion.tsx; absent: no sound effects
   scenes: Scene[];
   captions: Caption[];

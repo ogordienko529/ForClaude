@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useMemo} from 'react';
 import {AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig} from 'remotion';
 import {progress, revealAt, rise, stagger} from '../anim';
 import {PREROLL, Sticker, uiZone, useFontsFor} from '../motion';
@@ -7,6 +7,7 @@ import {useStyle} from '../styles';
 import {FONTS, usePalette} from '../theme';
 import type {SceneProps} from '../types';
 import {Kicker} from '../ui';
+import {lineCount} from './chat';
 
 const useUnit = () => {
   const {width, height} = useVideoConfig();
@@ -176,9 +177,32 @@ export const FactCard: React.FC<SceneProps> = ({props, speech, duration}) => {
   const frame = useCurrentFrame();
   const {fps, width, height} = useVideoConfig();
   const p = usePalette();
+  const st = useStyle();
   const text = String(props.text || '');
-  // 9:16: phone-sized text, a little smaller for a long fact so the card stays in the UI band
-  const u = useUnit() * (height > width ? 1.25 * Math.max(1 - Math.max(text.length - 90, 0) / 200, 0.72) : 1);
+  const unit = useUnit();
+  const vertical = height > width;
+  // 9:16: phone-sized text, smaller until the whole card fits the UI band (wide display fonts take more lines)
+  const ready = useFontsFor([`700 60px ${st.fonts.display}`, `800 30px ${st.fonts.body}`], `${text}${props.kicker || ''}`);
+  const u = useMemo(() => {
+    let k = vertical ? 1.25 * Math.max(1 - Math.max(text.length - 90, 0) / 200, 0.72) : 1;
+    if (!vertical) return unit * k;
+    const z = uiZone(width, height);
+    const avail = (z.bottom - z.top) * 0.95;
+    const kicker = String(props.kicker || '').toUpperCase();
+    const fits = (s: number) => {
+      const uu = unit * s;
+      const textW = width - 2 * 56 * uu - 2 * 90 * uu - 8 * uu;
+      let h = 2 * 70 * uu + lineCount(text, 700, 60 * uu, st.fonts.display, textW) * 60 * uu * 1.3;
+      if (kicker) {
+        const w = textWidth(kicker, 800, 26 * uu, st.fonts.body) + 0.22 * 26 * uu * Array.from(kicker).length;
+        h += Math.ceil(w / textW) * 26 * uu * 1.25 + 22 * uu;
+      }
+      if (props.source) h += 30 * uu + lineCount(`— ${props.source}`, 400, 30 * uu, st.fonts.body, textW) * 30 * uu * 1.25;
+      return h <= avail;
+    };
+    while (k > 0.7 && !fits(k)) k -= 0.03;
+    return unit * k;
+  }, [ready, vertical, unit, text, props.kicker, props.source, width, height, st.fonts.display, st.fonts.body]);
   const words = text.split(' ');
   const band = useBand((height > width ? 56 : 160) * u);
   const stickerAt = Math.min(stagger(Math.floor(words.length * 0.7), words.length, speech, duration, 0.6) + 4, Math.max(duration - 24, 0));

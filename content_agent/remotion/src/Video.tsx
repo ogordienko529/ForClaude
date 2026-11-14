@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from 'react';
 import {AbsoluteFill, Audio, continueRender, delayRender, Sequence, staticFile} from 'remotion';
-import {CAPTION_LIFT, CAPTION_TOP, Countdown, Drift, ProgressBar, Sfx, SfxContext} from './motion';
+import {BAND_SHIFT, CAPTION_LIFT, CAPTION_TOP, CommentSticker, Drift, ProgressBar, Sfx, SfxContext, TopBand} from './motion';
 import {Browser} from './templates/browser';
 import {Chat} from './templates/chat';
 import {Connect, Context, Flashcards, Loop, Tokens, Webpage} from './templates/explain';
@@ -10,6 +10,7 @@ import {MapPoint, MapRoute} from './templates/maps';
 import {Phone} from './templates/phone';
 import {Split} from './templates/split';
 import {Terminal} from './templates/terminal';
+import {TgPost} from './templates/tgpost';
 import {FactCard, Kinetic, ListCard, TitleCard} from './templates/text';
 import {STYLES, StyleContext, StyledBackground, StyledCaptions, StyledShell, styleVars} from './styles';
 import type {StyleDef} from './styles';
@@ -40,9 +41,13 @@ export const TEMPLATES: Record<string, React.FC<SceneProps>> = {
   context: Context,
   webpage: Webpage,
   flashcards: Flashcards,
+  tgpost: TgPost,
 };
 
 const SHORTS_SAFE: React.CSSProperties = {transform: 'scale(0.9)', transformOrigin: '0% 12%'};
+// with a handle line the top band has two rows: the scenes move down to clear it (and still end above the captions)
+const shortsSafe = (t: TimelineData): React.CSSProperties =>
+  t.handle ? {...SHORTS_SAFE, transform: `translateY(${t.height * BAND_SHIFT}px) scale(0.9)`} : SHORTS_SAFE;
 
 // footage moves on its own (and a drift would show the edge of the clip)
 const NO_DRIFT = new Set(['footage']);
@@ -91,7 +96,7 @@ export const Video: React.FC<TimelineData> = (t) => {
                   <StyledShell duration={s.durationInFrames} transition={s.transition} intro={i > 0}>
                     {/* 9:16: the scene sits 10 % smaller and off the right edge, clear of the like/comment/share
                         column TikTok, Reels and Shorts draw on the right */}
-                    <AbsoluteFill style={t.format === 'shorts' ? SHORTS_SAFE : undefined}>
+                    <AbsoluteFill style={t.format === 'shorts' ? shortsSafe(t) : undefined}>
                       {NO_DRIFT.has(s.template) ? body : <Drift seed={s.id} duration={s.durationInFrames}>{body}</Drift>}
                     </AbsoluteFill>
                   </StyledShell>
@@ -107,7 +112,13 @@ export const Video: React.FC<TimelineData> = (t) => {
             {/* 9:16 keeps the captions above the platform's title and buttons; reviews lift them above the hotbar */}
             {t.showCaptions && <StyledCaptions captions={t.captions} lift={CAPTION_LIFT[t.format] ?? 0.06} top={CAPTION_TOP[t.format]} />}
             {t.progressBar ? <ProgressBar total={t.durationInFrames} /> : null}
-            {t.countdown ? <Countdown total={t.durationInFrames} /> : null}
+            {/* the ending task over the last scene: «💬 Що відповів твій чат?» */}
+            {t.comment && t.scenes.length ? (
+              <CommentSticker text={t.comment} at={t.scenes[t.scenes.length - 1].from + Math.round(0.35 * t.fps)} />
+            ) : null}
+            {t.countdown || t.series || t.handle ? (
+              <TopBand total={t.durationInFrames} countdown={t.countdown} series={t.series} handle={t.handle} />
+            ) : null}
             {t.audio ? <Audio src={staticFile(t.audio)} /> : null}
           </AbsoluteFill>
         </SfxContext.Provider>
