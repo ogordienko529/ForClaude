@@ -603,7 +603,8 @@ export const Flashcards: React.FC<SceneProps> = ({props, duration, speech, cues}
   const flipAt = cards.map((_, i) => cueAt(cues, i, start + i * per + per * 0.25));
   const tapAt = flipAt.map((f, i) => Math.min(f + Math.max(per * 0.38, 10), (flipAt[i + 1] ?? duration) - 8));
   const outAt = tapAt.map((t) => t + 6);
-  const cur = Math.max(0, cards.findIndex((_, i) => frame < (outAt[i] ?? 1e9) + 8));
+  const next = cards.findIndex((_, i) => i < n - 1 && frame < outAt[i] + 8);
+  const cur = next === -1 ? n - 1 : next; // the last card stays, showing its translation
   const known = tapAt.filter((t) => frame >= t).length;
 
   const winW = width - 120 * u;
@@ -623,7 +624,7 @@ export const Flashcards: React.FC<SceneProps> = ({props, duration, speech, cues}
 
   const c = cards[cur] || {front: '', back: ''};
   const flip = progress(frame, flipAt[cur] ?? 1e9, (flipAt[cur] ?? 1e9) + 9);
-  const away = progress(frame, outAt[cur] ?? 1e9, (outAt[cur] ?? 1e9) + 8);
+  const away = cur < n - 1 ? progress(frame, outAt[cur], outAt[cur] + 8) : 0;
   const enter = cur > 0 ? progress(frame, outAt[cur - 1] + 4, outAt[cur - 1] + 14) : 1;
   const faceBack = flip > 0.5;
   const tapK = tapAt[cur] !== undefined ? interpolate(frame, [tapAt[cur] - 10, tapAt[cur], tapAt[cur] + 6], [0, 1, 0.6], CLAMP) : 0;
