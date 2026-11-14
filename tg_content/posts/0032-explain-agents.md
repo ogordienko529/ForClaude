@@ -19,4 +19,4 @@ date: 2026-11-14
 
 <a href="https://www.anthropic.com/engineering/building-effective-agents">Anthropic про агентів</a> · <a href="https://code.claude.com/docs/en/overview">Claude Code</a>
 
-#простослова
+#простослова #зролика

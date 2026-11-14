@@ -19,4 +19,4 @@ date: 2026-11-13
 
 <a href="https://support.claude.com/en/articles/11176164-use-connectors-to-extend-claude-s-capabilities">Інструкція Claude</a> · <a href="https://www.anthropic.com/news/model-context-protocol">Про MCP</a>
 
-#простослова
+#простослова #зролика

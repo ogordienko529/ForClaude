@@ -71,9 +71,13 @@ its link), 2 `study`, 2 short posts, 1 `tool`, 1 `quiz` (or a two-reaction vote)
 the same rubric in a row. Once a week end a post with a two-reaction vote («❤️ — вже пробував, 👀 — ще ні»); promise
 nothing.
 
-**With a video:** a Short that says «більше — у телеграм-каналі» on a new topic gets its post the same day: an
-`explain` (or `prompt`) post with `date:` set to the day the video goes up, so it leads the morning slot. The
-videos' scripts live in `tg_content/videos/<slug>/voice.json`.
+**With a video:** a Short that says «більше — у телеграм-каналі» gets its post the same day, with the video
+itself attached (`video:`) and `date:` set to the day the video goes up, so it leads the morning slot (a second
+post dated the same day takes the evening slot). The caption delivers what the video promised — the prompt in
+`<pre>` — in at most 600 characters: the video already explained the idea. It ends with the rubric's hashtag and
+`#зролика`; the pinned post (0010) sends viewers from TikTok to that hashtag. The videos' scripts live in
+`tg_content/videos/<slug>/voice.json`. Video topics come from the reader's pains first (сесія, НМТ, курсова,
+детектори ШІ, резюме, співбесіда), explainers second.
 
 ## Clear first (the owner's verdict on the first posts: «дуже важко зрозуміти»)
 
@@ -122,7 +126,7 @@ rubric: study
   `<pre>`/`<code>`. Write `&lt; &gt; &amp;` for a literal `< > &`.
 - At most 1000 visible characters (myth: 600). Emoji: at most 3 per post.
 - No links except official sources and the channel's own posts. No «підписуйся», no other channels, no ads.
-- End with the rubric's one hashtag.
+- End with the rubric's one hashtag (a post with a video: the rubric's hashtag and `#зролика`).
 
 **Quiz** (a Telegram quiz poll; no text below the header):
 

@@ -1,16 +1,16 @@
 <!doctype html><html><head><meta charset="utf-8"><style>
+/* The channel's photo (640×640, Telegram crops it to a circle). «Ш» and «І» in two colours with a clear gap, so
+   the mark still reads «ШІ» at 40 px in a chat list; the lime line under them is the start line («на старті»). */
 html,body{margin:0;padding:0}
-.v{width:640px;height:640px;position:relative;overflow:hidden;font-family:'Inter';display:flex;align-items:center;justify-content:center;
- background:radial-gradient(circle at 30% 25%,#1d2b5a 0%,#0c1230 55%,#070a1c 100%);}
-.glow{position:absolute;inset:60px;border-radius:50%;background:radial-gradient(circle,rgba(198,244,50,.16),rgba(198,244,50,0) 65%)}
-.row{position:relative;display:flex;align-items:flex-start;gap:4px;margin-top:10px;margin-left:-6px}
-.t{font-weight:900;font-size:270px;letter-spacing:-8px;color:#c6f432;line-height:.74}
-.arr{width:104px;height:104px;margin-top:-30px}
+.v{width:640px;height:640px;position:relative;overflow:hidden;font-family:'Inter';display:flex;flex-direction:column;
+ align-items:center;justify-content:center;background:radial-gradient(circle at 32% 24%,#22337a 0%,#0e1640 55%,#070a1c 100%)}
+.row{display:flex;align-items:flex-end;gap:46px;margin-top:-6px}
+.t{font-weight:900;font-size:300px;line-height:.74;letter-spacing:0}
+.sh{color:#c6f432}
+.i{color:#ffffff}
+.line{display:flex;gap:26px;margin-top:56px}
+.line b{display:block;height:34px;border-radius:17px}
 </style></head><body><div class="v" id="v">
-<div class="glow"></div>
-<div class="row"><div class="t">ШІ</div>
-<svg class="arr" viewBox="0 0 100 100">
- <path d="M22 78 L74 26" stroke="#4fb3ff" stroke-width="16" stroke-linecap="round"/>
- <path d="M40 22 L78 22 L78 60" fill="none" stroke="#4fb3ff" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
-</svg></div>
+<div class="row"><div class="t sh">Ш</div><div class="t i">І</div></div>
+<div class="line"><b style="width:34px;background:#4fb3ff"></b><b style="width:320px;background:#c6f432"></b></div>
 </div></body></html>
