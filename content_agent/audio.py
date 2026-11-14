@@ -37,7 +37,7 @@ class VoicePacing:
 
 FORMAT_PACING = {
     "explainer": VoicePacing(),
-    "shorts": VoicePacing(speed=1.02, sentence_pause=0.22, beat_pause=0.15, lead_in=0.1, tail=0.8),
+    "shorts": VoicePacing(speed=1.02, sentence_pause=0.22, beat_pause=0.12, lead_in=0.1, tail=0.6),
     "sleep": VoicePacing(speed=0.86, sentence_pause=0.9, beat_pause=2.0, lead_in=2.0, tail=6.0, target_level_db=-23),
     # mod reviews / gameplay commentary: livelier than a documentary
     "review": VoicePacing(speed=1.0, sentence_pause=0.28, beat_pause=0.35, jitter=0.1, lead_in=0.4, tail=1.4),

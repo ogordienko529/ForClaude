@@ -192,3 +192,15 @@ def test_a_per_beat_file_keeps_its_soft_last_syllable(tmp_path):
     info = assemble_recording(beats, {}, tmp_path, tmp_path / "voice.wav", sr=sr, log=lambda m: None)
     kept = info["beats"][0]["source"]["end"] - info["beats"][0]["source"]["start"]
     assert kept >= 1.5 - 0.02                                             # the loud second and the soft half
+
+
+def test_voice_tempo_reads_quicker_and_keeps_length_ratio():
+    import numpy as np
+
+    from content_agent.recording import SR, tempo
+
+    t = np.arange(int(SR * 2.0)) / SR
+    y = (0.3 * np.sin(2 * np.pi * 220 * t)).astype(np.float32)
+    fast = tempo(y, SR, 1.25)
+    assert abs(fast.size / SR - 2.0 / 1.25) < 0.05
+    assert tempo(y, SR, 1.0) is y

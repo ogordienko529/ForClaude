@@ -310,6 +310,9 @@ def validate(sb: Storyboard, max_words_per_beat: int = 45, min_words_per_beat: i
     elif engine == "elevenlabs" and not str(d.get("voice", "")).strip():
         issues.append(Issue("error", None, "voice_engine elevenlabs needs `voice` set to an ElevenLabs voice_id"))
     elif engine == "recording":
+        vt = d.get("voice_tempo", 1.0)
+        if not isinstance(vt, (int, float)) or not 0.8 <= vt <= 1.3:
+            issues.append(Issue("error", None, "voice_tempo must be 0.8-1.3 (1.1 reads 10 % quicker, pitch kept)"))
         rec = d.get("voice_recording")
         per_beat = all(b.get("audio") for b in d["beats"])
         if not rec and not per_beat:

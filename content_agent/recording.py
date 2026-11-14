@@ -44,6 +44,22 @@ def decode(path: Path, sr: int = SR) -> np.ndarray:
     return _decode(path, sr=sr, channels=1)
 
 
+def tempo(y: np.ndarray, sr: int, factor: float) -> np.ndarray:
+    """The same speech `factor` times faster, pitch kept (ffmpeg atempo): a quicker read without re-voicing."""
+    if abs(factor - 1.0) < 1e-3 or y.size == 0:
+        return y
+    import subprocess
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        src, dst = Path(tmp) / "in.wav", Path(tmp) / "out.wav"
+        sf.write(src, y, sr, subtype="FLOAT")
+        subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(src), "-filter:a",
+                        f"atempo={factor:.4f}", "-ar", str(sr), "-ac", "1", str(dst)], check=True)
+        out, _ = sf.read(dst, dtype="float32")
+    return out.astype(np.float32)
+
+
 # ---------------------------------------------------------------- segments
 def envelope_db(y: np.ndarray, sr: int, frame_s: float = FRAME_S) -> np.ndarray:
     n = max(int(sr * frame_s), 1)
@@ -242,11 +258,12 @@ def assemble_recording(beats: list[dict], storyboard: dict, project: Path, out_w
                 z = z[int(segs_i[0][0] * sr):min(int(segs_i[-1][1] * sr), z.size)]
             sources[i] = (z, {"file": a, "start": 0.0, "end": round(len(z) / sr, 3)})
 
+    speed = float(storyboard.get("voice_tempo", 1.0))  # e.g. 1.1: the read 10 % quicker, pitch kept
     chunks: list[np.ndarray] = [np.zeros(int(sr * p.lead_in), dtype=np.float32)]
     t = p.lead_in
     timing = []
     for i, (beat, (audio, src)) in enumerate(zip(beats, sources)):
-        audio = clean(audio, sr, p.target_level_db)
+        audio = clean(tempo(audio, sr, speed), sr, p.target_level_db)
         start = t
         chunks.append(audio)
         t += audio.size / sr
@@ -254,7 +271,7 @@ def assemble_recording(beats: list[dict], storyboard: dict, project: Path, out_w
         gap = (p.tail if i == len(beats) - 1 else p.beat_pause) * (1 + rng.uniform(-p.jitter, p.jitter))
         chunks.append(np.zeros(int(sr * gap), dtype=np.float32))
         t += gap
-        exp = expected_seconds(beat["narration"])
+        exp = expected_seconds(beat["narration"]) / speed
         flag = "" if 0.5 <= (audio.size / sr) / max(exp, 0.1) <= 2.0 else "  <- length differs from the text, check"
         log(f"  line {i + 1}/{len(beats)} {beat['id']}: {audio.size / sr:.1f}s{flag}")
     out_wav.parent.mkdir(parents=True, exist_ok=True)
