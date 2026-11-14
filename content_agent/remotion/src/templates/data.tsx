@@ -1,3 +1,4 @@
+import {uiZone} from '../motion';
 import React from 'react';
 import {AbsoluteFill, useCurrentFrame, useVideoConfig} from 'remotion';
 import {firstCue, progress, revealAt, rise} from '../anim';
@@ -113,13 +114,18 @@ export const Comparison: React.FC<SceneProps> = ({props, speech, duration, cues}
 
 export const Bars: React.FC<SceneProps> = ({props, speech, duration, cues}) => {
   const frame = useCurrentFrame();
-  const {fps} = useVideoConfig();
+  const {fps, width, height} = useVideoConfig();
   const p = usePalette();
   const u = useUnit();
   const items: {label: string; value: number}[] = props.items || [];
   const max = Math.max(...items.map((it) => it.value), 1);
+  // 9:16: a narrower side padding and bars that leave room for the label and the value on one line
+  const portrait = height > width;
+  const pad = (portrait ? 70 : 200) * u;
+  const barMax = Math.min(1000 * u, width - 2 * pad - 330 * u - 170 * u);
+  const zone = uiZone(width, height);
   return (
-    <AbsoluteFill style={{justifyContent: 'center', padding: `0 ${200 * u}px`}}>
+    <AbsoluteFill style={{justifyContent: 'center', padding: `0 ${pad}px`, ...(portrait ? {top: zone.top, height: zone.bottom - zone.top} : {})}}>
       {props.title && (
         <div style={{fontFamily: FONTS.serif, fontWeight: 700, fontSize: 70 * u, color: p.text, marginBottom: 50 * u, opacity: rise(frame, fps, speech - 8)}}>
           {props.title}
@@ -133,8 +139,8 @@ export const Bars: React.FC<SceneProps> = ({props, speech, duration, cues}) => {
             <div style={{width: 330 * u, fontFamily: FONTS.sans, fontWeight: 600, fontSize: 38 * u, color: p.text, opacity: rise(frame, fps, s - 6)}}>
               {it.label}
             </div>
-            <div style={{height: 52 * u, width: (1000 * u * it.value * g) / max, background: i === 0 ? p.accent : p.accent2, borderRadius: 8 * u}} />
-            <div style={{marginLeft: 20 * u, fontFamily: FONTS.sans, fontWeight: 800, fontSize: 38 * u, color: p.muted, opacity: g}}>
+            <div style={{height: 52 * u, width: Math.max((barMax * it.value * g) / max, 6 * u), background: i === 0 ? p.accent : p.accent2, borderRadius: 8 * u}} />
+            <div style={{marginLeft: 20 * u, fontFamily: FONTS.sans, fontWeight: 800, fontSize: 38 * u, color: p.muted, opacity: g, whiteSpace: 'nowrap'}}>
               {fmt(it.value * g, Number.isInteger(it.value) ? 0 : 1)}
               {props.unit ? ` ${props.unit}` : ''}
             </div>

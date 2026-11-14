@@ -3,7 +3,7 @@ import {AbsoluteFill, Audio, continueRender, delayRender, Sequence, staticFile} 
 import {CAPTION_LIFT, CAPTION_TOP, Countdown, Drift, ProgressBar, Sfx, SfxContext} from './motion';
 import {Browser} from './templates/browser';
 import {Chat} from './templates/chat';
-import {Connect, Context, Loop, Tokens, Webpage} from './templates/explain';
+import {Connect, Context, Flashcards, Loop, Tokens, Webpage} from './templates/explain';
 import {Bars, Comparison, Stat, Timeline} from './templates/data';
 import {Footage, Verdict} from './templates/footage';
 import {MapPoint, MapRoute} from './templates/maps';
@@ -39,6 +39,7 @@ export const TEMPLATES: Record<string, React.FC<SceneProps>> = {
   tokens: Tokens,
   context: Context,
   webpage: Webpage,
+  flashcards: Flashcards,
 };
 
 // footage moves on its own (and a drift would show the edge of the clip)

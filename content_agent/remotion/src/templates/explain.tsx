@@ -579,3 +579,109 @@ export const Webpage: React.FC<SceneProps> = ({props, duration, speech, cues}) =
   );
 };
 
+
+// ------------------------------------------------------------------ flashcards
+type Card = {front: string; back: string};
+
+/**
+ * A little flashcard app, the kind Claude builds in a chat (an artifact): a window with a title, a card that
+ * flips from the word to its translation, a fingertip on «✅ Знаю», the score going up, the next card sliding in.
+ * Card i flips on cue i (else the cards share the scene evenly).
+ */
+export const Flashcards: React.FC<SceneProps> = ({props, duration, speech, cues}) => {
+  const {frame, width, fps, p, st, u, zone, dark} = useScene();
+  const cards: Card[] = (props.cards || []).slice(0, 6).map((c: any) => ({front: String(c.front ?? ''), back: String(c.back ?? '')}));
+  const n = Math.max(cards.length, 1);
+  const title = String(props.title || 'Тренажер слів');
+  const tag = props.tag ? String(props.tag) : '';
+  const all = [title, tag, ...cards.flatMap((c) => [c.front, c.back]), 'Знаю Ще раз 0123456789'].join(' ');
+  const family = chatFamily(st.fonts.body, all);
+  useFontsFor([`800 40px ${family}`, `600 40px ${family}`, `400 40px ${EMOJI_FONT}`], all + '✅🔁⚡👆');
+
+  const start = Math.max(Math.min(speech, 8), 0);
+  const per = Math.max((duration - start - 6) / n, 22);
+  const flipAt = cards.map((_, i) => cueAt(cues, i, start + i * per + per * 0.25));
+  const tapAt = flipAt.map((f, i) => Math.min(f + Math.max(per * 0.38, 10), (flipAt[i + 1] ?? duration) - 8));
+  const outAt = tapAt.map((t) => t + 6);
+  const cur = Math.max(0, cards.findIndex((_, i) => frame < (outAt[i] ?? 1e9) + 8));
+  const known = tapAt.filter((t) => frame >= t).length;
+
+  const winW = width - 120 * u;
+  const winX = (width - winW) / 2;
+  const winY = zone.top + 10 * u;
+  const barH = 92 * u;
+  const cardW = winW - 120 * u;
+  const cardH = (zone.bottom - zone.top) * 0.42;
+  const winH = barH + 70 * u + cardH + 54 * u + 104 * u + 56 * u; // fits the card and the buttons
+  const cardX = winX + (winW - cardW) / 2;
+  const cardY = winY + barH + 70 * u;
+  const btnY = cardY + cardH + 54 * u;
+  const btnW = (cardW - 30 * u) / 2;
+  const btnH = 104 * u;
+  const winBg = dark ? mix(p.bg2, p.text, 0.06) : '#ffffff';
+  const inK = rise(frame, fps, -PREROLL, 16);
+
+  const c = cards[cur] || {front: '', back: ''};
+  const flip = progress(frame, flipAt[cur] ?? 1e9, (flipAt[cur] ?? 1e9) + 9);
+  const away = progress(frame, outAt[cur] ?? 1e9, (outAt[cur] ?? 1e9) + 8);
+  const enter = cur > 0 ? progress(frame, outAt[cur - 1] + 4, outAt[cur - 1] + 14) : 1;
+  const faceBack = flip > 0.5;
+  const tapK = tapAt[cur] !== undefined ? interpolate(frame, [tapAt[cur] - 10, tapAt[cur], tapAt[cur] + 6], [0, 1, 0.6], CLAMP) : 0;
+  const pressed = tapAt[cur] !== undefined && frame >= tapAt[cur] && frame < tapAt[cur] + 6;
+  const scorePop = known && tapAt[known - 1] !== undefined ? pop(frame, fps, tapAt[known - 1]) : 1;
+
+  return (
+    <AbsoluteFill>
+      <div style={{position: 'absolute', left: winX, top: winY, width: winW, height: winH, borderRadius: 30 * u, background: winBg, overflow: 'hidden',
+        boxShadow: `0 ${20 * u}px ${60 * u}px rgba(0,0,0,${dark ? 0.5 : 0.18})`, opacity: Math.min(inK * 1.4, 1),
+        transform: `translateY(${(1 - Math.min(inK, 1)) * 60 * u}px)`}}>
+        <div style={{height: barH, display: 'flex', alignItems: 'center', gap: 16 * u, padding: `0 ${30 * u}px`, borderBottom: `1px solid ${alpha(p.text, 0.1)}`}}>
+          <span style={{fontFamily: EMOJI_FONT, fontSize: 40 * u}}>⚡</span>
+          <span style={{fontFamily: family, fontWeight: 800, fontSize: 38 * u, color: p.text, flex: 1}}>{title}</span>
+          {tag ? <span style={{fontFamily: family, fontWeight: 800, fontSize: 24 * u, color: p.accent, padding: `${6 * u}px ${14 * u}px`, borderRadius: 12 * u,
+            background: alpha(p.accent, 0.14), letterSpacing: '0.06em', textTransform: 'uppercase'}}>{tag}</span> : null}
+          <span style={{fontFamily: family, fontWeight: 800, fontSize: 34 * u, color: GREEN, transform: `scale(${scorePop})`, display: 'inline-block'}}>
+            ✅ {known}/{n}
+          </span>
+        </div>
+      </div>
+      {/* the card: front (the word) flips to the back (the translation) */}
+      <div style={{position: 'absolute', left: cardX, top: cardY, width: cardW, height: cardH, perspective: 1600 * u,
+        transform: `translateX(${(-away * 1.2 + (1 - enter) * 1.2) * width}px) rotate(${-away * 8}deg)`, opacity: Math.min(inK * 1.4, 1)}}>
+        <div style={{position: 'absolute', inset: 0, borderRadius: 28 * u, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18 * u,
+          background: faceBack ? mix(winBg, GREEN, dark ? 0.22 : 0.12) : mix(winBg, p.accent, dark ? 0.2 : 0.1),
+          border: `${5 * u}px solid ${faceBack ? GREEN : p.accent}`, transform: `rotateY(${flip * 180 - (faceBack ? 180 : 0)}deg)`,
+          boxShadow: `0 ${14 * u}px ${30 * u}px rgba(0,0,0,0.18)`}}>
+          <div style={{fontFamily: family, fontWeight: 800, fontSize: 30 * u, color: p.muted, letterSpacing: '0.1em', textTransform: 'uppercase'}}>
+            {faceBack ? 'переклад' : 'слово'}
+          </div>
+          <div style={{fontFamily: st.fonts.display, fontWeight: 800, fontSize: 104 * u, color: p.text, textAlign: 'center', lineHeight: 1.05, padding: `0 ${30 * u}px`}}>
+            {faceBack ? c.back : c.front}
+          </div>
+        </div>
+      </div>
+      {/* the two answer buttons */}
+      {[0, 1].map((b) => {
+        const good = b === 1;
+        const x = cardX + b * (btnW + 30 * u);
+        return (
+          <div key={b} style={{position: 'absolute', left: x, top: btnY, width: btnW, height: btnH, borderRadius: 24 * u, display: 'flex', alignItems: 'center',
+            justifyContent: 'center', gap: 12 * u, background: good ? (pressed ? mix(GREEN, '#000000', 0.15) : GREEN) : alpha(p.text, 0.08),
+            color: good ? '#ffffff' : p.text, fontFamily: family, fontWeight: 800, fontSize: 40 * u, opacity: Math.min(inK * 1.4, 1),
+            transform: `scale(${good && pressed ? 0.95 : 1})`}}>
+            <span style={{fontFamily: EMOJI_FONT}}>{good ? '✅' : '🔁'}</span>{good ? 'Знаю' : 'Ще раз'}
+          </div>
+        );
+      })}
+      {/* the fingertip that taps «Знаю» */}
+      {tapK > 0 ? (
+        <div style={{position: 'absolute', left: cardX + btnW * 1.5 + 30 * u - 36 * u, top: btnY + btnH * 0.55 + (1 - tapK) * 140 * u, fontFamily: EMOJI_FONT,
+          fontSize: 92 * u, opacity: Math.min(tapK * 2, 1), filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.35))'}}>👆</div>
+      ) : null}
+      {flipAt.map((f, i) => <Sfx key={`f${i}`} name="pop" at={f} gain={0.9} />)}
+      {tapAt.map((t, i) => <Sfx key={`t${i}`} name="click" at={t} gain={1.2} />)}
+      {tapAt.map((t, i) => <Sfx key={`d${i}`} name="ding" at={t + 2} gain={0.6} />)}
+      {outAt.map((o, i) => (i < n - 1 ? <Sfx key={`w${i}`} name="whoosh" at={o} gain={0.6} /> : null))}
+    </AbsoluteFill>
+  );
+};

@@ -85,6 +85,16 @@ export const PALETTES: Record<string, Palette> = {
     bg1: '#0b0a0c', bg2: '#1e0c10', text: '#fff4f4', muted: '#b39b9e', accent: '#ff2d4a', accent2: '#ffe14a',
     land: '#251015', landStroke: '#3d1a21', grid: 'rgba(255,45,74,0.06)', panel: 'rgba(255,255,255,0.06)',
   },
+  // a warm sunset gradient: coral to violet, white type, a yellow key word
+  sunset: {
+    bg1: '#ff6b4a', bg2: '#6b3df0', text: '#ffffff', muted: '#ffe2d6', accent: '#ffe14d', accent2: '#ff3d7f',
+    land: '#ff8a6a', landStroke: '#ffb39c', grid: 'rgba(255,255,255,0.08)', panel: 'rgba(255,255,255,0.14)',
+  },
+  // a newspaper page: off-white, black type, one red
+  editorial: {
+    bg1: '#f4f1ea', bg2: '#ffffff', text: '#141414', muted: '#6b6b6b', accent: '#e63312', accent2: '#141414',
+    land: '#e8e3d8', landStroke: '#cfc8b8', grid: 'rgba(0,0,0,0.07)', panel: 'rgba(0,0,0,0.045)',
+  },
   // bright orange: dark text, navy highlights; for Shorts that should not look like the dark ones
   ember: {
     bg1: '#ff6a13', bg2: '#ff9a3c', text: '#1b1206', muted: '#5e3412', accent: '#14213d', accent2: '#ffffff',

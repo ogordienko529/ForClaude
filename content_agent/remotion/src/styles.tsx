@@ -9,8 +9,8 @@ import type {Palette} from './theme';
 import {PALETTES} from './theme';
 import type {Caption} from './types';
 
-export type BackgroundKind = 'stars' | 'paper' | 'voxel' | 'synth' | 'clean' | 'halftone' | 'circuit' | 'crt' | 'blobs' | 'notebook' | 'alert';
-export type CaptionKind = 'pill' | 'typewriter' | 'tooltip' | 'karaoke' | 'bold' | 'comic' | 'glow' | 'prompt' | 'chips' | 'marker' | 'stamp';
+export type BackgroundKind = 'stars' | 'paper' | 'voxel' | 'synth' | 'clean' | 'halftone' | 'circuit' | 'crt' | 'blobs' | 'notebook' | 'alert' | 'sunset' | 'editorial';
+export type CaptionKind = 'pill' | 'typewriter' | 'tooltip' | 'karaoke' | 'bold' | 'comic' | 'glow' | 'prompt' | 'chips' | 'marker' | 'stamp' | 'box';
 export type LabelKind = 'bar' | 'ink' | 'toast' | 'neon' | 'tag' | 'bubble';
 export type TransitionKind = 'fadePush' | 'wipe' | 'pixel' | 'glitch' | 'slide' | 'zoomBurst' | 'cut';
 
@@ -120,6 +120,20 @@ export const STYLES: Record<string, StyleDef> = {
     fonts: {display: 'Oswald, Arial Narrow, sans-serif', body: 'Inter, Arial, sans-serif', caption: 'Oswald, Arial Narrow, sans-serif', impact: 'Oswald, Arial Narrow, sans-serif'},
     fontLoads: ['700 80px Oswald', '600 40px Oswald', '600 40px Inter', '800 40px Inter'],
     background: 'alert', caption: 'stamp', label: 'tag', transition: 'glitch', radius: 4,
+  },
+  // a warm coral-to-violet gradient, wide Unbounded, captions in a white box (TikTok-style), slides
+  sunset: {
+    name: 'sunset', palette: P.sunset,
+    fonts: {display: 'Unbounded, Arial, sans-serif', body: 'Manrope, Inter, Arial, sans-serif', caption: 'Manrope, Inter, Arial, sans-serif', impact: 'Unbounded, Arial, sans-serif'},
+    fontLoads: ['800 80px Unbounded', '700 40px Unbounded', '600 40px Manrope', '800 40px Manrope'],
+    background: 'sunset', caption: 'box', label: 'tag', transition: 'slide', radius: 24,
+  },
+  // a newspaper page: serif Playfair headlines, black caption boxes with a red key word, column rules, wipes
+  editorial: {
+    name: 'editorial', palette: P.editorial,
+    fonts: {display: '"Playfair Display", Georgia, serif', body: 'Manrope, Inter, Arial, sans-serif', caption: 'Manrope, Inter, Arial, sans-serif', impact: '"Playfair Display", Georgia, serif'},
+    fontLoads: ['700 80px "Playfair Display"', '600 40px Manrope', '800 40px Manrope'],
+    background: 'editorial', caption: 'box', label: 'ink', transition: 'wipe', radius: 4,
   },
   comic: {
     name: 'comic',
@@ -387,6 +401,40 @@ const Alert: React.FC<{p: Palette}> = ({p}) => {
   );
 };
 
+/** A slowly shifting coral-pink-violet gradient with a soft glowing sun and grain. */
+const Sunset: React.FC<{p: Palette}> = ({p}) => {
+  const frame = useCurrentFrame();
+  const {width, height} = useVideoConfig();
+  const tile = useNoiseTile('sunset', 0.05);
+  const a = 160 + 12 * Math.sin(frame / 120);
+  const sy = height * (0.3 + 0.04 * Math.sin(frame / 90));
+  return (
+    <AbsoluteFill style={{background: `linear-gradient(${a}deg, ${p.bg1} 0%, #ff3d7f 48%, ${p.bg2} 100%)`, overflow: 'hidden'}}>
+      <div style={{position: 'absolute', left: width * 0.5 - width * 0.45, top: sy - width * 0.45, width: width * 0.9, height: width * 0.9,
+        borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,225,77,0.55) 0%, rgba(255,225,77,0) 65%)', filter: 'blur(20px)'}} />
+      <AbsoluteFill style={{backgroundImage: `url(${tile})`, mixBlendMode: 'overlay', opacity: 0.6}} />
+    </AbsoluteFill>
+  );
+};
+
+/** A newspaper page: off-white with grain, thin column rules, a double rule at the top and a faint red disc. */
+const Editorial: React.FC<{p: Palette}> = ({p}) => {
+  const frame = useCurrentFrame();
+  const {width, height} = useVideoConfig();
+  const tile = useNoiseTile('editorial', 0.05);
+  const cols = [0.08, 0.36, 0.64, 0.92];
+  return (
+    <AbsoluteFill style={{background: p.bg1, overflow: 'hidden'}}>
+      <div style={{position: 'absolute', right: -width * 0.25, top: height * (0.55 + 0.02 * Math.sin(frame / 100)), width: width * 0.8,
+        height: width * 0.8, borderRadius: '50%', background: p.accent, opacity: 0.07}} />
+      {cols.map((c) => <div key={c} style={{position: 'absolute', top: 0, bottom: 0, left: width * c, width: 1, background: p.grid}} />)}
+      <div style={{position: 'absolute', left: width * 0.05, right: width * 0.05, top: height * 0.082, height: 6, borderTop: `3px solid ${p.text}`,
+        borderBottom: `1px solid ${p.text}`, opacity: 0.7}} />
+      <AbsoluteFill style={{backgroundImage: `url(${tile})`, mixBlendMode: 'multiply', opacity: 0.7}} />
+    </AbsoluteFill>
+  );
+};
+
 export const StyledBackground: React.FC = () => {
   const st = useStyle();
   const p = st.palette;
@@ -401,6 +449,8 @@ export const StyledBackground: React.FC = () => {
     case 'blobs': return <Blobs p={p} />;
     case 'notebook': return <Notebook p={p} />;
     case 'alert': return <Alert p={p} />;
+    case 'sunset': return <Sunset p={p} />;
+    case 'editorial': return <Editorial p={p} />;
     default: return <Stars p={p} />;
   }
 };
@@ -542,6 +592,7 @@ export const StyledCaptions: React.FC<{captions: Caption[]; lift?: number; top?:
     case 'prompt':
     case 'chips':
     case 'marker':
+    case 'box':
     case 'stamp': {
       // two or three words at a time (a quoted name stays whole); the spoken word stands out
       const ws = wordTimes(cap);
@@ -604,6 +655,22 @@ export const StyledCaptions: React.FC<{captions: Caption[]; lift?: number; top?:
             {g.map((x, i) => (
               <React.Fragment key={i}>
                 <span style={{color: i === cur ? p.accent : p.text}}>{x.w}</span>
+                {i < g.length - 1 ? ' ' : ''}
+              </React.Fragment>
+            ))}
+          </span>,
+        );
+      }
+      if (st.caption === 'box') {
+        // the words in a box: white with dark text on a bright page, black with white text on a light one
+        const light = p.text.toLowerCase() === '#ffffff';
+        return box(
+          <span style={{display: 'inline-block', padding: `${10 * u}px ${24 * u}px`, borderRadius: 16 * u, background: light ? '#ffffff' : '#141414',
+            color: light ? '#1a1230' : '#ffffff', fontWeight: 800, fontSize: size * 1.22, lineHeight: 1.25, boxShadow: `0 ${8 * u}px ${22 * u}px rgba(0,0,0,0.22)`,
+            transform: `scale(${0.86 + 0.14 * Math.min(k, 1)})`}}>
+            {g.map((x, i) => (
+              <React.Fragment key={i}>
+                <span style={{color: i === cur ? (light ? '#e8336d' : p.accent) : undefined}}>{x.w}</span>
                 {i < g.length - 1 ? ' ' : ''}
               </React.Fragment>
             ))}

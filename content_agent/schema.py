@@ -204,6 +204,14 @@ TEMPLATES: dict[str, dict[str, Any]] = {
                "red (click + buzz); `scan`: an agent's beam reads the page on cue 1 and `badge` pops beside the hidden "
                "line; `zoom`: the hidden text pulls out into a big red card over the blurred page; `revealed`: already shown from the first frame.",
     },
+    "flashcards": {
+        "required": {"cards": list},
+        "optional": {"title": str, "tag": str},
+        "limits": {"cards": 6, "front": 16, "back": 16, "title": 24, "tag": 12},
+        "doc": "A little flashcard app (what Claude builds in a chat as an artifact): `cards` [{front, back}] 1-6; card "
+               "i flips from the word to its translation on cue i, a fingertip taps «✅ Знаю», the score goes up and the "
+               "next card slides in; `title` in the window bar, `tag` a small label beside it.",
+    },
 }
 
 # Tool and brand names: fine as plain text in `tool_chips`, but not as the name of the mock app, which would
@@ -231,11 +239,13 @@ STYLES = {
     "candy": "light cream with violet and pink blobs, Rubik, every caption word on its own colour chip, slides",
     "notebook": "ruled notebook page, handwritten Caveat for big text, captions under a yellow highlighter, wipes",
     "alert": "security warning: near black and alarm red, condensed Oswald, captions stamped on red, hazard stripes",
+    "sunset": "warm coral-to-violet gradient with a glowing sun, wide Unbounded, captions in a white box, slides",
+    "editorial": "newspaper page: off-white, serif Playfair headlines, column rules, black caption boxes, one red",
 }
 TRANSITIONS = ("fadePush", "wipe", "pixel", "glitch", "slide", "zoomBurst", "cut")
 FORMATS = ("explainer", "shorts", "review")
 
-PALETTES = ("midnight", "parchment", "slate", "ember", "clay", "volt", "crt", "candy", "notebook", "alert")
+PALETTES = ("midnight", "parchment", "slate", "ember", "clay", "volt", "crt", "candy", "notebook", "alert", "sunset", "editorial")
 # Product marks the chat and phone scenes can show to name the tool (remotion/src/logos.ts), never as the
 # channel's own brand.
 LOGOS = ("claude",)
@@ -478,6 +488,14 @@ def _check_limits(bid: str, tname: str, props: dict, limits: dict) -> list[Issue
         out += _check_browser(bid, props, limits)
     if tname == "split":
         out += _check_split(bid, props, limits)
+    if tname == "flashcards":
+        cards = props.get("cards") or []
+        if not 1 <= len(cards) <= limits["cards"] or not all(isinstance(c, dict) and str(c.get("front", "")).strip()
+                                                              and str(c.get("back", "")).strip() for c in cards):
+            out.append(Issue("error", bid, f"flashcards: cards must be 1-{limits['cards']} {{front, back}}"))
+        for c in cards if isinstance(cards, list) else []:
+            if isinstance(c, dict) and max(len(str(c.get("front", ""))), len(str(c.get("back", "")))) > limits["front"]:
+                out.append(Issue("warning", bid, f"flashcards: «{c.get('front')}» is long for a card"))
     if tname in ("connect", "loop", "tokens", "context", "webpage"):
         out += _check_explain(bid, tname, props, limits)
     if tname == "footage":
