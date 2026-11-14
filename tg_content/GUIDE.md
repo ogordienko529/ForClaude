@@ -142,6 +142,11 @@ explanation: Модель знає світ лише до дати навчан�
 Question ≤ 300 characters, 2–10 options ≤ 100 each, `correct` is the option number (1 = first), explanation ≤ 200.
 Plain text, no tags.
 
+**Video posts:** `video: v5-tokens.mp4` sends the Short itself with the post as its caption (at most 1024
+characters), so the channel gets every video too. The file is a small 720p copy in `tg_content/media/`:
+`ffmpeg -i content_projects/<slug>/out/video.mp4 -vf scale=720:1280 -c:v libx264 -preset slow -crf 26
+-c:a aac -b:a 96k -movflags +faststart tg_content/media/<slug>.mp4` (2–3 MB for 30 s; Telegram's limit is 50 MB).
+
 **Dated posts:** `date: YYYY-MM-DD` (Kyiv) holds a post until that day and then sends it before the queue; two
 days late it is skipped as stale. Use it for news and anything tied to a day.
 

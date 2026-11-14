@@ -76,9 +76,10 @@ class Bot:
     def __init__(self, tg: Telegram, state: dict[str, Any], owner: int | None, channel: str | None,
                  auto: bool = False, log: Callable[[str], None] = print, posts: list[Post] | None = None,
                  giveaways: bool = True, profile: dict[str, Any] | None = None, burst: int = 0,
-                 pause: Callable[[float], None] = time.sleep):
+                 pause: Callable[[float], None] = time.sleep, media: Path | None = None):
         self.tg, self.state, self.owner, self.channel, self.auto, self.log = tg, state, owner, channel_id(channel), auto, log
         self.posts, self.giveaways, self.profile, self.burst, self.pause = posts, giveaways, profile, burst, pause
+        self.media = media  # tg_content/media: the videos that posts attach with `video:`
         self.report: dict[str, Any] = {"updates": 0, "drafts": 0, "published": 0, "rejected": 0, "errors": []}
 
     # ------------------------------------------------------------ the run
@@ -388,8 +389,12 @@ class Bot:
             if entry.get("hash") == h:
                 continue
             try:
-                self.tg.call("editMessageText", chat_id=self.target(), message_id=entry["message_id"], text=post.text,
-                             parse_mode="HTML", link_preview_options={"is_disabled": True})
+                if entry.get("kind") == "video":      # a video's text is its caption
+                    self.tg.call("editMessageCaption", chat_id=self.target(), message_id=entry["message_id"],
+                                 caption=post.text, parse_mode="HTML")
+                else:
+                    self.tg.call("editMessageText", chat_id=self.target(), message_id=entry["message_id"], text=post.text,
+                                 parse_mode="HTML", link_preview_options={"is_disabled": True})
             except TelegramError as e:
                 if "not modified" not in str(e):
                     self.report["errors"].append(f"edit {post.id}: {e}")
@@ -407,6 +412,12 @@ class Bot:
             self.state["burst_at"] = now.isoformat()
         self.report["queue"] = len(left) - self.report["published"]
 
+    def _video(self, post: Post) -> Path | None:
+        if not post.video or self.media is None:
+            return None
+        path = self.media / post.video
+        return path if path.is_file() else None
+
     def send_post(self, post: Post, now: datetime, silent: bool = False) -> bool:
         quiet = True if silent else None
         try:
@@ -415,7 +426,16 @@ class Bot:
                                    options=[{"text": o} for o in post.options], type="quiz",
                                    correct_option_id=post.correct - 1, explanation=post.explanation or None,
                                    is_anonymous=True, disable_notification=quiet)
+            elif self._video(post):
+                # the Short itself, with the post as its caption: one message the reader can watch and read
+                msg = self.tg.upload("sendVideo", "video", self._video(post), chat_id=self.target(), caption=post.text,
+                                     parse_mode="HTML", supports_streaming=True, width=720, height=1280,
+                                     disable_notification=quiet)
             else:
+                if post.video:
+                    self.report["errors"].append(f"{post.id}: video {post.video} not found, sent as text")
+                    self.note("video_missing", now, f"⚠️ У пості {html.escape(post.id)} немає файлу відео "
+                                                     f"{html.escape(post.video)}: вийшов текстом.")
                 msg = self.tg.call("sendMessage", chat_id=self.target(), text=post.text, parse_mode="HTML",
                                    link_preview_options={"is_disabled": True}, disable_notification=quiet)
         except TelegramError as e:
@@ -425,7 +445,8 @@ class Bot:
             return False
         mid = msg.get("message_id") if isinstance(msg, dict) else None
         self.state["feed"][post.id] = {"at": now.isoformat(), "day": feed.kyiv_day(now).isoformat(), "message_id": mid,
-                                       "hash": text_hash(post.text)}
+                                       "hash": text_hash(post.text),
+                                       **({"kind": "video"} if isinstance(msg, dict) and msg.get("video") else {})}
         if post.pin and mid:
             self._quiet("pinChatMessage", chat_id=self.target(), message_id=mid, disable_notification=True)
         self.report["published"] += 1

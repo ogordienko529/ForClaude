@@ -1,6 +1,7 @@
 ---
 rubric: explain
 date: 2026-11-16
+video: v6-context.mp4
 ---
 <b>Чому ШІ «забуває» початок довгого чату</b>
 

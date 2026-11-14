@@ -40,6 +40,7 @@ from .posts import KYIV
 
 POSTS_DIR = Path("tg_content/posts")
 RUBRICS = ("intro", "prompt", "study", "career", "tool", "explain", "news", "myth", "quiz")
+CAPTION_MAX = 1024                    # Telegram's limit for a caption under a video
 SLOTS = ((9, 30), (17, 15))         # Kyiv time: 19:00 was the weakest hour in the competitor study
 MIN_GAP = timedelta(hours=3)        # a late run never fires two posts back to back
 STALE_DAYS = 2
@@ -78,6 +79,7 @@ class Post:
     correct: int | None = None          # 1-based, as written in the file
     explanation: str = ""
     pin: bool = False
+    video: str = ""                     # a file in tg_content/media/: sent as a video with the text as its caption
     problems: list[str] = field(default_factory=list)
 
     @property
@@ -132,6 +134,8 @@ def parse(path: Path) -> Post:
                 post.problems.append(f"correct must be the option number: {v}")
         elif key == "explanation":
             post.explanation = v
+        elif key == "video":
+            post.video = v
         elif key == "pin":
             post.pin = v.lower() in ("yes", "true", "1", "так")
         else:
@@ -233,9 +237,13 @@ def check(post: Post) -> list[str]:
         return out
     if post.question or post.options or post.correct is not None or post.explanation:
         out.append("question/options/correct/explanation are only for rubric: quiz")
+    if post.video and not re.fullmatch(r"[\w.-]+\.mp4", post.video):
+        out.append(f"video must be a file name like v5-tokens.mp4 in tg_content/media: {post.video}")
     if not post.text:
         out.append("empty post")
         return out
+    if post.video and len(visible(post.text)) > CAPTION_MAX:
+        out.append(f"a video's caption is at most {CAPTION_MAX} characters ({len(visible(post.text))})")
     out += html_problems(post.text)
     out += [f"«{h}» tells who writes the channel: use the present tense («перевіряю») or no «я» at all"
             for h in author_hints(post.text)]

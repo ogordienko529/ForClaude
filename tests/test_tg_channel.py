@@ -623,3 +623,47 @@ def test_a_changed_published_post_is_edited_in_the_channel(tmp_path):
     tg.fail = {"editMessageText"}
     feed_bot(tg, state, feed.load(tmp_path)).run(utc("2026-11-13T09:00:00"), fetch)
     assert "hash" not in state["feed"]["0001-a"]                                   # a failed edit is retried
+
+
+class VideoTG(FakeTG):
+    def upload(self, method, field, path, **p):
+        self.calls.append((method, {**p, field: Path(path).name}))
+        self.mid += 1
+        return {"message_id": self.mid, "video": {"file_id": "v1"}}
+
+
+VIDEO_POST = TEXT_POST.replace("rubric: prompt\n", "rubric: prompt\nvideo: v5-tokens.mp4\n")
+
+
+def test_a_post_with_a_video_goes_out_as_the_video_with_its_caption_and_edits_the_caption(tmp_path):
+    posts_dir, media = tmp_path / "posts", tmp_path / "media"
+    media.mkdir()
+    (media / "v5-tokens.mp4").write_bytes(b"\x00\x00\x00\x18ftypmp42")
+    _write(posts_dir, "0001-a.md", VIDEO_POST)
+    p = feed.load(posts_dir)[0]
+    assert p.video == "v5-tokens.mp4" and p.problems == []
+    tg, state = VideoTG(), empty_state()
+    Bot(tg, state, owner=OWNER, channel=CHANNEL, log=lambda m: None, posts=[p], giveaways=False, burst=1,
+        pause=lambda s: None, media=media).run(utc("2026-11-13T08:00:00"), fetch)
+    vids = [c for m, c in tg.calls if m == "sendVideo"]
+    assert len(vids) == 1 and vids[0]["video"] == "v5-tokens.mp4" and "План тижня" in vids[0]["caption"]
+    assert vids[0]["parse_mode"] == "HTML" and state["feed"]["0001-a"]["kind"] == "video"
+    _write(posts_dir, "0001-a.md", VIDEO_POST.replace("План тижня за хвилину", "План тижня: як зробити"))
+    Bot(tg, state, owner=OWNER, channel=CHANNEL, auto=True, log=lambda m: None, posts=feed.load(posts_dir),
+        giveaways=False, media=media).run(utc("2026-11-13T08:30:00"), fetch)
+    caps = [c for m, c in tg.calls if m == "editMessageCaption"]
+    assert len(caps) == 1 and "як зробити" in caps[0]["caption"] and not [m for m, _ in tg.calls if m == "editMessageText"]
+
+
+def test_a_missing_video_is_sent_as_text_and_reported(tmp_path):
+    _write(tmp_path, "0001-a.md", VIDEO_POST)
+    tg, state = VideoTG(), empty_state()
+    rep = Bot(tg, state, owner=OWNER, channel=CHANNEL, log=lambda m: None, posts=feed.load(tmp_path), giveaways=False,
+              burst=1, pause=lambda s: None, media=tmp_path / "nowhere").run(utc("2026-11-13T08:00:00"), fetch)
+    assert [m for m, _ in tg.calls if m == "sendMessage" and _.get("chat_id") != OWNER]
+    assert any("not found" in e for e in rep["errors"]) and "kind" not in state["feed"]["0001-a"]
+
+
+def test_video_field_must_be_a_file_name():
+    p = feed.Post(id="x", rubric="prompt", text="<b>t</b>\n\n#промпт", video="../secret.mp4")
+    assert any("video must be a file name" in x for x in feed.check(p))

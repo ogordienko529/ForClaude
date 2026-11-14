@@ -78,7 +78,8 @@ def main(argv: list[str] | None = None) -> int:
               channel=os.environ.get("TG_CHANNEL"), auto=os.environ.get("TG_AUTO_PUBLISH", "").strip() == "1",
               log=lambda m: print(m, file=sys.stderr), posts=feed.load(posts_dir),
               giveaways=os.environ.get("TG_GIVEAWAYS", "").strip() == "1", profile=read_profile(posts_dir.parent),
-              burst=int(burst) if (burst := os.environ.get("TG_BURST", "").strip()).isdigit() else 0)
+              burst=int(burst) if (burst := os.environ.get("TG_BURST", "").strip()).isdigit() else 0,
+              media=posts_dir.parent / "media")
     report = bot.run(now, fetch_all)
     save_state(path, state)
     print(json.dumps(report, ensure_ascii=False))
@@ -104,6 +105,12 @@ def read_profile(folder: Path) -> dict | None:
 
 def queue(folder: Path, state_path: Path | None, only_count: bool, now: datetime) -> int:
     posts = feed.load(folder)
+    for p in posts:                                   # a post's video must be in tg_content/media (and small enough)
+        f = folder.parent / "media" / p.video if p.video else None
+        if f and not f.is_file():
+            p.problems.append(f"video {p.video} is not in {folder.parent / 'media'}")
+        elif f and f.stat().st_size > 50 * 1024 * 1024:
+            p.problems.append(f"video {p.video} is over Telegram's 50 MB upload limit")
     published = load_state(state_path)["feed"] if state_path else {}
     today = feed.kyiv_day(now)
     left = feed.ready(posts, published, today)

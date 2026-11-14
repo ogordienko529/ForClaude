@@ -1,6 +1,7 @@
 ---
 rubric: explain
 date: 2026-11-15
+video: v5-tokens.mp4
 ---
 <b>Токени: як ШІ насправді читає текст</b>
 
