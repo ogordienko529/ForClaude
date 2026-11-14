@@ -514,7 +514,8 @@ export const StyledCaptions: React.FC<{captions: Caption[]; lift?: number; top?:
       style={{
         justifyContent: top === undefined ? 'flex-end' : 'flex-start',
         alignItems: 'center',
-        ...(top === undefined ? {paddingBottom: height * lift} : {paddingTop: height * top}),
+        // 9:16 (anchored at the top): centred a little left and narrower, off the platforms' right-hand buttons
+        ...(top === undefined ? {paddingBottom: height * lift} : {paddingTop: height * top, paddingRight: width * 0.09}),
         ...extra,
       }}
     >

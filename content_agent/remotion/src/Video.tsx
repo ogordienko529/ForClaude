@@ -42,6 +42,8 @@ export const TEMPLATES: Record<string, React.FC<SceneProps>> = {
   flashcards: Flashcards,
 };
 
+const SHORTS_SAFE: React.CSSProperties = {transform: 'scale(0.9)', transformOrigin: '0% 12%'};
+
 // footage moves on its own (and a drift would show the edge of the clip)
 const NO_DRIFT = new Set(['footage']);
 
@@ -87,7 +89,11 @@ export const Video: React.FC<TimelineData> = (t) => {
                 <Sequence key={s.id} from={s.from} durationInFrames={s.durationInFrames} name={`${s.id} ${s.template}`}>
                   {/* the first scene has no transition in: the video opens on a picture already in motion */}
                   <StyledShell duration={s.durationInFrames} transition={s.transition} intro={i > 0}>
-                    {NO_DRIFT.has(s.template) ? body : <Drift seed={s.id} duration={s.durationInFrames}>{body}</Drift>}
+                    {/* 9:16: the scene sits 10 % smaller and off the right edge, clear of the like/comment/share
+                        column TikTok, Reels and Shorts draw on the right */}
+                    <AbsoluteFill style={t.format === 'shorts' ? SHORTS_SAFE : undefined}>
+                      {NO_DRIFT.has(s.template) ? body : <Drift seed={s.id} duration={s.durationInFrames}>{body}</Drift>}
+                    </AbsoluteFill>
                   </StyledShell>
                 </Sequence>
               );

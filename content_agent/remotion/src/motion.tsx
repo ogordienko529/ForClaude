@@ -90,7 +90,7 @@ export const ProgressBar: React.FC<{total: number}> = ({total}) => {
 };
 
 /**
- * «⏱ 0:29»: the seconds left, in a pill in the top-left corner under the progress bar. It pops in big on the
+ * «⏱ 0:29»: the seconds left, in a pill at the top left, below the platforms' top bar (TikTok's LIVE and tabs). It pops in big on the
  * first frames (the promise «за 30 секунд»), settles small, and pulses in the last three seconds.
  */
 export const Countdown: React.FC<{total: number}> = ({total}) => {
@@ -107,7 +107,7 @@ export const Countdown: React.FC<{total: number}> = ({total}) => {
   const tick = (total - frame) / fps < 3.2 ? 1 + 0.08 * Math.max(Math.sin(((frame % fps) / fps) * Math.PI), 0) : 1;
   const urgent = (total - frame) / fps < 3.2;
   return (
-    <div style={{position: 'absolute', left: 40 * u, top: height * 0.045, transformOrigin: 'left top', transform: `scale(${scale * tick})`,
+    <div style={{position: 'absolute', left: 40 * u, top: height * 0.088, transformOrigin: 'left top', transform: `scale(${scale * tick})`,
       opacity: Math.min(k * 2, 1), display: 'flex', alignItems: 'center', gap: 10 * u, padding: `${10 * u}px ${20 * u}px`, borderRadius: 40 * u,
       background: 'rgba(0,0,0,0.55)', border: `${3 * u}px solid ${urgent ? '#ef3b4f' : p.accent}`, boxShadow: `0 ${6 * u}px ${18 * u}px rgba(0,0,0,0.35)`}}>
       <span style={{fontFamily: EMOJI_FONT, fontSize: 34 * u, lineHeight: 1}}>⏱</span>
