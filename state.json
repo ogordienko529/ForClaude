@@ -1,0 +1,202 @@
+{
+ "burst_at": "2026-11-11T19:57:25.341444+00:00",
+ "channel": {
+  "id": -1004319820835,
+  "ref": "@shi_start_ua",
+  "title": "ШІ без води · нейромережі, промпти"
+ },
+ "deleted": [
+  2,
+  3,
+  4,
+  5,
+  6
+ ],
+ "digests": {},
+ "drafts": {},
+ "feed": {
+  "0001-hello": {
+   "at": "2026-11-11T19:16:10.010425+00:00",
+   "day": "2026-11-11",
+   "message_id": 4
+  },
+  "0001-myth-made-up-sources": {
+   "at": "2026-11-11T19:57:25.341444+00:00",
+   "day": "2026-11-11",
+   "hash": "3c9313718915dc3b",
+   "message_id": 10
+  },
+  "0002-test-from-notes": {
+   "at": "2026-11-11T19:57:25.341444+00:00",
+   "day": "2026-11-11",
+   "hash": "360d64407059772f",
+   "message_id": 11
+  },
+  "0003-cv-for-djinni": {
+   "at": "2026-11-11T19:57:25.341444+00:00",
+   "day": "2026-11-11",
+   "hash": "4625aa8633ee0f7d",
+   "message_id": 12
+  },
+  "0004-before-after-prompt": {
+   "at": "2026-11-11T19:57:25.341444+00:00",
+   "day": "2026-11-11",
+   "hash": "0d7663b9ea0fa441",
+   "message_id": 13
+  },
+  "0005-week-plan": {
+   "at": "2026-11-11T19:57:25.341444+00:00",
+   "day": "2026-11-11",
+   "hash": "126f42bbf5a21e0e",
+   "message_id": 14
+  },
+  "0006-quiz-privacy": {
+   "at": "2026-11-11T19:57:25.341444+00:00",
+   "day": "2026-11-11",
+   "message_id": 15
+  },
+  "0007-interview-practice": {
+   "at": "2026-11-11T19:57:25.341444+00:00",
+   "day": "2026-11-11",
+   "hash": "74caca9be70b54bd",
+   "message_id": 16
+  },
+  "0008-explain-error": {
+   "at": "2026-11-11T19:57:25.341444+00:00",
+   "day": "2026-11-11",
+   "hash": "586dbb7fc3e4f6c3",
+   "message_id": 17
+  },
+  "0009-junior-sparring": {
+   "at": "2026-11-11T19:57:25.341444+00:00",
+   "day": "2026-11-11",
+   "hash": "a14e9ddb6da7d7bd",
+   "message_id": 18
+  },
+  "0010-start-here": {
+   "at": "2026-11-11T19:57:25.341444+00:00",
+   "day": "2026-11-11",
+   "hash": "f7f7dcfdb48813e2",
+   "message_id": 19
+  },
+  "0011-claude-new-colleague": {
+   "at": "2026-11-12T10:15:24.056941+00:00",
+   "day": "2026-11-12",
+   "hash": "e28b1d23693924f4",
+   "message_id": 21
+  },
+  "0012-linkedin-qa-switcher": {
+   "at": "2026-11-12T18:25:17.514055+00:00",
+   "day": "2026-11-12",
+   "hash": "6a2cc6198961de0d",
+   "message_id": 22
+  },
+  "0013-claude-show-examples": {
+   "at": "2026-11-14T19:57:53.617994+00:00",
+   "day": "2026-11-14",
+   "hash": "1e10e40a4405ff05",
+   "message_id": 25
+  },
+  "0031-explain-mcp": {
+   "at": "2026-11-13T14:52:09.772135+00:00",
+   "day": "2026-11-13",
+   "hash": "f48141e45fe3f771",
+   "message_id": 23
+  },
+  "0032-explain-agents": {
+   "at": "2026-11-14T08:06:25.273723+00:00",
+   "day": "2026-11-14",
+   "hash": "c16a48f8b9025d64",
+   "message_id": 24
+  }
+ },
+ "items": {
+  "epic:3be0a0d8479946d78f60d90c9442a0b4": {
+   "first_seen": "2026-11-11T18:43:33.892345+00:00",
+   "giveaway": {
+    "ends": "2026-11-12T16:00:00+00:00",
+    "ends_exact": true,
+    "image": "https://cdn1.epicgames.com/spt-assets/5c36b876e80d4285b9993947efeeaf2b/flotsam-1yczl.jpg",
+    "key": "epic:3be0a0d8479946d78f60d90c9442a0b4",
+    "source": "Epic Games Store",
+    "store": "Epic Games Store",
+    "title": "Flotsam",
+    "url": "https://store.epicgames.com/p/flotsam-266287",
+    "worth": "UAH 329.00"
+   },
+   "reminded": false,
+   "status": "pending"
+  },
+  "epic:a9748abde1c94b66aae5250bb9fc5503": {
+   "first_seen": "2026-11-11T18:43:33.892345+00:00",
+   "giveaway": {
+    "ends": "2026-11-12T16:00:00+00:00",
+    "ends_exact": true,
+    "image": "https://cdn1.epicgames.com/spt-assets/a53f91e55c6840018cb5de0b204f1ad9/idle-champions-of-the-forgotten-realms-1cv5z.jpg",
+    "key": "epic:a9748abde1c94b66aae5250bb9fc5503",
+    "source": "Epic Games Store",
+    "store": "Epic Games Store",
+    "title": "Idle Champions of the Forgotten Realms",
+    "url": "https://store.epicgames.com/p/idle-champions-of-the-forgotten-realms",
+    "worth": null
+   },
+   "reminded": false,
+   "status": "published"
+  },
+  "gp:2204": {
+   "first_seen": "2026-11-11T18:43:33.892345+00:00",
+   "giveaway": {
+    "ends": null,
+    "ends_exact": false,
+    "image": "https://www.gamerpower.com/offers/1b/63c6f67bb9c8b.jpg",
+    "key": "gp:2204",
+    "source": "GamerPower",
+    "store": "itch.io",
+    "title": "Dual Chroma: Academy Carols",
+    "url": "https://www.gamerpower.com/open/dual-chroma-academy-carols-itch-io-giveaway",
+    "worth": "$2.00"
+   },
+   "reminded": false,
+   "status": "pending"
+  },
+  "gp:3716": {
+   "first_seen": "2026-11-11T18:43:33.892345+00:00",
+   "giveaway": {
+    "ends": null,
+    "ends_exact": false,
+    "image": "https://www.gamerpower.com/offers/1b/6a59119a8eb8d.jpg",
+    "key": "gp:3716",
+    "source": "GamerPower",
+    "store": "Steam",
+    "title": "Dwarven Realms",
+    "url": "https://www.gamerpower.com/open/dwarven-realms-steam-key-giveaway",
+    "worth": "$9.99"
+   },
+   "reminded": false,
+   "status": "pending"
+  },
+  "gp:3830": {
+   "first_seen": "2026-11-11T18:43:33.892345+00:00",
+   "giveaway": {
+    "ends": "2026-11-22T00:00:00+00:00",
+    "ends_exact": false,
+    "image": "https://www.gamerpower.com/offers/1b/6ae264e50edb5.jpg",
+    "key": "gp:3830",
+    "source": "GamerPower",
+    "store": "itch.io",
+    "title": "Free itch.io Games Bundle",
+    "url": "https://www.gamerpower.com/open/free-itch-io-games-bundle",
+    "worth": "$384.00"
+   },
+   "reminded": false,
+   "status": "pending"
+  }
+ },
+ "next_id": 6,
+ "notes": {
+  "low_queue": "2026-11-11"
+ },
+ "offset": 737723935,
+ "profile": "ШІ на старті · нейромережі, промпти\nШтучний інтелект для навчання і першої роботи в IT: готові промпти для ChatGPT, Gemini і Claude з реальним результатом, резюме й співбесіди з нейромережами, квізи. Коротко і без хайпу.\n62e2d26decca7fa2",
+ "version": 1
+}
