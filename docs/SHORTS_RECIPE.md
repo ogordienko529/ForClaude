@@ -5,6 +5,18 @@ From a study of AI-tips / prompt Shorts, Reels and TikToks that perform well, ma
 proof. The channel's test Shorts live in `tg_content/videos/<slug>/` (voice) and `content_projects/<slug>/`
 (storyboard, renders).
 
+## The channel's format (owner's choice, November 2026)
+- **Opener:** the first line is the series promise «Пояснюю за 30 секунд, …» + the question («…чому ШІ
+  плутається з літерами», «…як рецепт борщу може вкрасти твій пароль»). The picture under it is already the topic
+  in motion. Storyboard `"countdown": true` shows a «⏱ 0:29» pill counting down the real seconds left, so the
+  video must really be ≤ 30 s.
+- **Pace:** scripts of ~330–380 characters (7 lines), voice `"voice_tempo": 1.12–1.17` (quicker, pitch kept, no
+  re-voicing); check `content_agent voice <slug>` says ≤ 30 s before rendering.
+- **Light humour:** one or two small jokes per video, about the thing, never about people: «"мол" і "око" —
+  звучить як ім'я ельфа», «як груповий чат курсу: про що домовились — ніхто не пам'ятає», «борщ із секретним
+  інгредієнтом». Read the joke aloud with «ШІ» said as «Ші»: «і в ШІ» sounds like «і вші».
+- **One text at a time:** `"captions": false` on kinetic scenes and on scenes whose UI shows the spoken words.
+
 ## Hook (0–2 s)
 - The first frame already shows the result or the mistake, in motion, no fade-in: a CV covered in ❌, a red error,
   a citation stamped «FAKE». Not a title card.
@@ -31,7 +43,7 @@ proof. The channel's test Shorts live in `tg_content/videos/<slug>/` (voice) and
   ElevenLabs: speed 1.05–1.15, stability a little below default.
 
 ## Structure
-- 15–30 s. An open loop («3 перевірки — третя найважливіша») that pays off; a loop ending where the last frame
+- 15–30 s (the channel: ≤ 30 s, the countdown shows it). An open loop («3 перевірки — третя найважливіша») that pays off; a loop ending where the last frame
   matches the first.
 - The call to action is a 1.5 s sticker in the middle («Більше — в Telegram, лінк у профілі»), not the ending.
   Shorts links are not clickable: the handle on screen and the link in the profile.
