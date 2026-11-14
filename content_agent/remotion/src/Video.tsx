@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from 'react';
 import {AbsoluteFill, Audio, continueRender, delayRender, Sequence, staticFile} from 'remotion';
-import {CAPTION_LIFT, CAPTION_TOP, Drift, ProgressBar, Sfx, SfxContext} from './motion';
+import {CAPTION_LIFT, CAPTION_TOP, Countdown, Drift, ProgressBar, Sfx, SfxContext} from './motion';
 import {Browser} from './templates/browser';
 import {Chat} from './templates/chat';
 import {Connect, Context, Loop, Tokens, Webpage} from './templates/explain';
@@ -100,6 +100,7 @@ export const Video: React.FC<TimelineData> = (t) => {
             {/* 9:16 keeps the captions above the platform's title and buttons; reviews lift them above the hotbar */}
             {t.showCaptions && <StyledCaptions captions={t.captions} lift={CAPTION_LIFT[t.format] ?? 0.06} top={CAPTION_TOP[t.format]} />}
             {t.progressBar ? <ProgressBar total={t.durationInFrames} /> : null}
+            {t.countdown ? <Countdown total={t.durationInFrames} /> : null}
             {t.audio ? <Audio src={staticFile(t.audio)} /> : null}
           </AbsoluteFill>
         </SfxContext.Provider>

@@ -24,6 +24,7 @@ export type Timeline = {
   showCaptions: boolean;
   style?: string; // cosmos | paper | blocky | neon | clean | comic (styles.tsx)
   progressBar?: boolean; // a thin accent bar at the top over the whole video
+  countdown?: boolean; // a «⏱ 0:29» pill counting down the seconds left («Пояснюю за 30 секунд»)
   sfx?: string; // folder (in the project) with the sound effects of motion.tsx; absent: no sound effects
   scenes: Scene[];
   captions: Caption[];

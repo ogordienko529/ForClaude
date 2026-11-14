@@ -253,7 +253,7 @@ def assemble_recording(beats: list[dict], storyboard: dict, project: Path, out_w
             z = decode(path, sr)
             # trim only real silence at the ends of a single-line file: a threshold relative to the file's own
             # quiet parts cut the soft last syllable of synthetic voices (ElevenLabs lines lost 0.25-0.6 s)
-            segs_i = segments(z, sr, min_gap=0.5, threshold_db=-50.0, pad=0.15)
+            segs_i = segments(z, sr, min_gap=0.5, threshold_db=-50.0, pad=0.15 if fmt != "shorts" else 0.08)
             if segs_i:
                 z = z[int(segs_i[0][0] * sr):min(int(segs_i[-1][1] * sr), z.size)]
             sources[i] = (z, {"file": a, "start": 0.0, "end": round(len(z) / sr, 3)})

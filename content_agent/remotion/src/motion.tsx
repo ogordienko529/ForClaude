@@ -89,6 +89,33 @@ export const ProgressBar: React.FC<{total: number}> = ({total}) => {
   );
 };
 
+/**
+ * «⏱ 0:29»: the seconds left, in a pill in the top-left corner under the progress bar. It pops in big on the
+ * first frames (the promise «за 30 секунд»), settles small, and pulses in the last three seconds.
+ */
+export const Countdown: React.FC<{total: number}> = ({total}) => {
+  const frame = useCurrentFrame();
+  const {width, height, fps} = useVideoConfig();
+  const p = usePalette();
+  const u = Math.min(width, height) / 1080;
+  useFontsFor([`700 40px ${MONO_FONT}`, `400 40px ${EMOJI_FONT}`], '⏱0123456789:');
+  const left = Math.max(Math.ceil((total - frame) / fps), 0);
+  const label = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+  const k = spring({frame: frame - 2, fps, config: {damping: 12, stiffness: 180, mass: 0.6}});
+  const settle = spring({frame: frame - 40, fps, config: {damping: 16, stiffness: 120}});
+  const scale = (0.6 + 0.4 * Math.min(k, 1.1)) * (1.5 - 0.5 * Math.min(settle, 1));
+  const tick = (total - frame) / fps < 3.2 ? 1 + 0.08 * Math.max(Math.sin(((frame % fps) / fps) * Math.PI), 0) : 1;
+  const urgent = (total - frame) / fps < 3.2;
+  return (
+    <div style={{position: 'absolute', left: 40 * u, top: height * 0.045, transformOrigin: 'left top', transform: `scale(${scale * tick})`,
+      opacity: Math.min(k * 2, 1), display: 'flex', alignItems: 'center', gap: 10 * u, padding: `${10 * u}px ${20 * u}px`, borderRadius: 40 * u,
+      background: 'rgba(0,0,0,0.55)', border: `${3 * u}px solid ${urgent ? '#ef3b4f' : p.accent}`, boxShadow: `0 ${6 * u}px ${18 * u}px rgba(0,0,0,0.35)`}}>
+      <span style={{fontFamily: EMOJI_FONT, fontSize: 34 * u, lineHeight: 1}}>⏱</span>
+      <span style={{fontFamily: MONO_FONT, fontWeight: 700, fontSize: 36 * u, color: '#ffffff', letterSpacing: '0.02em'}}>{label}</span>
+    </div>
+  );
+};
+
 // ------------------------------------------------------------------ sound effects
 export type SfxName = 'whoosh' | 'pop' | 'click' | 'keys' | 'impact' | 'ding' | 'buzz' | 'riser';
 // linear gains: quiet under the voice (the voice mix keeps 3 dB of headroom for them, see `mix`)

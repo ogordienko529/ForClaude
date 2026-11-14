@@ -166,6 +166,7 @@ def build_timeline(storyboard: dict, voice_timing: dict, audio_rel: str, fmt: st
         "audio": audio_rel,
         "showCaptions": bool(storyboard.get("captions", True)),
         "progressBar": bool(storyboard.get("progress_bar", False)),
+        **({"countdown": True} if storyboard.get("countdown") else {}),
         **({"sfx": SFX_DIR} if sfx_on(storyboard, fmt) else {}),
         "scenes": scenes,
         "captions": caps,
