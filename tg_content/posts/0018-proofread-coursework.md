@@ -1,6 +1,7 @@
 ---
 rubric: prompt
 date: 2026-11-18
+video: v16-coursework.mp4
 ---
 <b>Курсова без суржику: ШІ покаже кожну помилку</b>
 
