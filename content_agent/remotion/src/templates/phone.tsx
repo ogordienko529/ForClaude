@@ -5,10 +5,10 @@
  * ~0.2 s before the narration says the phrase; the phone straightens while the camera is close.
  * Colours come from the palette and borders from the style (shared with chat.tsx).
  */
-import React, {useMemo} from 'react';
+import React, {useContext, useMemo} from 'react';
 import {AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
 import {progress, rise} from '../anim';
-import {PREROLL, Sfx, pop, uiZone} from '../motion';
+import {BandContext, PREROLL, Sfx, pop, uiZone} from '../motion';
 import {aimX, findPhrase, phraseSpot, Ripple, textWidth, Touch, wrapStarts} from '../screen';
 import {useStyle} from '../styles';
 import {usePalette} from '../theme';
@@ -183,9 +183,11 @@ export const Phone: React.FC<SceneProps> = ({props, duration, speech, cues, mark
   const ink = onColor(c.win, [p.text]);
 
   // ---- geometry: the phone fills the UI band; its status bar may reach into the top margin (decoration)
+  const band = useContext(BandContext);
   const zone = uiZone(width, height);
   const zoneH = zone.bottom - zone.top;
-  const PH = zoneH * (vertical ? 1.07 : 1);
+  // the status bar may reach into the top margin, unless the Short's top band has a handle row there
+  const PH = zoneH * (vertical ? (band ? 0.98 : 1.07) : 1);
   const PW = PH / 1.9;
   const q = PW / 540; // the phone is designed 540 px wide
   const pLeft = width / 2 - PW / 2;

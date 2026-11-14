@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from 'react';
 import {AbsoluteFill, Audio, continueRender, delayRender, Sequence, staticFile} from 'remotion';
-import {BAND_SHIFT, CAPTION_LIFT, CAPTION_TOP, CommentSticker, Drift, ProgressBar, Sfx, SfxContext, TopBand} from './motion';
+import {BAND_BOTTOM, BAND_SHIFT, BandContext, CAPTION_LIFT, CAPTION_TOP, CommentSticker, Drift, ProgressBar, Sfx, SfxContext, TopBand} from './motion';
 import {Browser} from './templates/browser';
 import {Chat} from './templates/chat';
 import {Connect, Context, Flashcards, Loop, Tokens, Webpage} from './templates/explain';
@@ -49,6 +49,12 @@ const SHORTS_SAFE: React.CSSProperties = {transform: 'scale(0.9)', transformOrig
 const shortsSafe = (t: TimelineData): React.CSSProperties =>
   t.handle ? {...SHORTS_SAFE, transform: `translateY(${t.height * BAND_SHIFT}px) scale(0.9)`} : SHORTS_SAFE;
 
+const bandMask = (height: number): React.CSSProperties => {
+  const edge = height * BAND_BOTTOM;
+  const m = `linear-gradient(to bottom, transparent ${edge - 0.014 * height}px, #000 ${edge}px)`;
+  return {maskImage: m, WebkitMaskImage: m};
+};
+
 // footage moves on its own (and a drift would show the edge of the clip)
 const NO_DRIFT = new Set(['footage']);
 
@@ -76,6 +82,7 @@ const Missing: React.FC<SceneProps & {name: string}> = ({name}) => (
 
 export const Video: React.FC<TimelineData> = (t) => {
   const st = pickStyle(t);
+  const banded = t.format === 'shorts' && !!t.handle;
   useFonts(st.fontLoads);
   return (
     <StyleContext.Provider value={st}>
@@ -83,6 +90,9 @@ export const Video: React.FC<TimelineData> = (t) => {
         <SfxContext.Provider value={t.sfx || null}>
           <AbsoluteFill style={{fontVariantNumeric: 'lining-nums', fontFeatureSettings: '"lnum" 1', ...styleVars(st)}}>
             <StyledBackground />
+            <BandContext.Provider value={banded}>
+            {/* with a handle row, nothing of a scene shows under the top band: it fades out just above the band's edge */}
+            <AbsoluteFill style={banded ? bandMask(t.height) : undefined}>
             {t.scenes.map((s, i) => {
               const C = TEMPLATES[s.template];
               const body = C ? (
@@ -103,6 +113,8 @@ export const Video: React.FC<TimelineData> = (t) => {
                 </Sequence>
               );
             })}
+            </AbsoluteFill>
+            </BandContext.Provider>
             {/* a whoosh just ahead of every cut, so it peaks on the new picture */}
             {t.scenes.slice(1).map((s) => (
               <Sfx key={`w${s.id}`} name="whoosh" at={s.from - 5} />
@@ -114,7 +126,8 @@ export const Video: React.FC<TimelineData> = (t) => {
             {t.progressBar ? <ProgressBar total={t.durationInFrames} /> : null}
             {/* the ending task over the last scene: «💬 Що відповів твій чат?» */}
             {t.comment && t.scenes.length ? (
-              <CommentSticker text={t.comment} at={t.scenes[t.scenes.length - 1].from + Math.round(0.35 * t.fps)} />
+              <CommentSticker text={t.comment} at={t.scenes[t.scenes.length - 1].from + Math.round(0.35 * t.fps)}
+                low={!t.showCaptions || !t.captions.some((c) => c.from >= t.scenes[t.scenes.length - 1].from)} />
             ) : null}
             {t.countdown || t.series || t.handle ? (
               <TopBand total={t.durationInFrames} countdown={t.countdown} series={t.series} handle={t.handle} />

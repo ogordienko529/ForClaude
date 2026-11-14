@@ -94,6 +94,11 @@ export const ProgressBar: React.FC<{total: number}> = ({total}) => {
 export const BAND_TOP = 0.088;
 /** 9:16 with a handle line: how far the scenes move down (fraction of the height) to clear the band's second row. */
 export const BAND_SHIFT = 0.04;
+/** 9:16 with a handle line: the band's bottom edge (fraction of the height). Scenes fade out above it, so a camera
+ *  punch-in or a tall phone never runs under the countdown, the plaque or the handle. */
+export const BAND_BOTTOM = 0.158;
+/** True inside a Short whose top band has the handle row: templates that fill the UI zone keep a little lower. */
+export const BandContext = createContext(false);
 const BAND_FONT = 'Inter, Arial, sans-serif';
 const PILL_H = 72;
 
@@ -201,7 +206,8 @@ const onColour = (c: string) => {
  * last scene and stays to the end (the ending task that brings comments). It sits in the middle band, above the
  * captions and left of the platforms' buttons.
  */
-export const CommentSticker: React.FC<{text: string; at: number}> = ({text, at}) => {
+/** `low`: the last scene has no captions, so the bubble takes their place instead of covering the scene's window. */
+export const CommentSticker: React.FC<{text: string; at: number; low?: boolean}> = ({text, at, low}) => {
   const frame = useCurrentFrame();
   const {width, height, fps} = useVideoConfig();
   const p = usePalette();
@@ -220,7 +226,7 @@ export const CommentSticker: React.FC<{text: string; at: number}> = ({text, at})
     <>
       {frame >= at ? (
         // a speech bubble (the sharp corner is its tail), its bottom edge just above the captions
-        <div style={{position: 'absolute', left: 40 * u, bottom: height * 0.366, maxWidth: maxW, boxSizing: 'border-box', padding: `${13 * u}px ${pad}px ${15 * u}px`,
+        <div style={{position: 'absolute', left: 40 * u, bottom: height * (low ? 0.225 : 0.366), maxWidth: maxW, boxSizing: 'border-box', padding: `${13 * u}px ${pad}px ${15 * u}px`,
           borderRadius: `${R}px ${R}px ${R}px ${4 * u}px`, background: '#ffffff', color: '#151515', border: `${4 * u}px solid ${p.accent}`,
           boxShadow: `0 ${12 * u}px ${30 * u}px rgba(0,0,0,0.35)`, transformOrigin: '6% 100%',
           transform: `scale(${k}) rotate(${-2 + (1 - Math.min(k, 1)) * -12 + sway}deg)`, opacity: Math.min(k * 2, 1)}}>
