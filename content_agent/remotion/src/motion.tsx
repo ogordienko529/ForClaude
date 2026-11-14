@@ -209,30 +209,29 @@ export const CommentSticker: React.FC<{text: string; at: number}> = ({text, at})
   const sub = '👇 напиши в коментарях';
   useFontsFor([`800 40px ${BAND_FONT}`, `600 40px ${BAND_FONT}`, `400 40px ${EMOJI_FONT}`], `💬${text}${sub}`);
   const maxW = width * 0.8 - 40 * u;
-  const pad = 26 * u;
-  let size = 46 * u;
-  while (size > 30 * u && textWidth(text, 800, size, BAND_FONT) + size * 1.3 > 2 * (maxW - 2 * pad) * 0.92) size -= u;
+  const pad = 22 * u;
+  let size = 40 * u;
+  while (size > 28 * u && textWidth(text, 800, size, BAND_FONT) + size * 1.3 > 2 * (maxW - 2 * pad) * 0.92) size -= u;
   const k = pop(frame, fps, at);
   const k2 = spring({frame: frame - at - 7, fps, config: {damping: 14, stiffness: 160}});
   const sway = frame > at ? Math.sin((frame - at) / 13) * 1.2 * Math.min(k, 1) : 0;
+  const R = 26 * u;
   return (
     <>
       {frame >= at ? (
-        <div style={{position: 'absolute', left: 40 * u, bottom: height * 0.372, maxWidth: maxW, boxSizing: 'border-box', padding: `${18 * u}px ${pad}px ${20 * u}px`,
-          borderRadius: 30 * u, background: '#ffffff', color: '#151515', border: `${5 * u}px solid ${p.accent}`,
-          boxShadow: `0 ${14 * u}px ${34 * u}px rgba(0,0,0,0.35)`, transformOrigin: '12% 100%',
-          transform: `scale(${k}) rotate(${-2.5 + (1 - Math.min(k, 1)) * -12 + sway}deg)`, opacity: Math.min(k * 2, 1)}}>
+        // a speech bubble (the sharp corner is its tail), its bottom edge just above the captions
+        <div style={{position: 'absolute', left: 40 * u, bottom: height * 0.366, maxWidth: maxW, boxSizing: 'border-box', padding: `${13 * u}px ${pad}px ${15 * u}px`,
+          borderRadius: `${R}px ${R}px ${R}px ${4 * u}px`, background: '#ffffff', color: '#151515', border: `${4 * u}px solid ${p.accent}`,
+          boxShadow: `0 ${12 * u}px ${30 * u}px rgba(0,0,0,0.35)`, transformOrigin: '6% 100%',
+          transform: `scale(${k}) rotate(${-2 + (1 - Math.min(k, 1)) * -12 + sway}deg)`, opacity: Math.min(k * 2, 1)}}>
           <div style={{fontFamily: BAND_FONT, fontWeight: 800, fontSize: size, lineHeight: 1.15}}>
             <span style={{fontFamily: EMOJI_FONT, fontWeight: 400, marginRight: size * 0.25}}>💬</span>
             {text}
           </div>
-          <div style={{marginTop: 8 * u, fontFamily: BAND_FONT, fontWeight: 600, fontSize: 31 * u, lineHeight: 1.1, color: '#4a4a4a',
+          <div style={{marginTop: 5 * u, fontFamily: BAND_FONT, fontWeight: 600, fontSize: 28 * u, lineHeight: 1.1, color: '#4a4a4a',
             opacity: Math.min(k2 * 2, 1), transform: `translateY(${(1 - Math.min(k2, 1)) * 10 * u}px)`}}>
             <span style={{fontFamily: EMOJI_FONT, fontWeight: 400}}>👇</span> напиши в коментарях
           </div>
-          {/* the bubble's tail */}
-          <div style={{position: 'absolute', left: 54 * u, bottom: -16 * u, width: 30 * u, height: 30 * u, background: '#ffffff',
-            borderRight: `${5 * u}px solid ${p.accent}`, borderBottom: `${5 * u}px solid ${p.accent}`, transform: 'rotate(45deg)'}} />
         </div>
       ) : null}
       <Sfx name="pop" at={at} />

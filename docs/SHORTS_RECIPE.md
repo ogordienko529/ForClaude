@@ -6,16 +6,38 @@ proof. The channel's test Shorts live in `tg_content/videos/<slug>/` (voice) and
 (storyboard, renders).
 
 ## The channel's format (owner's choice, November 2026)
-- **Opener:** the first line is the series promise «Пояснюю за 30 секунд, …» + the question («…чому ШІ
-  плутається з літерами», «…як рецепт борщу може вкрасти твій пароль»). The picture under it is already the topic
-  in motion. Storyboard `"countdown": true` shows a «⏱ 0:29» pill counting down the real seconds left, so the
-  video must really be ≤ 30 s.
-- **Pace:** scripts of ~330–380 characters (7 lines), voice `"voice_tempo": 1.12–1.17` (quicker, pitch kept, no
+- **Opener:** the topic first, the series promise second: «Рецепт борщу може вкрасти твій пароль. Пояснюю за 30
+  секунд.», «Детектор ШІ — не доказ, що текст писав чат. Пояснюю за 30 секунд.» The first words are the hook, so
+  they carry the surprise or the pain; the promise only confirms the format. The picture under it is already the
+  topic in motion. Storyboard `"countdown": true` shows a «⏱ 0:29» pill counting down the real seconds left, so
+  the video must really be ≤ 30 s.
+- **Topics:** the viewer's pains first (детектор ШІ, НМТ, сесія, курсова, резюме, співбесіда), explainers second.
+- **Ending:** the last line asks for a comment («А тебе детектор колись ловив? Напиши в коментарях.») and the
+  `comment` bubble shows the same question.
+- **Pace:** scripts of ~330–400 characters (7 lines), voice `"voice_tempo": 1.12–1.22` (quicker, pitch kept, no
   re-voicing); check `content_agent voice <slug>` says ≤ 30 s before rendering.
 - **Light humour:** one or two small jokes per video, about the thing, never about people: «"мол" і "око" —
   звучить як ім'я ельфа», «як груповий чат курсу: про що домовились — ніхто не пам'ятає», «борщ із секретним
   інгредієнтом». Read the joke aloud with «ШІ» said as «Ші»: «і в ШІ» sounds like «і вші».
 - **One text at a time:** `"captions": false` on kinetic scenes and on scenes whose UI shows the spoken words.
+- **The series and the way to the channel are always on screen.** These storyboard keys work in `shorts` only:
+  - `"series": "ШІ за 30 · №5"` (≤ 24 characters) shows a plaque in the accent colour right of the countdown.
+  - `"handle": "@shi_start_ua"` (≤ 24) adds a «✈ Telegram · @shi_start_ua» row under it. Scenes move down by 4 % of
+    the height to clear that row.
+  - With `countdown`, the plaque and the handle slide in once the countdown has settled, so the hook frame stays
+    clean.
+  - `"comment": "Що відповів твій чат?"` (≤ 48) pops a «💬 … 👇 напиши в коментарях» bubble over the last scene,
+    above the captions. This is the ending task that brings comments.
+- **The call to action is the channel's post, not a static card.** The `tgpost` scene shows a Telegram-like channel
+  view:
+  - props: `title` (≤ 60), `prompt` (≤ 160, a monospace tap-to-copy block), `channel` (default «ШІ на старті») and
+    `tag` (e.g. «#зролика»);
+  - on screen: the channel header with the round «Ш І» avatar, then the post;
+  - motion: the prompt types in, a fingertip taps the block (on cue 0, else at 55 %), the toast «Скопійовано в буфер
+    обміну» comes up, and the tag pulses.
+
+  Use it instead of the kinetic «у Telegram @shi_start_ua» cards, with `"cues": ["телеграм"]` so the tap lands
+  on the word, and show the prompt of the channel's post (shortened to 160 characters if needed).
 
 ## Hook (0–2 s)
 - The first frame already shows the result or the mistake, in motion, no fade-in: a CV covered in ❌, a red error,
