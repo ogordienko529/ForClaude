@@ -132,6 +132,17 @@ def sfx(name: str, sr: int = SR, seed: int = 1) -> np.ndarray:
         t = _t(n, sr)
         x = sum(a * np.sin(2 * np.pi * f * t) for f, a in ((1568, 1.0), (3136, 0.4), (4704, 0.2)))
         return _norm(x * _env(len(t), 0.002, 0.25, sr), 0.5)
+    if name == "sad":  # a fail: four descending trombone-like notes, the last one long with a wobble (own synthesis)
+        notes = ((233.1, 0.32), (220.0, 0.32), (207.7, 0.32), (196.0, 0.95))
+        parts = []
+        for i, (f, d) in enumerate(notes):
+            t = _t(d, sr)
+            vib = 1 + (0.018 * np.sin(2 * np.pi * 5.5 * t) * np.clip(t / 0.25, 0, 1) if i == 3 else 0)
+            ph = 2 * np.pi * np.cumsum(f * vib) / sr
+            x = sum(np.sin(k * ph) / k ** 1.1 for k in range(1, 9))          # a soft brassy saw
+            x = _lp(np.tanh(1.4 * x).astype(np.float32), 1600, sr)
+            parts.append(x * _env(len(t), 0.03, d * (0.35 if i < 3 else 0.6), sr))
+        return _norm(np.concatenate(parts), 0.6)
     if name == "buzz":  # a wrong answer: two short low square-ish tones
         n = 0.5
         t = _t(n, sr)
@@ -140,11 +151,12 @@ def sfx(name: str, sr: int = SR, seed: int = 1) -> np.ndarray:
     raise ValueError(f"unknown sound effect {name!r}")
 
 
-SFX_NAMES = ("boom", "whoosh", "pop", "tick", "riser", "hit", "ding", "buzz", "click", "keys")
+SFX_NAMES = ("boom", "whoosh", "pop", "tick", "riser", "hit", "ding", "buzz", "click", "keys", "sad")
 
 # The sounds the long-form renderer plays on animation events (remotion/src/motion.tsx): typing -> keys,
-# a tap or a mouse click -> click, a scene change -> whoosh, a sticker or a stamp -> pop.
-SFX_BANK = ("whoosh", "pop", "click", "keys", "ding", "buzz")
+# a tap or a mouse click -> click, a scene change -> whoosh, a sticker or a stamp -> pop; memes: boom on the
+# punchline, sad on a fail (both generated here).
+SFX_BANK = ("whoosh", "pop", "click", "keys", "ding", "buzz", "boom", "sad")
 SFX_ASSETS = __import__("pathlib").Path(__file__).parent / "assets" / "sfx"   # see assets/sfx/README.md
 SFX_VARIANTS = ("whoosh_2", "whoosh_4", "click_2", "click_3", "keys_2", "keys_3", "impact", "riser")
 

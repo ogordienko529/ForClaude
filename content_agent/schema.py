@@ -217,6 +217,19 @@ TEMPLATES: dict[str, dict[str, Any]] = {
                "tap-to-copy block; the post slides up, the prompt types in, a fingertip taps the block on cue 0 (else at "
                "55 %) with a click and the toast «Скопійовано в буфер обміну», then `tag` (e.g. «#зролика») pulses.",
     },
+    "meme": {
+        "required": {"src": str, "size": list, "texts": list},
+        "optional": {"zoom": bool, "boom": bool, "sfx": str, "fit": str},
+        "limits": {"texts": 4, "text": 60},
+        "doc": "A real meme: `src` a picture (.png/.jpg) or a short video fragment (.mp4, muted, at least as long as "
+               "the beat) in the project, e.g. memes/drake.png from the memegen templates; `size` its [width, height]; "
+               "`texts` 1-4 [{text, x, y, w, h, angle?, color?, style?: upper|none, font?: thick|thin, cue?}] with the "
+               "box as fractions of the media (memegen's anchor_x, anchor_y, scale_x, scale_y). The media sits in a "
+               "white meme panel with a slow punch-in; text i slams in on cue i (or its own `cue`), the last one with "
+               "a «boom» and a shake (`sfx`: sad, ding, buzz or pop instead). thick = white outlined Oswald, thin = dark plain text. The meme's text replaces the "
+               "captions: set \"captions\": false on the beat, and in 9:16 the panel grows into their place (`fit`: "
+               "\"band\" keeps it in the UI band, e.g. above the comment bubble on the last scene).",
+    },
     "flashcards": {
         "required": {"cards": list},
         "optional": {"title": str, "tag": str},
@@ -404,8 +417,8 @@ def validate(sb: Storyboard, max_words_per_beat: int = 45, min_words_per_beat: i
                     issues.append(Issue("warning", bid, f"cue {c!r} does not occur in the narration"))
 
         prev_templates.append(tname)
-        # different clips of a recording are different visuals, so footage may run in a row
-        if len(prev_templates) >= 3 and len(set(prev_templates[-3:])) == 1 and tname != "footage":
+        # different clips of a recording (or different memes) are different visuals, so they may run in a row
+        if len(prev_templates) >= 3 and len(set(prev_templates[-3:])) == 1 and tname not in ("footage", "meme"):
             issues.append(Issue("warning", bid, f"three {tname!r} scenes in a row: vary the visuals"))
     sb.issues = issues
     return issues
@@ -534,6 +547,8 @@ def _check_limits(bid: str, tname: str, props: dict, limits: dict) -> list[Issue
                 out.append(Issue("warning", bid, f"flashcards: «{c.get('front')}» is long for a card"))
     if tname in ("connect", "loop", "tokens", "context", "webpage"):
         out += _check_explain(bid, tname, props, limits)
+    if tname == "meme":
+        out += _check_meme(bid, props, limits)
     if tname == "tgpost":
         if not str(props.get("prompt", "")).strip():
             out.append(Issue("error", bid, "tgpost: prompt needs the text the post offers to copy"))
@@ -559,6 +574,39 @@ def _check_limits(bid: str, tname: str, props: dict, limits: dict) -> list[Issue
             if not isinstance(lat, (int, float)) or not isinstance(lon, (int, float)) or not (-90 <= lat <= 90) \
                     or not (-180 <= lon <= 180):
                 out.append(Issue("error", bid, f"{tname}: {key} needs numeric lat (-90..90) and lon (-180..180)"))
+    return out
+
+
+def _check_meme(bid: str, props: dict, limits: dict) -> list[Issue]:
+    out: list[Issue] = []
+    src = str(props.get("src", ""))
+    if src and not re.search(r"\.(png|jpe?g|webp|mp4|webm|mov)$", src, flags=re.I):
+        out.append(Issue("error", bid, f"meme: src must be a picture (.png/.jpg/.webp) or a video (.mp4/.webm/.mov): {src}"))
+    size = props.get("size")
+    if not (isinstance(size, list) and len(size) == 2 and all(isinstance(v, (int, float)) and v > 0 for v in size)):
+        out.append(Issue("error", bid, "meme: size must be [width, height] of the media in pixels"))
+    if props.get("fit") is not None and props.get("fit") not in ("band", "tall"):
+        out.append(Issue("error", bid, "meme: fit must be band or tall"))
+    if props.get("sfx") is not None and props.get("sfx") not in ("boom", "sad", "ding", "buzz", "pop"):
+        out.append(Issue("error", bid, "meme: sfx must be boom, sad, ding, buzz or pop"))
+    texts = props.get("texts")
+    if not isinstance(texts, list) or not 1 <= len(texts) <= limits["texts"]:
+        out.append(Issue("error", bid, f"meme: texts must be 1-{limits['texts']} text boxes"))
+        return out
+    for i, tx in enumerate(texts):
+        if not isinstance(tx, dict) or not str(tx.get("text", "")).strip():
+            out.append(Issue("error", bid, f"meme: texts[{i}] needs a text"))
+            continue
+        box = [tx.get(k, d) for k, d in (("x", 0), ("y", 0), ("w", 1), ("h", 0.2))]
+        if not all(isinstance(v, (int, float)) for v in box) or not (0 <= box[0] < 1 and 0 <= box[1] < 1
+                                                                       and 0 < box[2] <= 1 and 0 < box[3] <= 1):
+            out.append(Issue("error", bid, f"meme: texts[{i}] box x, y, w, h must be fractions of the media (0-1)"))
+        if tx.get("font", "thick") not in ("thick", "thin"):
+            out.append(Issue("error", bid, f"meme: texts[{i}] font must be thick or thin"))
+        if tx.get("style", "upper") not in ("upper", "none"):
+            out.append(Issue("error", bid, f"meme: texts[{i}] style must be upper or none"))
+        if len(str(tx.get("text", ""))) > limits["text"]:
+            out.append(Issue("warning", bid, f"meme: texts[{i}] is long for a meme ({len(str(tx['text']))} characters)"))
     return out
 
 

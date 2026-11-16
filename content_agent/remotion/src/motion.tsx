@@ -246,11 +246,11 @@ export const CommentSticker: React.FC<{text: string; at: number; low?: boolean}>
 };
 
 // ------------------------------------------------------------------ sound effects
-export type SfxName = 'whoosh' | 'pop' | 'click' | 'keys' | 'impact' | 'ding' | 'buzz' | 'riser';
+export type SfxName = 'whoosh' | 'pop' | 'click' | 'keys' | 'impact' | 'ding' | 'buzz' | 'riser' | 'boom' | 'sad';
 // linear gains: quiet under the voice (the voice mix keeps 3 dB of headroom for them, see `mix`)
 // recorded CC0 sounds (content_agent/assets/sfx): loudness-matched, so the gains only set their place in the mix
-const SFX_GAIN: Record<SfxName, number> = {whoosh: 0.32, pop: 0.38, click: 0.42, keys: 0.16, impact: 0.45, ding: 0.3, buzz: 0.26, riser: 0.22};
-const SFX_FRAMES: Record<SfxName, number> = {whoosh: 18, pop: 4, click: 3, keys: 90, impact: 24, ding: 16, buzz: 17, riser: 66};
+const SFX_GAIN: Record<SfxName, number> = {whoosh: 0.32, pop: 0.38, click: 0.42, keys: 0.16, impact: 0.45, ding: 0.3, buzz: 0.26, riser: 0.22, boom: 0.14, sad: 0.15}; // boom and sad are generated at full scale
+const SFX_FRAMES: Record<SfxName, number> = {whoosh: 18, pop: 4, click: 3, keys: 90, impact: 24, ding: 16, buzz: 17, riser: 66, boom: 48, sad: 58};
 // the files of each sound (content_agent/assets/sfx and variants/) with the seconds from the start of the file to
 // its sync point (the soft whoosh peaks 0.23 s in): each starts that much earlier. Events rotate through the
 // variants so a Short does not repeat one whoosh at every cut.
@@ -263,6 +263,8 @@ const SFX_FILES: Record<SfxName, Array<[string, number]>> = {
   ding: [['ding', 0.003]],
   buzz: [['buzz', 0.003]],
   riser: [['riser', 1.98]], // peaks at its end: it lands on the action
+  boom: [['boom', 0.004]], // generated (sound.py): the meme punchline hit
+  sad: [['sad', 0.03]], // generated: four falling trombone-like notes
 };
 
 /** The project folder with the sound files (timeline "sfx"), or null when sound effects are off. */

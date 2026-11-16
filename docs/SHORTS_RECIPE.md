@@ -39,6 +39,20 @@ proof. The channel's test Shorts live in `tg_content/videos/<slug>/` (voice) and
   Use it instead of the kinetic «у Telegram @shi_start_ua» cards, with `"cues": ["телеграм"]` so the tap lands
   on the word, and show the prompt of the channel's post (shortened to 160 characters if needed).
 
+## Memes (the owner's call, November 2026)
+- One meme per line, each a different well-known format, the meme's own text saying the line in a few words: «Це
+  голуб?» → «Це джерело?», «This is fine» → «Все нормально», Drake → wrong ask / right ask, Galaxy Brain → steps of
+  doing it properly, Two Buttons → the ending's dilemma. The joke carries the information, it does not replace it.
+- The `meme` scene takes a real meme picture or a short video fragment from the project's `memes/` folder: the
+  templates of the public collection github.com/jacebrowning/memegen (`templates/<key>/default.*`, its `config.yml`
+  gives the text boxes; animated ones come as GIFs: convert them to a looping mp4 with ffmpeg, at least as long as
+  the beat). The owner accepts the copyright risk of memes; if TikTok mutes or limits a video for it, redraw the
+  format instead of using the picture.
+- `"captions": false` on meme beats: the meme's text is the caption, and the panel grows into the captions' place.
+  On the last beat use `"fit": "band"` so the comment bubble has room under the meme.
+- Sounds: the last text lands with a «boom» and a shake; `"sfx": "sad"` (a falling trombone) for a fail, `"ding"`
+  for the right way.
+
 ## Hook (0–2 s)
 - The first frame already shows the result or the mistake, in motion, no fade-in: a CV covered in ❌, a red error,
   a citation stamped «FAKE». Not a title card.

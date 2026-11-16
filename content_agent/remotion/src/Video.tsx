@@ -11,6 +11,7 @@ import {Phone} from './templates/phone';
 import {Split} from './templates/split';
 import {Terminal} from './templates/terminal';
 import {TgPost} from './templates/tgpost';
+import {Meme} from './templates/meme';
 import {FactCard, Kinetic, ListCard, TitleCard} from './templates/text';
 import {STYLES, StyleContext, StyledBackground, StyledCaptions, StyledShell, styleVars} from './styles';
 import type {StyleDef} from './styles';
@@ -42,6 +43,7 @@ export const TEMPLATES: Record<string, React.FC<SceneProps>> = {
   webpage: Webpage,
   flashcards: Flashcards,
   tgpost: TgPost,
+  meme: Meme,
 };
 
 const SHORTS_SAFE: React.CSSProperties = {transform: 'scale(0.9)', transformOrigin: '0% 12%'};
