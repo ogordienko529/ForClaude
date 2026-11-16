@@ -40,9 +40,11 @@ proof. The channel's test Shorts live in `tg_content/videos/<slug>/` (voice) and
   on the word, and show the prompt of the channel's post (shortened to 160 characters if needed).
 
 ## Memes (the owner's call, November 2026)
-- One meme per line, each a different well-known format, the meme's own text saying the line in a few words: «Це
-  голуб?» → «Це джерело?», «This is fine» → «Все нормально», Drake → wrong ask / right ask, Galaxy Brain → steps of
-  doing it properly, Two Buttons → the ending's dilemma. The joke carries the information, it does not replace it.
+- Two or three memes a video, as accents: the hook, the joke in the middle, the ending. A meme on every line was
+  too much (owner, November 2026): the explanation stays on UI scenes (a 404 page, the prompt typing on a phone,
+  «погано / добре»). Each meme a different well-known format whose own text says the line in a few words: «Це
+  голуб?» → «Це джерело?», «This is fine» → «Все нормально», Two Buttons → the ending's dilemma (Drake and Galaxy
+  Brain also work for wrong / right and for steps).
 - The `meme` scene takes a real meme picture or a short video fragment from the project's `memes/` folder: the
   templates of the public collection github.com/jacebrowning/memegen (`templates/<key>/default.*`, its `config.yml`
   gives the text boxes; animated ones come as GIFs: convert them to a looping mp4 with ffmpeg, at least as long as
