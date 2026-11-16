@@ -1,6 +1,7 @@
 ---
 rubric: prompt
 date: 2026-11-23
+video: v17-sources.mp4
 ---
 <b>ШІ вигадує джерела: перевір за 5 хвилин</b>
 
