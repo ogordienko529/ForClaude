@@ -1,6 +1,7 @@
 ---
 rubric: prompt
 date: 2026-11-25
+video: v19-formulas.mp4
 ---
 <b>ШІ напише формулу для Google Таблиць чи Excel</b>
 
