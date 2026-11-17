@@ -1,6 +1,7 @@
 # Public data of one YouTube channel for a content audit (titles, thumbnails, lengths, views, descriptions,
 # English captions), read with yt-dlp, no key needed; with the repository secret YOUTUBE_API_KEY it also runs
-# `python -m niche_core channel` (comments, upload rhythm, outliers). Results go to the yt-audit branch
+# `python -m niche_core channel` (comments, upload rhythm, outliers); `search` adds a niche search (yt_search.py).
+# Results go to the yt-audit branch
 # (audit/<handle>/), one commit, overwritten each run. Run by hand: Actions > YouTube channel audit > Run workflow.
 name: YouTube channel audit
 
@@ -13,6 +14,9 @@ on:
       details:
         description: "How many of the newest videos to read in full (plus the 6 most viewed)"
         default: "14"
+      search:
+        description: "Optional niche search: queries separated by ';' (top and newest results, with channel sizes)"
+        default: ""
 
 permissions:
   contents: write
@@ -50,6 +54,14 @@ jobs:
             echo "no YOUTUBE_API_KEY secret: comments and upload rhythm skipped" >> "audit/$slug/errors.txt"
           fi
           cat "audit/$slug/errors.txt" || true
+
+      - name: Search the niche
+        if: inputs.search != ''
+        env:
+          SEARCH: ${{ inputs.search }}
+        run: |
+          IFS=';' read -ra Q <<< "$SEARCH"
+          python .github/scripts/yt_search.py "audit/$slug/search.json" "${Q[@]}"
 
       - name: Save to the yt-audit branch
         if: always() && env.slug != ''
