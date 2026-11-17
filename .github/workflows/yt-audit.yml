@@ -1,0 +1,68 @@
+# Public data of one YouTube channel for a content audit (titles, thumbnails, lengths, views, descriptions,
+# English captions), read with yt-dlp, no key needed; with the repository secret YOUTUBE_API_KEY it also runs
+# `python -m niche_core channel` (comments, upload rhythm, outliers). Results go to the yt-audit branch
+# (audit/<handle>/), one commit, overwritten each run. Run by hand: Actions > YouTube channel audit > Run workflow.
+name: YouTube channel audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "Channel @handle"
+        default: "@smallhoursdoc"
+      details:
+        description: "How many of the newest videos to read in full (plus the 6 most viewed)"
+        default: "14"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: yt-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CHANNEL: ${{ inputs.channel }}
+      YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -q "yt-dlp>=2025.1" pillow && pip install -q -e .
+
+      - name: Read the channel
+        run: |
+          slug="${CHANNEL#@}"
+          echo "slug=$slug" >> "$GITHUB_ENV"
+          python .github/scripts/yt_audit.py "$CHANNEL" "audit/$slug" --details "${{ inputs.details }}"
+          if [ -n "$YOUTUBE_API_KEY" ]; then
+            python -m niche_core channel "$CHANNEL" --videos 60 --comment-videos 12 --json --yes > "audit/$slug/api.json" \
+              || echo "niche_core channel failed" >> "audit/$slug/errors.txt"
+          else
+            echo "no YOUTUBE_API_KEY secret: comments and upload rhythm skipped" >> "audit/$slug/errors.txt"
+          fi
+          cat "audit/$slug/errors.txt" || true
+
+      - name: Save to the yt-audit branch
+        if: always() && env.slug != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [ -d audit ] || exit 0
+          dir="$(mktemp -d)"
+          cp -r audit "$dir/"
+          cd "$dir"
+          git init -q
+          git config user.name "yt-audit"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add audit
+          git commit -q -m "audit $CHANNEL $(date -u +%F)"
+          git push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:refs/heads/yt-audit
