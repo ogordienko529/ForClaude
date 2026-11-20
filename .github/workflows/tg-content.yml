@@ -5,8 +5,9 @@
 name: Telegram channel writer
 
 on:
-  schedule:
-    - cron: "17 5 * * *"
+  # Paused by the owner on 20.11.2026 together with the channel bot. To resume, put back:
+  # schedule:
+  #   - cron: "17 5 * * *"
   workflow_dispatch:
     inputs:
       force:

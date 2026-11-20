@@ -8,8 +8,9 @@
 name: Telegram channel bot
 
 on:
-  schedule:
-    - cron: "4,19,34,49 * * * *"   # off the busy :00/:15 minutes, which GitHub delays or drops
+  # Paused by the owner on 20.11.2026: no scheduled runs, so nothing is posted. To resume, put back:
+  # schedule:
+  #   - cron: "4,19,34,49 * * * *"   # off the busy :00/:15 minutes, which GitHub delays or drops
   workflow_dispatch:
     inputs:
       burst:
